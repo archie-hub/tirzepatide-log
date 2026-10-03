@@ -46,6 +46,24 @@ test('hovering the chart shows a tooltip', async ({ page }) => {
   await expect(page.locator('#tip')).not.toBeEmpty();
 });
 
+test('short date ranges do not repeat x-axis labels', async ({ page }) => {
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill('Date,Dosage (mg),Weight (lbs)\n2026-10-01,2.5,208\n2026-10-03,2.5,205');
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await expect(page.locator('#importDlg')).toBeHidden();
+
+  // Date labels sit on the bottom row of the chart; y-axis and dose labels are elsewhere.
+  const labels = await page.locator('#chart svg[role="img"]').evaluate((svg) => {
+    const texts = [...svg.querySelectorAll('text')];
+    const bottom = Math.max(...texts.map((t) => +t.getAttribute('y')));
+    return texts.filter((t) => +t.getAttribute('y') === bottom).map((t) => t.textContent);
+  });
+  expect(labels.length).toBe(3);
+  expect(new Set(labels).size).toBe(labels.length);
+});
+
 test('doctor report preview renders and CSV/image export trigger downloads', async ({ page }) => {
   await importSample(page);
 
