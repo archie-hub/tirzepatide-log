@@ -958,9 +958,22 @@
     if (!o.print) g += '<line id="xh" y1="' + T + '" y2="' + (H - B) + '" stroke="' + C.muted + '" stroke-dasharray="3 4" style="display:none"/>' +
          '<circle id="xc" r="6.5" fill="' + C.panel + '" stroke="' + lc + '" stroke-width="3" style="display:none"/>';
 
-    var svg = '<svg' + (o.print ? ' xmlns="http://www.w3.org/2000/svg" class="psvg" width="' + W + '" height="' + H + '"' : '') +
-      ' viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(m.label) + ' over time">' + g + '</svg>';
-    return { svg: svg, shown: shown, pts: pts, xs: pts.map(function (p) { return X(p.e.date); }), Y: Y, W: W, H: H, single: single, m: m };
+    // Print/PNG charts carry their own dose key underneath, since they leave the page
+    var fullH = H, doses = Object.keys(shown).map(Number).sort(function (a, b) { return a - b; });
+    if (o.print && doses.length) {
+      fullH = H + 26;
+      var kx = L;
+      doses.forEach(function (d) {
+        var c = doseColor(d), label = d + ' mg', kw = label.length * 7 + 20;
+        g += '<rect x="' + kx + '" y="' + (H + 2) + '" width="' + kw + '" height="20" rx="10" fill="' + c + '" fill-opacity="0.16" stroke="' + c + '" stroke-opacity="0.5"/>' +
+          '<text x="' + (kx + kw / 2) + '" y="' + (H + 16) + '" text-anchor="middle" style="fill:' + c + ';font-weight:700">' + label + '</text>';
+        kx += kw + 8;
+      });
+      g += '<text x="' + (kx + 4) + '" y="' + (H + 16) + '">Dose in effect (shaded bands)</text>';
+    }
+    var svg = '<svg' + (o.print ? ' xmlns="http://www.w3.org/2000/svg" class="psvg" width="' + W + '" height="' + fullH + '"' : '') +
+      ' viewBox="0 0 ' + W + ' ' + fullH + '" role="img" aria-label="' + esc(m.label) + ' over time">' + g + '</svg>';
+    return { svg: svg, shown: shown, pts: pts, xs: pts.map(function (p) { return X(p.e.date); }), Y: Y, W: W, H: fullH, single: single, m: m };
   }
 
   function renderChart() {
@@ -1464,7 +1477,7 @@
       var res = buildChart(pr[0], { from: w.from, to: w.to, print: true, title: METRICS[pr[0]].label + ', ' + period });
       if (!res) return;
       charts.push({ key: pr[0], svg: res.svg, w: res.W, h: res.H });
-      h += '<section>' + res.svg + '<div class="rep-cap">Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.' +
+      h += '<section>' + res.svg + '<div class="rep-cap">Dots are daily values. The line is the trailing 7-day average.' +
         (pr[0] === 'sugar' ? ' Dot colours show the fasting range: green below 100, amber 100 to 125, red 126 and above.' : '') + '</div></section>';
       if (pr[0] === 'sugar') { h += '<section>' + ranges + '</section>'; ranges = ''; }
     });
