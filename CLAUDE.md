@@ -1,6 +1,6 @@
 # Tirzepatide Log: project context
 
-Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. No build step, no dependencies, no network calls. Must keep working when opened straight from disk (`file://`) and when hosted statically (GitHub Pages, S3 + CloudFront).
+Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. No build step, no dependencies. The only network call is a same-origin fetch of `AJC_DATA.csv` when hosted and the browser log is empty (`loadHostedData()`). Must keep working when opened straight from disk (`file://`) and when hosted statically (GitHub Pages, S3 + CloudFront).
 
 ## What it does
 - Logs date, dose (mg), weight (lbs), comments, calories, food notes, blood sugar (mg/dL).

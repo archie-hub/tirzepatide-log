@@ -1295,8 +1295,28 @@
     });
   }
 
+  /* ---------- hosted data file ---------- */
+  // When hosted, an empty browser log is filled from AJC_DATA.csv next to index.html (if present).
+  // Browsers that already have entries keep them.
+  function loadHostedData() {
+    if (entries.length || location.protocol === 'file:' || !window.fetch) return;
+    fetch('AJC_DATA.csv', { cache: 'no-cache' }).then(function (r) {
+      return r.ok ? r.text() : null;
+    }).then(function (text) {
+      if (!text || entries.length) return;
+      loadText(text);
+      if (!pending || mapping.date < 0) return;
+      var c = convertRows();
+      if (!c.list.length) return;
+      entries = c.list;
+      save(); render(); resetForm();
+      say('Loaded ' + c.list.length + ' entries from AJC_DATA.csv.');
+    }).catch(function () {});
+  }
+
   resetForm();
   render();
+  loadHostedData();
 })();
 </script>
 </body>
