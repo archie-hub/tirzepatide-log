@@ -28,7 +28,7 @@ Only `Date` is required. Dates may be `YYYY-MM-DD`, `MM/DD/YYYY` or `DD/MM/YYYY`
 
 ## Privacy
 
-Each visitor's data lives only in their own browser. Do not commit real health data to this repository; `.gitignore` excludes `*.csv` except the fake sample.
+Each visitor's data lives only in their own browser; nothing is uploaded anywhere. `.gitignore` excludes `*.csv` by default, except `sample-data/` (fake) and `AJC_DATA.csv`, which the maintainer has chosen to commit and keep public — anything committed to this public repo, including that file, is publicly downloadable. If you fork or host your own copy, you likely want to keep your own real data out of the repository.
 
 ## Install on your phone
 
