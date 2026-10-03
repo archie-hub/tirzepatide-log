@@ -1,7 +1,7 @@
 {
   "name": "Tirzepatide Log",
   "short_name": "Tirz Log",
-  "description": "Track tirzepatide dose, weight, food and blood sugar. Your data stays on your device.",
+  "description": "Track tirzepatide dose, weight, food and glucose. Your data stays on your device.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

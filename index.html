@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tirzepatide Log</title>
-<meta name="description" content="Track tirzepatide dose, weight, food and blood sugar with charts, goal tracking and a doctor-ready report. Your data stays in your browser.">
+<meta name="description" content="Track tirzepatide dose, weight, food and glucose with charts, goal tracking and a doctor-ready report. Your data stays in your browser.">
 <meta name="theme-color" content="#0d9488">
 <link rel="canonical" href="https://archie-hub.github.io/tirzepatide-log/">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230d9488'/%3E%3Cstop offset='.52' stop-color='%232563eb'/%3E%3Cstop offset='1' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpolyline points='12,20 24,30 33,26 52,44' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='52' cy='44' r='5.5' fill='%23fff'/%3E%3C/svg%3E">
@@ -15,7 +15,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://archie-hub.github.io/tirzepatide-log/">
 <meta property="og:title" content="Tirzepatide Log">
-<meta property="og:description" content="Track dose, weight, food and blood sugar. Charts, goal tracking and a doctor-ready report. Your data stays in your browser.">
+<meta property="og:description" content="Track dose, weight, food and glucose. Charts, goal tracking and a doctor-ready report. Your data stays in your browser.">
 <meta property="og:image" content="https://archie-hub.github.io/tirzepatide-log/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -334,7 +334,7 @@
     <div class="chart-top">
       <div class="tabs" role="tablist" aria-label="Chart metric">
         <button class="tab" role="tab" id="tab-weight" data-metric="weight" aria-selected="true" aria-controls="chart" tabindex="0">Weight</button>
-        <button class="tab" role="tab" id="tab-sugar" data-metric="sugar" aria-selected="false" aria-controls="chart" tabindex="-1">Blood sugar</button>
+        <button class="tab" role="tab" id="tab-sugar" data-metric="sugar" aria-selected="false" aria-controls="chart" tabindex="-1">Glucose</button>
         <button class="tab" role="tab" id="tab-cal" data-metric="cal" aria-selected="false" aria-controls="chart" tabindex="-1">Calories</button>
       </div>
       <div class="seg" id="range" role="group" aria-label="Date range">
@@ -387,7 +387,7 @@
         <thead>
           <tr>
             <th>Date</th><th class="num">Dose (mg)</th><th class="num">Weight (lbs)</th><th class="num">Change</th>
-            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Blood sugar</th><th></th>
+            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th></th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -493,7 +493,7 @@
   </div>
   <div class="checks" role="group" aria-label="Include in report">
     <label class="radio"><input type="checkbox" id="rcWeight" checked> <span>Weight chart</span></label>
-    <label class="radio"><input type="checkbox" id="rcSugar" checked> <span>Blood sugar chart</span></label>
+    <label class="radio"><input type="checkbox" id="rcSugar" checked> <span>Glucose chart</span></label>
     <label class="radio"><input type="checkbox" id="rcCal" checked> <span>Calories chart</span></label>
     <label class="radio"><input type="checkbox" id="rcDose" checked> <span>Dose schedule table</span></label>
     <label class="radio"><input type="checkbox" id="rcComments" checked> <span>Comments and side effects</span></label>
@@ -664,7 +664,7 @@
     var s = sorted();
     $('subtitle').textContent = s.length
       ? s.length + ' entries, ' + fmtDate(s[0].date) + ' to ' + fmtDate(s[s.length - 1].date)
-      : 'Track dose, weight, food and blood sugar. Your data stays in this browser.';
+      : 'Track dose, weight, food and glucose. Your data stays in this browser.';
   }
 
   /* ---------- stats ---------- */
@@ -886,7 +886,7 @@
 
     var W = 900, H = o.print ? 300 : 320, L = 48, R = 16, T = o.title ? 32 : 14, B = 34, gid = 'ag' + (++chartSeq);
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
-    // Blood sugar dots carry the range colours, so its average line stays neutral
+    // Glucose dots carry the range colours, so its average line stays neutral
     var lc = m.key === 'sugar' ? '#64748b' : m.color;
     var vals = []; pts.forEach(function (p) { vals.push(p.v, p.a); });
     if (m.key === 'sugar') vals.push(100);   // always show the prediabetes threshold
@@ -1181,7 +1181,7 @@
     { k: 'site', label: 'Injection site', words: ['site', 'inject'] },
     { k: 'food', label: 'Food notes', words: ['food', 'meal', 'ate'] },
     { k: 'comments', label: 'Comments', words: ['comment', 'journal', 'note'] },
-    { k: 'sugar', label: 'Blood sugar (mg/dL)', words: ['blood', 'sugar', 'glucose'] }
+    { k: 'sugar', label: 'Glucose (mg/dL)', words: ['blood', 'sugar', 'glucose'] }
   ];
   var pending = null, mapping = {};
   var dlg = $('importDlg');
@@ -1281,7 +1281,7 @@
     if (c.skipped) info += '; ' + c.skipped + ' rows skipped (date not readable, check Date format)';
     if (c.dupes) info += '; ' + c.dupes + ' duplicate dates collapsed';
     $('previewInfo').textContent = info + '.';
-    $('prevHead').innerHTML = '<tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (lbs)</th><th class="num">Calories</th><th class="num">Blood sugar</th></tr>';
+    $('prevHead').innerHTML = '<tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (lbs)</th><th class="num">Calories</th><th class="num">Glucose</th></tr>';
     function v(x) { return x === null ? '—' : x; }
     $('prevBody').innerHTML = c.list.slice(0, 5).map(function (e) {
       return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + v(e.dose) + '</td><td class="num">' + v(e.weight) +
@@ -1471,7 +1471,7 @@
     if (ranges) h += '<section>' + ranges + '</section>';   // sugar chart not selected
 
     if ($('rcDose').checked && segs.length) {
-      h += '<h2>Dose schedule</h2><table><thead><tr><th>Dose</th><th>From</th><th>To</th><th class="num">Weeks</th><th class="num">Weight change</th><th class="num">Per week</th><th class="num">Avg calories</th><th class="num">Avg blood sugar</th></tr></thead><tbody>';
+      h += '<h2>Dose schedule</h2><table><thead><tr><th>Dose</th><th>From</th><th>To</th><th class="num">Weeks</th><th class="num">Weight change</th><th class="num">Per week</th><th class="num">Avg calories</th><th class="num">Avg glucose</th></tr></thead><tbody>';
       tl.push('', 'Dose schedule:');
       segs.forEach(function (sg) {
         var it = sg.items, a = it[0].date, b = it[it.length - 1].date;
@@ -1497,7 +1497,7 @@
     }
     if ($('rcFull').checked) {
       function v(x) { return x === null ? '\u2014' : esc(x); }
-      h += '<h2>Daily log (' + list.length + ' entries)</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight</th><th class="num">Calories</th><th>Food notes</th><th class="num">Blood sugar</th><th>Site</th></tr></thead><tbody>' +
+      h += '<h2>Daily log (' + list.length + ' entries)</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th>Site</th></tr></thead><tbody>' +
         list.slice().reverse().map(function (e) {
           return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + v(e.dose) + '</td><td class="num">' + v(e.weight) + '</td><td class="num">' + v(e.cal) + '</td><td>' + (e.food ? esc(e.food) : '\u2014') + '</td><td class="num">' + (e.sugar === null ? '\u2014' : sugarText(e.sugar, '')) + '</td><td>' + (e.site ? esc(e.site) : '\u2014') + '</td></tr>';
         }).join('') + '</tbody></table>';

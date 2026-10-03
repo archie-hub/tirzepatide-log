@@ -1,6 +1,6 @@
 # Tirzepatide Log
 
-A single-file web page for tracking tirzepatide dose, weight, calories, food notes and blood sugar, with charts and a printable report for your doctor.
+A single-file web page for tracking tirzepatide dose, weight, calories, food notes and glucose, with charts and a printable report for your doctor.
 
 **Live:** https://archie-hub.github.io/tirzepatide-log/
 

@@ -107,7 +107,7 @@ test('doctor report shows fasting glucose ranges', async ({ page }) => {
     ['Diabetes range', '126 and above', '1', '25%'],
   ]);
 
-  // Still shown when the blood sugar chart is left out of the report.
+  // Still shown when the glucose chart is left out of the report.
   await page.locator('#rcSugar').uncheck();
   await expect(page.locator('#reportPreview h2', { hasText: 'Fasting glucose ranges' })).toHaveCount(1);
 });

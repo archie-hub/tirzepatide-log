@@ -3,10 +3,10 @@
 Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live at https://archie-hub.github.io/tirzepatide-log/. Optional PWA files beside it: `manifest.webmanifest`, `sw.js` (network-first cache), `icons/`, `og-image.png` (link preview); `index.html` only loads the manifest/service worker over http(s). No build step, no dependencies. The only network call is a same-origin fetch of `AJC_DATA.csv` when hosted and the browser log is empty (`loadHostedData()`). Must keep working when opened straight from disk (`file://`) and when hosted statically (GitHub Pages, S3 + CloudFront). `package.json`/`tests/` are dev-only tooling (Playwright smoke tests via `npm test`) and don't affect the app's zero-dependency runtime.
 
 ## What it does
-- Logs date, dose (mg), weight (lbs), comments, calories, food notes, blood sugar (mg/dL), injection site.
+- Logs date, dose (mg), weight (lbs), comments, calories, food notes, glucose (mg/dL), injection site.
 - Plan cards: next dose (weekday from settings, else last logged site date, else current dose start); goal ring with projection (28-day least-squares slope); backup status.
 - "Results by dose" panel: lbs/week per dose segment (also in the doctor report).
-- Stats cards, tabbed charts (weight / blood sugar / calories) with dose bands, 7-day average line, hover tooltip, range switch (All, 6 mo, 3 mo, 30 d).
+- Stats cards, tabbed charts (weight / glucose / calories) with dose bands, 7-day average line, hover tooltip, range switch (All, 6 mo, 3 mo, 30 d).
 - Entry table with edit/delete and dose-colored rows. Shows the latest 30 entries until "Show all".
 - Import wizard: file, drag and drop, or pasted CSV; auto-matches columns, handles `MM/DD/YYYY` vs `DD/MM/YYYY`, converts kg to lbs, merge or replace by date.
 - Export CSV in the exact 8-column format below.
@@ -25,8 +25,8 @@ storage and helpers, CSV parse/serialize, `buildChart()` (used for both the live
 
 ## Design decisions
 - Dose colors: 2.5 blue, 5 green, 7.5 yellow, 10 orange, 12.5 pink, 15 violet (`doseColor()`).
-- Metric colors: weight teal `#0ea5a4`, blood sugar orange `#f97316`, calories violet `#8b5cf6`.
-- Blood sugar readings are always fasting. Values are coloured by ADA fasting range (`sugarZone()`): below 100 green `#16a34a`, 100-125 prediabetes amber `#d97706`, 126+ diabetes red `#dc2626` (rounded value decides). Applied to the stat card, entries table, chart dots (with dashed 100/126 threshold lines; the sugar 7-day line is neutral slate so it isn't confused with amber), tooltip, and doctor report.
+- Metric colors: weight teal `#0ea5a4`, glucose orange `#f97316`, calories violet `#8b5cf6`.
+- Glucose readings are always fasting. Values are coloured by ADA fasting range (`sugarZone()`): below 100 green `#16a34a`, 100-125 prediabetes amber `#d97706`, 126+ diabetes red `#dc2626` (rounded value decides). Applied to the stat card, entries table, chart dots (with dashed 100/126 threshold lines; the sugar 7-day line is neutral slate so it isn't confused with amber), tooltip, and doctor report.
 - Light and dark mode via CSS variables; `prefers-reduced-motion` respected. Report content is always light (print-safe).
 - No external fonts or scripts, so it works offline.
 
