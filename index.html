@@ -761,6 +761,7 @@
   function render() {
     var empty = entries.length === 0;
     $('emptyPanel').hidden = !empty;
+    $('openImport').hidden = empty;
     $('stats').hidden = empty;
     $('chartPanel').hidden = empty;
     $('entriesPanel').hidden = empty;
