@@ -884,7 +884,7 @@
     var single = pts.length === 1;
     var t0 = pts[0].e.date, tN = pts[pts.length - 1].e.date, span = Math.max(dayDiff(t0, tN), 1);
 
-    var W = 900, H = o.print ? 300 : 320, L = 48, R = 16, T = 32, B = 34, gid = 'ag' + (++chartSeq);
+    var W = 900, H = o.print ? 300 : 320, L = 48, R = 16, T = o.title ? 32 : 14, B = 34, gid = 'ag' + (++chartSeq);
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
     // Blood sugar dots carry the range colours, so its average line stays neutral
     var lc = m.key === 'sugar' ? '#64748b' : m.color;
@@ -913,7 +913,6 @@
       var c = doseColor(sg.dose);
       shown[sg.dose] = true;
       bands += '<rect x="' + x1.toFixed(1) + '" y="' + T + '" width="' + (x2 - x1).toFixed(1) + '" height="' + (H - T - B) + '" fill="' + c + '" opacity="0.13"/>';
-      if (x2 - x1 > 46) bands += '<text x="' + (x1 + 6).toFixed(1) + '" y="' + (T - 9) + '" style="fill:' + c + ';font-weight:700">' + sg.dose + ' mg</text>';
     });
 
     var g = (o.print ? '<style>.psvg text{fill:#5a6b7c;font:11px "Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif}</style>' : '') +

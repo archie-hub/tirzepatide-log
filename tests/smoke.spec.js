@@ -112,13 +112,14 @@ test('doctor report shows fasting blood sugar ranges', async ({ page }) => {
   await expect(page.locator('#reportPreview h2', { hasText: 'Fasting blood sugar ranges' })).toHaveCount(1);
 });
 
-test('dose bands have no solid strip along the top of the chart', async ({ page }) => {
+test('dose bands are a plain tint: no strip or dose text in the chart', async ({ page }) => {
   await importSample(page);
   const strips = await page.locator('#chart svg[role="img"] rect[height="3"]').count();
   expect(strips).toBe(0);
-  // The dose label above each band stays.
   const labels = await page.locator('#chart svg[role="img"] text').allTextContents();
-  expect(labels).toContain('2.5 mg');
+  expect(labels.filter((t) => / mg$/.test(t))).toEqual([]);
+  // The dose key under the chart stays.
+  await expect(page.locator('#legend .chip', { hasText: /^2\.5 mg$/ })).toHaveCount(1);
 });
 
 test('doctor report preview renders and CSV/image export trigger downloads', async ({ page }) => {
