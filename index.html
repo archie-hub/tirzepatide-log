@@ -1000,8 +1000,8 @@
         '<td class="num">' + (e.cal === null ? '<span class="dim">\u2014</span>' : '<div class="calcell"><i style="width:' + pct + '%"></i><span>' + e.cal + '</span></div>') + '</td>' +
         '<td class="food">' + (e.food ? esc(e.food) : '<span class="dim">\u2014</span>') + '</td>' +
         '<td class="num">' + c(e.sugar) + '</td>' +
-        '<td style="white-space:nowrap"><button class="small" data-edit="' + esc(e.date) + '">Edit</button> ' +
-        '<button class="small danger" data-del="' + esc(e.date) + '">Delete</button></td>' +
+        '<td style="white-space:nowrap"><button class="small" data-edit="' + esc(e.date) + '" aria-label="Edit entry for ' + esc(fmtDate(e.date)) + '">Edit</button> ' +
+        '<button class="small danger" data-del="' + esc(e.date) + '" aria-label="Delete entry for ' + esc(fmtDate(e.date)) + '">Delete</button></td>' +
         '</tr>';
     }).join('');
   }
