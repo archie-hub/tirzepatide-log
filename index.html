@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tirzepatide Log</title>
+<style>
+  :root {
+    --bg: #eef6f6; --panel: #ffffff; --ink: #12202e; --muted: #5a6b7c; --line: #dbe4ec;
+    --accent: #0ea5a4; --accent-ink: #ffffff; --warn: #c2570c; --danger: #c0352b;
+    --good: #059669; --bad: #ea580c;
+    --radius: 8px; --card: 16px;
+    --shadow: 0 1px 2px rgba(15,23,42,.06), 0 10px 28px rgba(15,23,42,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a111c; --panel: #131d2d; --ink: #e8eef7; --muted: #94a5ba; --line: rgba(255,255,255,.11);
+      --accent: #2dd4bf; --accent-ink: #052b28; --warn: #fbbf24; --danger: #ff8a80;
+      --good: #34d399; --bad: #fb923c;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; padding: 20px 16px 72px; color: var(--ink); min-height: 100vh;
+    font: 15px/1.5 "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(900px 420px at 8% -5%, color-mix(in srgb, #0ea5a4 20%, transparent), transparent 70%),
+      radial-gradient(800px 420px at 95% 5%, color-mix(in srgb, #8b5cf6 18%, transparent), transparent 70%),
+      radial-gradient(700px 500px at 60% 100%, color-mix(in srgb, #f97316 12%, transparent), transparent 70%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+  main { max-width: 1060px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  main > * { min-width: 0; }
+  h1 { margin: 0; font-size: 28px; letter-spacing: -0.015em; line-height: 1.15; }
+  h2 { margin: 0 0 12px; font-size: 16px; }
+  h3 { margin: 18px 0 8px; font-size: 15px; }
+
+  .hero {
+    position: relative; overflow: hidden; display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+    justify-content: space-between; padding: 22px 22px; border-radius: var(--card); color: #fff;
+    background: linear-gradient(115deg, #0d9488 0%, #2563eb 52%, #7c3aed 100%);
+    box-shadow: var(--shadow);
+  }
+  .hero::after {
+    content: ""; position: absolute; right: -60px; top: -90px; width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.28), rgba(255,255,255,0) 70%); pointer-events: none;
+  }
+  .hero > * { position: relative; z-index: 1; }
+  .hero .sub { margin-top: 4px; font-size: 14px; color: rgba(255,255,255,.85); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .hero button { background: rgba(255,255,255,.15); color: #fff; border-color: rgba(255,255,255,.45); }
+  .hero button:hover { background: rgba(255,255,255,.28); border-color: #fff; }
+  .hero button.primary { background: #fff; color: #0b3b6b; border-color: #fff; }
+  .hero button.primary:hover { background: #eef6ff; }
+  .hero button.danger { color: #fff; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--card); padding: 18px; box-shadow: var(--shadow); }
+
+  button, .btn {
+    font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    padding: 7px 13px; border-radius: var(--radius); transition: transform .12s ease, border-color .12s ease, background .12s ease;
+  }
+  button:hover { border-color: var(--accent); }
+  button:active { transform: scale(.97); }
+  button.primary { background: linear-gradient(110deg, #0d9488, #2563eb); color: #fff; border-color: transparent; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.danger { color: var(--danger); }
+  button.small { padding: 3px 9px; font-size: 13px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .stat {
+    --c: var(--accent); color: var(--c); position: relative; overflow: hidden;
+    padding: 14px 16px 13px; border-radius: 14px; border: 1px solid var(--line);
+    background: var(--panel); box-shadow: var(--shadow); transition: transform .15s ease;
+  }
+  @supports (background: color-mix(in srgb, red 10%, blue)) {
+    .stat {
+      border-color: color-mix(in srgb, var(--c) 32%, var(--line));
+      background: linear-gradient(145deg, color-mix(in srgb, var(--c) 17%, var(--panel)) 0%, var(--panel) 72%);
+    }
+  }
+  .stat:hover { transform: translateY(-2px); }
+  .stat .l { color: var(--muted); font-size: 13px; }
+  .stat .v { font-size: 30px; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 2px; }
+  .stat .sub { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+  .stat svg.spark { position: absolute; right: 12px; bottom: 12px; width: 78px; height: 28px; opacity: .95; }
+
+  .chart-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tab { --c: var(--accent); border-radius: 999px; padding: 6px 15px; color: var(--muted); }
+  .tab:hover { color: var(--ink); border-color: var(--c); }
+  .tab[aria-selected="true"] { background: var(--c); border-color: var(--c); color: #fff; font-weight: 600; }
+  @supports (background: color-mix(in srgb, red 10%, blue)) {
+    .tab[aria-selected="true"] { box-shadow: 0 5px 14px color-mix(in srgb, var(--c) 42%, transparent); }
+  }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 12px; font-size: 13px; color: var(--muted); background: transparent; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); font-weight: 600; }
+
+  #chart { position: relative; }
+  svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+  svg text { fill: var(--muted); font-size: 11px; font-family: inherit; }
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1s ease-out .05s forwards; }
+  .fade { opacity: 0; animation: fade .9s ease-out .25s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes fade { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .draw { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+    .fade { animation: none; opacity: 1; }
+    .stat, button { transition: none; }
+  }
+  .tip {
+    position: absolute; top: 4px; left: 0; pointer-events: none; z-index: 2; max-width: 250px;
+    background: var(--ink); color: var(--panel); padding: 8px 11px; border-radius: 10px;
+    font-size: 12.5px; line-height: 1.45; box-shadow: 0 8px 22px rgba(0,0,0,.3); opacity: 0; transition: opacity .12s;
+  }
+  .tip.on { opacity: 1; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 13px; }
+  .empty { color: var(--muted); padding: 24px 0; text-align: center; }
+
+  .chip {
+    --c: var(--accent); display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 650;
+    color: var(--c); border: 1px solid var(--c); background: transparent; font-variant-numeric: tabular-nums;
+  }
+  @supports (background: color-mix(in srgb, red 10%, blue)) {
+    .chip { background: color-mix(in srgb, var(--c) 16%, transparent); border-color: color-mix(in srgb, var(--c) 45%, transparent); }
+  }
+  .delta { font-weight: 650; }
+  .delta.down { color: var(--good); }
+  .delta.up { color: var(--bad); }
+
+  select, input, textarea {
+    font: inherit; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 7px 9px; width: 100%;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--accent); }
+  form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .wide { grid-column: 1 / -1; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  textarea { min-height: 64px; resize: vertical; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 13px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.num, th.num { text-align: right; }
+  td.notes { min-width: 170px; white-space: pre-wrap; }
+  td.dim, .dim { color: var(--muted); }
+  tbody tr { --c: var(--accent); }
+  tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--c); padding-left: 14px; white-space: nowrap; }
+  tbody tr:hover td { background: color-mix(in srgb, var(--c) 8%, transparent); }
+  td.food { min-width: 130px; }
+  .calcell { position: relative; width: 84px; margin-left: auto; padding: 1px 7px; text-align: right; }
+  .calcell i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: rgba(139,92,246,.4); }
+  @supports (background: color-mix(in srgb, red 10%, blue)) { .calcell i { background: color-mix(in srgb, #8b5cf6 30%, transparent); } }
+  .calcell span { position: relative; }
+
+  #msg { color: var(--muted); font-size: 13px; min-height: 0; }
+  #msg:not(:empty) {
+    color: var(--ink); padding: 9px 14px; border-radius: 12px; border: 1px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 13%, var(--panel));
+  }
+
+  dialog { border: 1px solid var(--line); border-radius: var(--card); background: var(--panel); color: var(--ink);
+    width: calc(100% - 32px); max-width: 760px; max-height: calc(100vh - 32px); padding: 18px; overflow: auto; box-shadow: var(--shadow); }
+  dialog::backdrop { background: rgba(8,15,28,.55); backdrop-filter: blur(2px); }
+  .dlg-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .dlg-head h2 { margin: 0; }
+  .drop { border: 2px dashed var(--line); border-radius: 14px; padding: 22px; text-align: center; color: var(--muted); transition: border-color .15s, background .15s; }
+  .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .drop .actions { justify-content: center; margin-top: 10px; }
+  .map-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 12px; }
+  .radio { display: flex; gap: 8px; align-items: flex-start; color: var(--ink); font-size: 14px; }
+  .radio input { width: auto; margin-top: 4px; }
+  .err { color: var(--danger); font-size: 14px; min-height: 1.2em; margin-top: 8px; }
+  .note { color: var(--muted); font-size: 13px; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); }
+  .preview td, .preview th { padding: 5px 8px; font-size: 13px; }
+  .preview tbody tr td:first-child { box-shadow: none; padding-left: 8px; }
+  /* ---- doctor report ---- */
+  #reportDlg { max-width: 980px; }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 14px; margin-top: 12px; }
+  #reportPreview { margin-top: 16px; overflow-x: auto; }
+  #printArea { display: none; }
+  .rep {
+    --ink: #12202e; --muted: #5a6b7c; --line: #dbe4ec; --panel: #ffffff; --bg: #ffffff; --accent: #0ea5a4; --good: #059669; --bad: #ea580c;
+    background: #fff; color: #12202e; padding: 24px; border-radius: 10px; border: 1px solid #dbe4ec; font-size: 13.5px; line-height: 1.45;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; text-align: left;
+  }
+  .rep h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .rep h2 { font-size: 15px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #0ea5a4; }
+  .rep p { margin: 6px 0; }
+  .rep-meta { color: #5a6b7c; font-size: 13px; }
+  .rep-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 16px; }
+  .rep-box { border: 1px solid #dbe4ec; border-left: 4px solid var(--c, #0ea5a4); border-radius: 8px; padding: 8px 12px; break-inside: avoid; }
+  .rep-box .l { font-size: 12px; color: #5a6b7c; }
+  .rep-box .v { font-size: 19px; font-weight: 700; color: var(--c, #0ea5a4); line-height: 1.25; }
+  .rep-box .s { font-size: 11.5px; color: #5a6b7c; }
+  .rep section { break-inside: avoid; margin-top: 16px; }
+  .rep svg { width: 100%; height: auto; }
+  .rep-cap { color: #5a6b7c; font-size: 11.5px; }
+  .rep table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .rep th, .rep td { padding: 5px 7px; border-bottom: 1px solid #dbe4ec; text-align: left; vertical-align: top; color: #12202e; }
+  .rep th { color: #5a6b7c; font-weight: 600; }
+  .rep th.num, .rep td.num { text-align: right; }
+  .rep tr { break-inside: avoid; }
+  .rep thead { display: table-header-group; }
+  .rep tbody tr td:first-child { box-shadow: none; padding-left: 7px; white-space: normal; }
+  .rep tbody tr:hover td { background: none; }
+  .rep td.pre { white-space: pre-wrap; }
+  .rep footer { margin-top: 20px; color: #5a6b7c; font-size: 11.5px; }
+  @media print {
+    @page { margin: 13mm; }
+    .report-mode, .report-mode body { background: #fff !important; }
+    .report-mode body { padding: 0; min-height: 0; }
+    .report-mode body > main, .report-mode dialog { display: none !important; }
+    .report-mode #printArea { display: block; }
+    .report-mode #printArea .rep { border: 0; padding: 0; border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <div>
+      <h1>Tirzepatide log</h1>
+      <div class="sub" id="subtitle"></div>
+    </div>
+    <div class="toolbar">
+      <button id="openImport" class="primary">Import data</button>
+      <button id="openReport">Doctor report</button>
+      <button id="exportBtn">Export CSV</button>
+      <button id="resetBtn" class="danger">Clear all data</button>
+    </div>
+  </header>
+  <div id="msg" role="status"></div>
+
+  <section class="panel" id="emptyPanel" hidden>
+    <h2>Start your log</h2>
+    <p class="note" style="margin-top:0">Bring in an existing log or start fresh. Your data stays in this browser and is never uploaded.</p>
+    <div class="drop" id="emptyDrop">
+      Drop a CSV file here
+      <div class="actions">
+        <button class="primary" id="emptyImport">Import a CSV</button>
+        <button id="emptyTemplate">Download CSV template</button>
+        <button id="emptySample">Load sample data</button>
+      </div>
+    </div>
+    <p class="note">Or add your first entry with the form below.</p>
+  </section>
+
+  <section class="stats" id="stats" aria-label="Summary"></section>
+
+  <section class="panel" id="chartPanel">
+    <div class="chart-top">
+      <div class="tabs" role="tablist" aria-label="Chart metric">
+        <button class="tab" role="tab" id="tab-weight" data-metric="weight" aria-selected="true" aria-controls="chart" tabindex="0">Weight</button>
+        <button class="tab" role="tab" id="tab-sugar" data-metric="sugar" aria-selected="false" aria-controls="chart" tabindex="-1">Blood sugar</button>
+        <button class="tab" role="tab" id="tab-cal" data-metric="cal" aria-selected="false" aria-controls="chart" tabindex="-1">Calories</button>
+      </div>
+      <div class="seg" id="range" role="group" aria-label="Date range">
+        <button type="button" data-days="0" aria-pressed="true">All</button>
+        <button type="button" data-days="180" aria-pressed="false">6 mo</button>
+        <button type="button" data-days="90" aria-pressed="false">3 mo</button>
+        <button type="button" data-days="30" aria-pressed="false">30 d</button>
+      </div>
+    </div>
+    <div id="chart" role="tabpanel" aria-labelledby="tab-weight"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="panel">
+    <h2 id="formTitle">Add entry</h2>
+    <form id="entryForm" autocomplete="off">
+      <label>Date<input type="date" id="fDate" required></label>
+      <label>Dosage (mg)<input type="number" id="fDose" step="0.25" min="0" inputmode="decimal"></label>
+      <label>Weight (lbs)<input type="number" id="fWeight" step="0.1" min="0" inputmode="decimal"></label>
+      <label>Calories<input type="number" id="fCal" step="1" min="0" inputmode="numeric"></label>
+      <label>Blood sugar (mg/dL)<input type="number" id="fSugar" step="1" min="0" inputmode="numeric"></label>
+      <label class="wide">Food notes<input type="text" id="fFood"></label>
+      <label class="wide">Comments<textarea id="fComments"></textarea></label>
+      <div class="actions wide">
+        <button type="submit" class="primary" id="saveBtn">Save entry</button>
+        <button type="button" id="cancelBtn" hidden>Cancel edit</button>
+        <span style="color:var(--muted);font-size:13px">Saving an existing date replaces that day's entry.</span>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel" id="entriesPanel">
+    <h2>Entries</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th class="num">Dose (mg)</th><th class="num">Weight (lbs)</th><th class="num">Change</th>
+            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Blood sugar</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="actions" style="margin-top:12px"><button type="button" id="moreBtn" hidden></button></div>
+    <div id="emptyRows" class="empty" hidden>No entries yet. Add one above or import a CSV.</div>
+  </section>
+</main>
+<div id="printArea" aria-hidden="true"></div>
+
+<dialog id="importDlg" aria-labelledby="dlgTitle">
+  <div class="dlg-head">
+    <h2 id="dlgTitle">Import data</h2>
+    <button type="button" class="small" id="dlgClose">Close</button>
+  </div>
+
+  <div class="drop" id="dropZone">
+    Drop a CSV file here
+    <div class="actions">
+      <button type="button" class="primary" id="pickBtn">Choose file</button>
+      <button type="button" id="dlgTemplate">Download CSV template</button>
+    </div>
+    <input id="importFile" type="file" accept=".csv,.txt,text/csv,text/plain" hidden>
+  </div>
+  <details>
+    <summary>Or paste CSV text</summary>
+    <textarea id="pasteBox" placeholder="Date,Weight (lbs)&#10;2026-01-05,210" style="margin-top:8px"></textarea>
+    <div class="actions" style="margin-top:8px"><button type="button" id="pasteBtn">Use pasted text</button></div>
+  </details>
+  <div class="err" id="importErr" role="alert"></div>
+
+  <div id="step2" hidden>
+    <h3>Match your columns</h3>
+    <p class="note" style="margin-top:0">Your first row is treated as column names. Only Date is required.</p>
+    <div class="map-grid" id="mapGrid"></div>
+
+    <div class="opts">
+      <label>Date format
+        <select id="dateFmt">
+          <option value="mdy">YYYY-MM-DD or MM/DD/YYYY</option>
+          <option value="dmy">DD/MM/YYYY</option>
+        </select>
+      </label>
+      <label>Weight unit in your file
+        <select id="wUnit"><option value="lbs">Pounds (lbs)</option><option value="kg">Kilograms (kg), converted to lbs</option></select>
+      </label>
+    </div>
+
+    <h3>Preview</h3>
+    <div id="previewInfo" class="note"></div>
+    <div class="table-wrap"><table class="preview"><thead id="prevHead"></thead><tbody id="prevBody"></tbody></table></div>
+
+    <h3>When a date already exists</h3>
+    <div style="display:grid;gap:6px">
+      <label class="radio"><input type="radio" name="mode" value="merge" checked> <span>Merge: add new dates and overwrite matching dates. Everything else stays.</span></label>
+      <label class="radio"><input type="radio" name="mode" value="replace"> <span>Replace: delete current entries and use only this file.</span></label>
+    </div>
+    <div class="actions" style="margin-top:14px">
+      <button type="button" class="primary" id="doImport">Import</button>
+      <button type="button" id="dlgCancel">Cancel</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="reportDlg" aria-labelledby="rTitle">
+  <div class="dlg-head">
+    <h2 id="rTitle">Share with your doctor</h2>
+    <button type="button" class="small" id="rClose">Close</button>
+  </div>
+  <div class="opts">
+    <label>Your name (optional)<input id="rName" type="text" autocomplete="name"></label>
+    <label>Period
+      <select id="rRange">
+        <option value="all">All data</option>
+        <option value="365">Last 12 months</option>
+        <option value="180">Last 6 months</option>
+        <option value="90">Last 3 months</option>
+        <option value="30">Last 30 days</option>
+        <option value="custom">Custom dates</option>
+      </select>
+    </label>
+    <label id="rFromWrap" hidden>From<input type="date" id="rFrom"></label>
+    <label id="rToWrap" hidden>To<input type="date" id="rTo"></label>
+  </div>
+  <div class="checks" role="group" aria-label="Include in report">
+    <label class="radio"><input type="checkbox" id="rcWeight" checked> <span>Weight chart</span></label>
+    <label class="radio"><input type="checkbox" id="rcSugar" checked> <span>Blood sugar chart</span></label>
+    <label class="radio"><input type="checkbox" id="rcCal" checked> <span>Calories chart</span></label>
+    <label class="radio"><input type="checkbox" id="rcDose" checked> <span>Dose schedule table</span></label>
+    <label class="radio"><input type="checkbox" id="rcComments" checked> <span>Comments and side effects</span></label>
+    <label class="radio"><input type="checkbox" id="rcFull"> <span>Full daily log table</span></label>
+  </div>
+  <label style="margin-top:12px">Notes or questions for your doctor (optional)<textarea id="rNotes"></textarea></label>
+  <div class="actions" style="margin-top:14px">
+    <button type="button" class="primary" id="rPrint">Print or save as PDF</button>
+    <button type="button" id="rPng">Download chart images</button>
+    <button type="button" id="rCopy">Copy text summary</button>
+    <button type="button" id="rCsv">Download CSV</button>
+    <button type="button" id="rMail">Email summary</button>
+    <button type="button" id="rShare" hidden>Share&hellip;</button>
+  </div>
+  <p class="note" style="margin-bottom:0">Everything is created in your browser; nothing is uploaded. In the print window choose "Save as PDF" to get a file. Email links cannot attach files, so attach the saved PDF or images yourself. Many clinics prefer their patient portal for health information.</p>
+  <div id="reportPreview"></div>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORE_KEY = 'tirzepatide-log-v1';
+  var COLUMNS = ['Date', 'Dosage (mg)', 'Weight (lbs)', 'Comments', 'Calories', 'Food Notes', 'Blood Sugar (mg/dL)'];
+
+  // Generic sample data (offered from the empty state)
+  var SAMPLE = [
+    { date: '2026-01-05', dose: 2.5, weight: 210, comments: 'First dose.', cal: 2100, food: '', sugar: null },
+    { date: '2026-01-12', dose: 2.5, weight: 208.4, comments: '', cal: 1900, food: 'Lower appetite in the evening', sugar: 104 },
+    { date: '2026-01-19', dose: 2.5, weight: 207.2, comments: 'Mild nausea day 2.', cal: 1750, food: '', sugar: 101 },
+    { date: '2026-01-26', dose: 5, weight: 205.9, comments: 'Dose increased.', cal: 1700, food: 'Smaller portions', sugar: 99 }
+  ];
+
+  var entries = load();
+  var editingDate = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- storage ---------- */
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) return p; }
+    } catch (e) {}
+    return [];
+  }
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); }
+    catch (e) { say('Could not save to browser storage. Use Export CSV to keep your data.'); }
+  }
+  function say(t) { $('msg').textContent = t || ''; }
+
+  /* ---------- helpers ---------- */
+  function num(v) {
+    if (v === null || v === undefined) return null;
+    v = String(v).trim();
+    if (v === '') return null;
+    if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(v)) v = v.replace(/,/g, '');
+    var n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  }
+  function sorted() { return entries.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }); }
+  function fmtDate(iso) {
+    var p = iso.split('-');
+    if (p.length !== 3) return iso;
+    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  function dayDiff(a, b) {
+    var pa = a.split('-'), pb = b.split('-');
+    return Math.round((new Date(+pb[0], +pb[1] - 1, +pb[2]) - new Date(+pa[0], +pa[1] - 1, +pa[2])) / 86400000);
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  /* ---------- CSV ---------- */
+  function parseCSV(text) {
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    var rows = [], row = [], field = '', inQ = false, i = 0, c;
+    while (i < text.length) {
+      c = text[i];
+      if (inQ) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+          inQ = false; i++; continue;
+        }
+        field += c; i++; continue;
+      }
+      if (c === '"') { inQ = true; i++; }
+      else if (c === ',') { row.push(field); field = ''; i++; }
+      else if (c === '\r') { i++; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; }
+      else { field += c; i++; }
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    return rows.filter(function (r) { return !(r.length === 1 && r[0].trim() === ''); });
+  }
+  function csvCell(v) {
+    if (v === null || v === undefined) return '';
+    v = String(v);
+    return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  function toCSV(list) {
+    var lines = [COLUMNS.join(',')];
+    (list || sorted()).forEach(function (e) {
+      lines.push([
+        e.date,
+        e.dose === null ? '' : e.dose.toFixed(2),
+        e.weight === null ? '' : e.weight.toFixed(1),
+        e.comments, e.cal, e.food, e.sugar
+      ].map(csvCell).join(','));
+    });
+    return lines.join('\r\n');
+  }
+  /* ---------- colors ---------- */
+  var DOSE_COLORS = { 2.5: '#3b82f6', 5: '#10b981', 7.5: '#eab308', 10: '#f97316', 12.5: '#ec4899', 15: '#8b5cf6' };
+  function doseColor(d) {
+    if (d === null || d === undefined) return '#94a3b8';
+    if (DOSE_COLORS[d]) return DOSE_COLORS[d];
+    return 'hsl(' + (Math.round(210 + (d / 15) * 120) % 360) + ',70%,55%)';
+  }
+  function addDays(iso, n) {
+    var p = iso.split('-'), t = new Date(+p[0], +p[1] - 1, +p[2] + n);
+    return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+  }
+  function shortDate(iso, withYear) {
+    var p = iso.split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, withYear ? { month: 'short', year: 'numeric' } : { month: 'short', day: 'numeric' });
+  }
+
+  /* ---------- hero ---------- */
+  function renderHero() {
+    var s = sorted();
+    $('subtitle').textContent = s.length
+      ? s.length + ' entries, ' + fmtDate(s[0].date) + ' to ' + fmtDate(s[s.length - 1].date)
+      : 'Track dose, weight, food and blood sugar. Your data stays in this browser.';
+  }
+
+  /* ---------- stats ---------- */
+  var statCache = {};
+  var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function fmtVal(v, dec, sign) { var t = v.toFixed(dec); return (sign && v > 0) ? '+' + t : t; }
+  function spark(vals) {
+    if (vals.length < 2) return '';
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), r = Math.max(hi - lo, 0.001);
+    var pts = vals.map(function (v, i) { return (2 + i / (vals.length - 1) * 92).toFixed(1) + ',' + (30 - (v - lo) / r * 26).toFixed(1); });
+    var last = pts[pts.length - 1].split(',');
+    return '<svg class="spark" viewBox="0 0 96 34" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" points="' +
+      pts.join(' ') + '"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="currentColor"/></svg>';
+  }
+  function renderStats() {
+    var s = sorted(), cards = [];
+    var w = s.filter(function (e) { return e.weight !== null; });
+    var dosed = s.filter(function (e) { return e.dose !== null; });
+    var sug = s.filter(function (e) { return e.sugar !== null; });
+    if (w.length) {
+      var first = w[0], last = w[w.length - 1], d = last.weight - first.weight;
+      cards.push({ id: 'wt', label: 'Latest weight (lbs)', val: last.weight, dec: 1, color: '#0ea5a4',
+        extra: spark(w.slice(-40).map(function (e) { return e.weight; })) });
+      cards.push({ id: 'chg', label: 'Change since ' + fmtDate(first.date), val: d, dec: 1, sign: true,
+        color: d > 0 ? 'var(--bad)' : 'var(--good)', arrow: d < 0 ? '\u25BC ' : (d > 0 ? '\u25B2 ' : ''),
+        sub: (d / first.weight * 100).toFixed(1) + '% of starting weight' });
+      var weeks = dayDiff(first.date, last.date) / 7;
+      if (weeks >= 2) cards.push({ id: 'pw', label: 'Average per week (lbs)', val: d / weeks, dec: 2, sign: true, color: '#6366f1' });
+    }
+    if (dosed.length) {
+      var cur = dosed[dosed.length - 1].dose, since = dosed[dosed.length - 1].date;
+      for (var i = dosed.length - 1; i >= 0 && dosed[i].dose === cur; i--) since = dosed[i].date;
+      cards.push({ id: 'dose', label: 'Current dose', text: cur + ' mg', color: doseColor(cur), sub: 'since ' + fmtDate(since) });
+    }
+    if (s.length) cards.push({ id: 'days', label: 'Days covered', val: dayDiff(s[0].date, s[s.length - 1].date) + 1, dec: 0, color: '#d97706', sub: s.length + ' entries logged' });
+    if (sug.length) cards.push({ id: 'bs', label: 'Latest blood sugar', val: sug[sug.length - 1].sugar, dec: 0, color: '#f97316', sub: 'mg/dL' });
+
+    $('stats').innerHTML = cards.length ? cards.map(function (c) {
+      var body = c.text !== undefined ? esc(c.text)
+        : '<span data-id="' + c.id + '" data-val="' + c.val + '" data-dec="' + c.dec + '" data-sign="' + (c.sign ? 1 : 0) + '">' + fmtVal(c.val, c.dec, c.sign) + '</span>';
+      return '<div class="stat" style="--c:' + c.color + '">' + (c.extra || '') + '<div class="l">' + esc(c.label) + '</div>' +
+        '<div class="v">' + (c.arrow || '') + body + '</div>' + (c.sub ? '<div class="sub">' + esc(c.sub) + '</div>' : '') + '</div>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1">No data yet.</div>';
+
+    Array.prototype.forEach.call($('stats').querySelectorAll('span[data-id]'), function (el) {
+      var id = el.dataset.id, to = parseFloat(el.dataset.val), dec = +el.dataset.dec, sign = el.dataset.sign === '1';
+      var from = statCache.hasOwnProperty(id) ? statCache[id] : 0;
+      statCache[id] = to;
+      if (reduceMotion || !window.requestAnimationFrame || from === to) return;
+      var t0 = null;
+      (function step(ts) {
+        if (t0 === null) t0 = ts;
+        var k = Math.min((ts - t0) / 800, 1), e = 1 - Math.pow(1 - k, 3);
+        el.textContent = fmtVal(from + (to - from) * e, dec, sign);
+        if (k < 1) window.requestAnimationFrame(step); else el.textContent = fmtVal(to, dec, sign);
+      })(performance.now());
+    });
+  }
+
+  /* ---------- chart ---------- */
+  var currentMetric = 'weight', currentRange = 0, chartSeq = 0;
+  var METRICS = {
+    weight: { key: 'weight', label: 'Weight (lbs)', color: '#0ea5a4', dec: 1 },
+    sugar: { key: 'sugar', label: 'Blood sugar (mg/dL)', color: '#f97316', dec: 0 },
+    cal: { key: 'cal', label: 'Calories', color: '#8b5cf6', dec: 0 }
+  };
+  // o: { days } trailing window, or { from, to } explicit window; print:true builds a standalone light SVG
+  function buildChart(mkey, o) {
+    o = o || {};
+    var m = METRICS[mkey], all = sorted();
+    var series = all.filter(function (e) { return e[m.key] !== null; });
+    if (!series.length) return null;
+    var avg = series.map(function (e, i) {
+      var sum = 0, n = 0;
+      for (var j = i; j >= 0 && dayDiff(series[j].date, e.date) <= 6; j--) { sum += series[j][m.key]; n++; }
+      return sum / n;
+    });
+    var lastAll = all[all.length - 1].date, idxs = [];
+    series.forEach(function (e, i) {
+      var ok = (o.from || o.to) ? ((!o.from || e.date >= o.from) && (!o.to || e.date <= o.to))
+                                : (!o.days || dayDiff(e.date, lastAll) <= o.days);
+      if (ok) idxs.push(i);
+    });
+    if (!idxs.length) { if (o.print) return null; idxs = [series.length - 1]; }
+    var pts = idxs.map(function (i) { return { e: series[i], v: series[i][m.key], a: avg[i] }; });
+    var single = pts.length === 1;
+    var t0 = pts[0].e.date, tN = pts[pts.length - 1].e.date, span = Math.max(dayDiff(t0, tN), 1);
+
+    var W = 900, H = o.print ? 300 : 320, L = 48, R = 16, T = 32, B = 34, gid = 'ag' + (++chartSeq);
+    var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
+    var vals = []; pts.forEach(function (p) { vals.push(p.v, p.a); });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    var pad = Math.max((hi - lo) * 0.08, m.key === 'weight' ? 1 : (m.key === 'sugar' ? 4 : 50));
+    lo -= pad; hi += pad;
+    var unit = m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : 2);
+    lo = Math.floor(lo / unit) * unit;
+    hi = lo + Math.ceil((hi - lo) / 4 / unit) * unit * 4;
+    function X(d) { return single ? L + (W - L - R) / 2 : L + (dayDiff(t0, d) / span) * (W - L - R); }
+    function Y(v) { return T + (1 - (v - lo) / (hi - lo)) * (H - T - B); }
+
+    var segs = [], bands = '', shown = {};
+    all.forEach(function (e) {
+      if (e.dose === null) return;
+      if (!segs.length || segs[segs.length - 1].dose !== e.dose) segs.push({ dose: e.dose, start: e.date });
+    });
+    if (!single) segs.forEach(function (sg, i) {
+      var end = i + 1 < segs.length ? segs[i + 1].start : tN;
+      var s0 = dayDiff(t0, sg.start) < 0 ? t0 : sg.start;
+      var s1 = dayDiff(end, tN) < 0 ? tN : end;
+      var x1 = X(s0), x2 = X(s1);
+      if (x2 - x1 < 1) return;
+      var c = doseColor(sg.dose);
+      shown[sg.dose] = true;
+      bands += '<rect x="' + x1.toFixed(1) + '" y="' + T + '" width="' + (x2 - x1).toFixed(1) + '" height="' + (H - T - B) + '" fill="' + c + '" opacity="0.13"/>' +
+        '<rect x="' + x1.toFixed(1) + '" y="' + T + '" width="' + (x2 - x1).toFixed(1) + '" height="3" fill="' + c + '"/>';
+      if (x2 - x1 > 46) bands += '<text x="' + (x1 + 6).toFixed(1) + '" y="' + (T - 9) + '" style="fill:' + c + ';font-weight:700">' + sg.dose + ' mg</text>';
+    });
+
+    var g = (o.print ? '<style>.psvg text{fill:#5a6b7c;font:11px "Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif}</style>' : '') +
+      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + m.color + '" stop-opacity="0.38"/><stop offset="1" stop-color="' + m.color + '" stop-opacity="0.02"/></linearGradient></defs>';
+    if (o.title) g += '<text x="' + L + '" y="14" style="fill:#12202e;font-weight:700;font-size:13px">' + esc(o.title) + '</text>';
+    g += bands;
+    for (var i = 0; i <= 4; i++) {
+      var v = lo + (hi - lo) * i / 4, y = Y(v);
+      g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="' + C.line + '"/>';
+      g += '<text x="' + (L - 8) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end">' + v.toFixed(m.dec) + '</text>';
+    }
+    var yearSpan = span > 240;
+    if (single) g += '<text x="' + X(t0) + '" y="' + (H - 10) + '" text-anchor="middle">' + esc(shortDate(t0, false)) + '</text>';
+    else for (var k = 0; k < 5; k++) {
+      var dt = addDays(t0, Math.round(span * k / 4));
+      g += '<text x="' + X(dt).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="' + (k === 0 ? 'start' : (k === 4 ? 'end' : 'middle')) + '">' + esc(shortDate(dt, yearSpan)) + '</text>';
+    }
+    var fade = o.print ? '' : ' class="fade"', draw = o.print ? '' : ' class="draw"';
+    var line = pts.map(function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a).toFixed(1); });
+    if (!single) {
+      g += '<path' + fade + ' fill="url(#' + gid + ')" d="M' + line.join('L') + 'L' + X(tN).toFixed(1) + ',' + (H - B) + 'L' + X(t0).toFixed(1) + ',' + (H - B) + 'Z"/>';
+    }
+    var r = pts.length > 120 ? 2 : (pts.length > 45 ? 2.8 : 4.2);
+    pts.forEach(function (p) {
+      g += '<circle' + fade + ' cx="' + X(p.e.date).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + (single ? 6 : r) + '" fill="' + m.color + '" opacity="' + (pts.length > 45 ? '0.45' : '0.85') + '"/>';
+    });
+    if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + m.color + '" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="M' + line.join('L') + '"/>';
+    if (!o.print) g += '<line id="xh" y1="' + T + '" y2="' + (H - B) + '" stroke="' + C.muted + '" stroke-dasharray="3 4" style="display:none"/>' +
+         '<circle id="xc" r="6.5" fill="' + C.panel + '" stroke="' + m.color + '" stroke-width="3" style="display:none"/>';
+
+    var svg = '<svg' + (o.print ? ' xmlns="http://www.w3.org/2000/svg" class="psvg" width="' + W + '" height="' + H + '"' : '') +
+      ' viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(m.label) + ' over time">' + g + '</svg>';
+    return { svg: svg, shown: shown, pts: pts, xs: pts.map(function (p) { return X(p.e.date); }), Y: Y, W: W, H: H, single: single, m: m };
+  }
+
+  function renderChart() {
+    var m = METRICS[currentMetric], res = buildChart(currentMetric, { days: currentRange });
+    if (!res) {
+      $('chart').innerHTML = '<div class="empty">No ' + esc(m.label) + ' values to plot yet.</div>';
+      $('legend').innerHTML = '';
+      return;
+    }
+    var pts = res.pts, xs = res.xs, Y = res.Y, W = res.W, single = res.single;
+    $('chart').innerHTML = '<div class="tip" id="tip"></div>' + res.svg;
+
+    var lg = Object.keys(res.shown).map(Number).sort(function (a, b) { return a - b; }).map(function (d) {
+      return '<span class="chip" style="--c:' + doseColor(d) + '">' + d + ' mg</span>';
+    }).join('');
+    $('legend').innerHTML = lg + '<span>' + (single ? '' : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') + '</span>';
+
+    var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), xc = svg.querySelector('#xc');
+    function move(ev) {
+      var rc = svg.getBoundingClientRect(), x = (ev.clientX - rc.left) * (W / rc.width), best = 0, bd = Infinity;
+      xs.forEach(function (px, i) { var dd = Math.abs(px - x); if (dd < bd) { bd = dd; best = i; } });
+      var p = pts[best], px = xs[best];
+      xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.style.display = '';
+      xc.setAttribute('cx', px); xc.setAttribute('cy', Y(p.v)); xc.style.display = '';
+      var h = '<b>' + esc(fmtDate(p.e.date)) + '</b><br>' + esc(m.label) + ': ' + p.v.toFixed(m.dec);
+      if (!single) h += '<br>7-day average: ' + p.a.toFixed(m.dec);
+      if (p.e.dose !== null) h += '<br>Dose: ' + p.e.dose + ' mg';
+      if (p.e.comments) h += '<br><i>' + esc(p.e.comments.length > 80 ? p.e.comments.slice(0, 80) + '\u2026' : p.e.comments) + '</i>';
+      tip.innerHTML = h; tip.classList.add('on');
+      var pct = px / W * 100;
+      tip.style.left = pct + '%';
+      tip.style.transform = pct > 68 ? 'translateX(-105%)' : (pct < 32 ? 'translateX(5%)' : 'translateX(-50%)');
+    }
+    function leave() { xh.style.display = 'none'; xc.style.display = 'none'; tip.classList.remove('on'); }
+    svg.addEventListener('pointermove', move);
+    svg.addEventListener('pointerleave', leave);
+  }
+
+  /* ---------- table ---------- */
+  var showAll = false, PAGE = 30;
+  function renderRows() {
+    var asc = sorted(), lastW = null, deltas = {}, maxCal = 0;
+    asc.forEach(function (e) {
+      if (e.weight !== null) { deltas[e.date] = lastW === null ? null : e.weight - lastW; lastW = e.weight; }
+      if (e.cal !== null && e.cal > maxCal) maxCal = e.cal;
+    });
+    var desc = asc.slice().reverse();
+    $('emptyRows').hidden = desc.length > 0;
+    var visible = showAll ? desc : desc.slice(0, PAGE);
+    var more = $('moreBtn');
+    more.hidden = desc.length <= PAGE;
+    more.textContent = showAll ? 'Show latest ' + PAGE + ' only' : 'Show all ' + desc.length + ' entries';
+    function c(v, dec) { return v === null ? '<span class="dim">\u2014</span>' : (dec !== undefined ? v.toFixed(dec) : esc(v)); }
+    $('rows').innerHTML = visible.map(function (e) {
+      var d = deltas[e.date], dTxt = '<span class="dim">\u2014</span>';
+      if (d !== null && d !== undefined) {
+        if (Math.abs(d) < 0.05) dTxt = '<span class="dim">0.0</span>';
+        else dTxt = '<span class="delta ' + (d < 0 ? 'down' : 'up') + '">' + (d < 0 ? '\u25BC ' : '\u25B2 ') + Math.abs(d).toFixed(1) + '</span>';
+      }
+      var dose = e.dose === null ? '<span class="dim">\u2014</span>' : '<span class="chip" style="--c:' + doseColor(e.dose) + '">' + e.dose.toFixed(2) + '</span>';
+      var pct = (e.cal !== null && maxCal) ? Math.round(e.cal / maxCal * 100) : 0;
+      return '<tr style="--c:' + doseColor(e.dose) + '">' +
+        '<td>' + esc(fmtDate(e.date)) + '</td>' +
+        '<td class="num">' + dose + '</td>' +
+        '<td class="num">' + c(e.weight, 1) + '</td>' +
+        '<td class="num">' + dTxt + '</td>' +
+        '<td class="notes">' + (e.comments ? esc(e.comments) : '<span class="dim">\u2014</span>') + '</td>' +
+        '<td class="num">' + (e.cal === null ? '<span class="dim">\u2014</span>' : '<div class="calcell"><i style="width:' + pct + '%"></i><span>' + e.cal + '</span></div>') + '</td>' +
+        '<td class="food">' + (e.food ? esc(e.food) : '<span class="dim">\u2014</span>') + '</td>' +
+        '<td class="num">' + c(e.sugar) + '</td>' +
+        '<td style="white-space:nowrap"><button class="small" data-edit="' + esc(e.date) + '">Edit</button> ' +
+        '<button class="small danger" data-del="' + esc(e.date) + '">Delete</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function render() {
+    var empty = entries.length === 0;
+    $('emptyPanel').hidden = !empty;
+    $('stats').hidden = empty;
+    $('chartPanel').hidden = empty;
+    $('entriesPanel').hidden = empty;
+    renderHero();
+    if (!empty) { renderStats(); renderChart(); renderRows(); }
+  }
+
+  /* ---------- form ---------- */
+  function lastDose() {
+    var s = sorted().filter(function (e) { return e.dose !== null; });
+    return s.length ? s[s.length - 1].dose : '';
+  }
+  function resetForm() {
+    editingDate = null;
+    $('entryForm').reset();
+    $('fDate').value = today();
+    $('fDose').value = lastDose();
+    $('formTitle').textContent = 'Add entry';
+    $('saveBtn').textContent = 'Save entry';
+    $('cancelBtn').hidden = true;
+  }
+  $('entryForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var e = {
+      date: $('fDate').value,
+      dose: num($('fDose').value),
+      weight: num($('fWeight').value),
+      comments: $('fComments').value,
+      cal: num($('fCal').value),
+      food: $('fFood').value,
+      sugar: num($('fSugar').value)
+    };
+    if (!e.date) return;
+    if (editingDate && editingDate !== e.date) {
+      entries = entries.filter(function (x) { return x.date !== editingDate; });
+    }
+    var at = entries.findIndex(function (x) { return x.date === e.date; });
+    if (at >= 0) entries[at] = e; else entries.push(e);
+    save(); render(); resetForm();
+    say('Saved ' + fmtDate(e.date) + '.');
+  });
+  $('cancelBtn').addEventListener('click', function () { resetForm(); say(''); });
+
+  $('rows').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button'); if (!b) return;
+    if (b.dataset.del) {
+      if (!confirm('Delete the entry for ' + fmtDate(b.dataset.del) + '?')) return;
+      entries = entries.filter(function (x) { return x.date !== b.dataset.del; });
+      save(); render(); say('Deleted ' + fmtDate(b.dataset.del) + '.');
+    } else if (b.dataset.edit) {
+      var e = entries.find(function (x) { return x.date === b.dataset.edit; }); if (!e) return;
+      editingDate = e.date;
+      $('fDate').value = e.date;
+      $('fDose').value = e.dose === null ? '' : e.dose;
+      $('fWeight').value = e.weight === null ? '' : e.weight;
+      $('fCal').value = e.cal === null ? '' : e.cal;
+      $('fSugar').value = e.sugar === null ? '' : e.sugar;
+      $('fFood').value = e.food || '';
+      $('fComments').value = e.comments || '';
+      $('formTitle').textContent = 'Edit entry: ' + fmtDate(e.date);
+      $('saveBtn').textContent = 'Update entry';
+      $('cancelBtn').hidden = false;
+      $('entryForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+
+  /* ---------- toolbar ---------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  function selectTab(t, focus) {
+    currentMetric = t.dataset.metric;
+    tabs.forEach(function (x) {
+      var on = x === t;
+      x.setAttribute('aria-selected', on ? 'true' : 'false');
+      x.tabIndex = on ? 0 : -1;
+    });
+    $('chart').setAttribute('aria-labelledby', t.id);
+    if (focus) t.focus();
+    renderChart();
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { selectTab(t); });
+    t.addEventListener('keydown', function (ev) {
+      var n = ev.key === 'ArrowRight' ? i + 1 : ev.key === 'ArrowLeft' ? i - 1 : null;
+      if (n === null) return;
+      ev.preventDefault();
+      selectTab(tabs[(n + tabs.length) % tabs.length], true);
+    });
+  });
+  tabs.forEach(function (t) { t.style.setProperty('--c', METRICS[t.dataset.metric].color); });
+  Array.prototype.forEach.call($('range').querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () {
+      currentRange = parseInt(b.dataset.days, 10);
+      Array.prototype.forEach.call($('range').querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      renderChart();
+    });
+  });
+  $('moreBtn').addEventListener('click', function () { showAll = !showAll; renderRows(); });
+
+  $('exportBtn').addEventListener('click', function () {
+    var blob = new Blob([toCSV()], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'TirzepatideLog.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    say('Exported ' + entries.length + ' entries.');
+  });
+  $('resetBtn').addEventListener('click', function () {
+    if (!entries.length) { say('There is no data to clear.'); return; }
+    if (!confirm('Delete all ' + entries.length + ' entries from this browser? Export a CSV first if you want a backup.')) return;
+    entries = [];
+    save(); render(); resetForm(); say('All data cleared.');
+  });
+
+  /* ---------- import wizard ---------- */
+  var FIELDS = [
+    { k: 'date', label: 'Date', req: true, words: ['date', 'day'] },
+    { k: 'dose', label: 'Dosage (mg)', words: ['dos', 'tirz', 'medication'] },
+    { k: 'weight', label: 'Weight', words: ['weight', 'wt', 'lbs', 'kg'] },
+    { k: 'cal', label: 'Calories', words: ['calor', 'kcal'] },
+    { k: 'food', label: 'Food notes', words: ['food', 'meal', 'ate'] },
+    { k: 'comments', label: 'Comments', words: ['comment', 'journal', 'note'] },
+    { k: 'sugar', label: 'Blood sugar (mg/dL)', words: ['blood', 'sugar', 'glucose'] }
+  ];
+  var pending = null, mapping = {};
+  var dlg = $('importDlg');
+
+  function download(name, text, type) {
+    var blob = new Blob([text], { type: type || 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+  function downloadTemplate() {
+    download('TirzepatideLog-template.csv',
+      COLUMNS.join(',') + '\r\n2026-01-05,2.50,210.0,"First dose, felt fine",2100,Chicken salad,105');
+  }
+
+  function openImport() {
+    $('step2').hidden = true;
+    $('importErr').textContent = '';
+    $('importFile').value = '';
+    $('pasteBox').value = '';
+    pending = null;
+    if (!dlg.open) dlg.showModal();
+  }
+  function closeImport() { if (dlg.open) dlg.close(); }
+
+  function autoMap(head) {
+    var used = {}, m = {};
+    FIELDS.forEach(function (f) {
+      m[f.k] = -1;
+      for (var w = 0; w < f.words.length && m[f.k] < 0; w++) {
+        for (var i = 0; i < head.length; i++) {
+          if (!used[i] && head[i].toLowerCase().indexOf(f.words[w]) >= 0) { m[f.k] = i; used[i] = true; break; }
+        }
+      }
+    });
+    return m;
+  }
+
+  function parseDate(str, fmt) {
+    str = String(str || '').trim();
+    if (!str) return null;
+    var y, mo, d, m;
+    if ((m = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(str))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+    else if ((m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/.exec(str))) {
+      y = +m[3]; if (y < 100) y += 2000;
+      if (fmt === 'dmy') { d = +m[1]; mo = +m[2]; } else { mo = +m[1]; d = +m[2]; }
+    } else {
+      var t = new Date(str);
+      if (isNaN(t.getTime())) return null;
+      y = t.getFullYear(); mo = t.getMonth() + 1; d = t.getDate();
+    }
+    var chk = new Date(y, mo - 1, d);
+    if (chk.getFullYear() !== y || chk.getMonth() !== mo - 1 || chk.getDate() !== d) return null;
+    return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
+  function convertRows() {
+    var fmt = $('dateFmt').value, kg = $('wUnit').value === 'kg', out = [], skipped = 0;
+    function cell(r, k) { var i = mapping[k]; return (i >= 0 && i < r.length) ? r[i] : ''; }
+    pending.rows.forEach(function (r) {
+      var date = parseDate(cell(r, 'date'), fmt);
+      if (!date) { skipped++; return; }
+      var w = num(cell(r, 'weight'));
+      if (w !== null && kg) w = Math.round(w * 2.20462 * 10) / 10;
+      out.push({
+        date: date, dose: num(cell(r, 'dose')), weight: w, comments: cell(r, 'comments'),
+        cal: num(cell(r, 'cal')), food: cell(r, 'food'), sugar: num(cell(r, 'sugar'))
+      });
+    });
+    var byDate = {};
+    out.forEach(function (e) { byDate[e.date] = e; });   // last row wins for duplicate dates
+    return { list: Object.keys(byDate).sort().map(function (k) { return byDate[k]; }), skipped: skipped, dupes: out.length - Object.keys(byDate).length };
+  }
+
+  function buildMapping() {
+    $('mapGrid').innerHTML = FIELDS.map(function (f) {
+      return '<label>' + esc(f.label) + (f.req ? ' (required)' : '') +
+        '<select data-field="' + f.k + '"><option value="-1">Not in my file</option>' +
+        pending.head.map(function (h, i) {
+          return '<option value="' + i + '"' + (mapping[f.k] === i ? ' selected' : '') + '>' + esc(h || ('Column ' + (i + 1))) + '</option>';
+        }).join('') + '</select></label>';
+    }).join('');
+  }
+
+  function updatePreview() {
+    var btn = $('doImport');
+    if (mapping.date < 0) {
+      $('previewInfo').textContent = 'Choose which column holds the date.';
+      $('prevHead').innerHTML = ''; $('prevBody').innerHTML = '';
+      btn.disabled = true; btn.textContent = 'Import';
+      return;
+    }
+    var c = convertRows();
+    var info = c.list.length + ' entries ready';
+    if (c.skipped) info += '; ' + c.skipped + ' rows skipped (date not readable, check Date format)';
+    if (c.dupes) info += '; ' + c.dupes + ' duplicate dates collapsed';
+    $('previewInfo').textContent = info + '.';
+    $('prevHead').innerHTML = '<tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (lbs)</th><th class="num">Calories</th><th class="num">Blood sugar</th></tr>';
+    function v(x) { return x === null ? '—' : x; }
+    $('prevBody').innerHTML = c.list.slice(0, 5).map(function (e) {
+      return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + v(e.dose) + '</td><td class="num">' + v(e.weight) +
+        '</td><td class="num">' + v(e.cal) + '</td><td class="num">' + v(e.sugar) + '</td></tr>';
+    }).join('');
+    btn.disabled = c.list.length === 0;
+    btn.textContent = 'Import ' + c.list.length + ' entries';
+  }
+
+  function loadText(text) {
+    var rows = parseCSV(text);
+    if (rows.length < 2) {
+      $('step2').hidden = true;
+      $('importErr').textContent = 'No data found. The file needs a header row and at least one data row.';
+      return;
+    }
+    $('importErr').textContent = '';
+    pending = { head: rows[0].map(function (h) { return h.trim(); }), rows: rows.slice(1) };
+    mapping = autoMap(pending.head);
+    $('dateFmt').value = 'mdy';
+    if (mapping.date >= 0) {
+      for (var i = 0; i < Math.min(pending.rows.length, 100); i++) {
+        var m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.]\d{2,4}/.exec((pending.rows[i][mapping.date] || '').trim());
+        if (m && +m[1] > 12) { $('dateFmt').value = 'dmy'; break; }
+      }
+    }
+    buildMapping();
+    $('step2').hidden = false;
+    updatePreview();
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    if (!dlg.open) openImport();
+    var r = new FileReader();
+    r.onload = function () { loadText(String(r.result)); };
+    r.onerror = function () { $('importErr').textContent = 'Could not read that file.'; };
+    r.readAsText(file);
+  }
+
+  function wireDrop(el) {
+    el.addEventListener('dragover', function (ev) { ev.preventDefault(); el.classList.add('over'); });
+    el.addEventListener('dragleave', function () { el.classList.remove('over'); });
+    el.addEventListener('drop', function (ev) {
+      ev.preventDefault(); el.classList.remove('over');
+      if (ev.dataTransfer.files && ev.dataTransfer.files[0]) handleFile(ev.dataTransfer.files[0]);
+    });
+  }
+  wireDrop($('dropZone')); wireDrop($('emptyDrop'));
+
+  $('openImport').addEventListener('click', openImport);
+  $('emptyImport').addEventListener('click', openImport);
+  $('dlgClose').addEventListener('click', closeImport);
+  $('dlgCancel').addEventListener('click', closeImport);
+  $('pickBtn').addEventListener('click', function () { $('importFile').click(); });
+  $('importFile').addEventListener('change', function (ev) { handleFile(ev.target.files[0]); });
+  $('pasteBtn').addEventListener('click', function () { loadText($('pasteBox').value); });
+  $('dlgTemplate').addEventListener('click', downloadTemplate);
+  $('emptyTemplate').addEventListener('click', downloadTemplate);
+  $('emptySample').addEventListener('click', function () {
+    entries = JSON.parse(JSON.stringify(SAMPLE));
+    save(); render(); resetForm(); say('Loaded sample data. Use Clear all data to remove it.');
+  });
+  $('mapGrid').addEventListener('change', function (ev) {
+    var f = ev.target.dataset.field; if (!f) return;
+    mapping[f] = parseInt(ev.target.value, 10);
+    updatePreview();
+  });
+  $('dateFmt').addEventListener('change', updatePreview);
+  $('wUnit').addEventListener('change', updatePreview);
+
+  $('doImport').addEventListener('click', function () {
+    if (!pending) return;
+    var c = convertRows(), mode = document.querySelector('input[name="mode"]:checked').value;
+    if (!c.list.length) return;
+    if (mode === 'replace' && entries.length &&
+        !confirm('Replace your ' + entries.length + ' current entries with ' + c.list.length + ' from this file?')) return;
+    var added = 0, replaced = 0;
+    if (mode === 'replace') { entries = c.list; added = c.list.length; }
+    else {
+      c.list.forEach(function (e) {
+        var at = entries.findIndex(function (x) { return x.date === e.date; });
+        if (at >= 0) { entries[at] = e; replaced++; } else { entries.push(e); added++; }
+      });
+    }
+    save(); render(); resetForm(); closeImport();
+    say('Imported ' + added + ' new' + (replaced ? ', ' + replaced + ' overwritten' : '') + '.');
+  });
+
+  /* ---------- doctor report ---------- */
+  var rdlg = $('reportDlg');
+  function sgn(v, dec) { return (v > 0 ? '+' : (v < 0 ? '\u2212' : '')) + Math.abs(v).toFixed(dec); }
+  function statOf(list, key) {
+    var v = list.filter(function (e) { return e[key] !== null; }).map(function (e) { return e[key]; });
+    if (!v.length) return null;
+    return { avg: v.reduce(function (a, b) { return a + b; }, 0) / v.length, min: Math.min.apply(null, v), max: Math.max.apply(null, v), n: v.length };
+  }
+  function segsOf(list) {
+    var segs = [], seg = null;
+    list.forEach(function (e) {
+      if (e.dose !== null && (!seg || seg.dose !== e.dose)) { seg = { dose: e.dose, items: [] }; segs.push(seg); }
+      if (seg) seg.items.push(e);
+    });
+    return segs;
+  }
+  function reportWindow() {
+    var all = sorted(); if (!all.length) return null;
+    var last = all[all.length - 1].date, sel = $('rRange').value, from, to = last;
+    if (sel === 'custom') { from = $('rFrom').value || all[0].date; to = $('rTo').value || last; }
+    else if (sel === 'all') from = all[0].date;
+    else from = addDays(last, -parseInt(sel, 10));
+    return { from: from, to: to };
+  }
+  function nf(n) { return Math.round(n).toLocaleString(); }
+
+  function buildReport() {
+    var w = reportWindow(); if (!w) return null;
+    var list = sorted().filter(function (e) { return e.date >= w.from && e.date <= w.to; });
+    var name = $('rName').value.trim(), notes = $('rNotes').value.trim();
+    var period = fmtDate(w.from) + ' to ' + fmtDate(w.to);
+    var prepared = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    var head = '<h1>Tirzepatide progress report</h1><div class="rep-meta">' + (name ? 'Patient: ' + esc(name) + '<br>' : '') +
+      'Period: ' + esc(period) + '<br>Prepared: ' + esc(prepared) + '</div>';
+    if (!list.length) return { html: '<div class="rep">' + head + '<p>No entries in this period.</p></div>', text: '', charts: [], list: list, w: w };
+
+    var boxes = [], tl = [];
+    var wl = list.filter(function (e) { return e.weight !== null; });
+    var segs = segsOf(list);
+    tl.push('Tirzepatide progress summary, ' + period + (name ? ' (' + name + ')' : ''));
+    if (segs.length) {
+      var d0 = segs[0].dose, d1 = segs[segs.length - 1].dose;
+      boxes.push(['Dose', d0 + (segs.length > 1 ? ' \u2192 ' + d1 : '') + ' mg', doseColor(d1), segs.length > 1 ? segs.length + ' dose levels' : 'no change in period']);
+      tl.push('- Dose: ' + (segs.length > 1 ? 'started at ' + d0 + ' mg, now ' + d1 + ' mg' : d0 + ' mg throughout'));
+    }
+    if (wl.length) {
+      var f = wl[0], l = wl[wl.length - 1], d = l.weight - f.weight, weeks = dayDiff(f.date, l.date) / 7;
+      boxes.push(['Weight', f.weight.toFixed(1) + ' \u2192 ' + l.weight.toFixed(1) + ' lbs', '#0ea5a4', fmtDate(f.date) + ' to ' + fmtDate(l.date)]);
+      if (wl.length > 1) {
+        boxes.push(['Change', sgn(d, 1) + ' lbs', d <= 0 ? '#059669' : '#ea580c', sgn(d / f.weight * 100, 1) + '% of starting weight']);
+        tl.push('- Weight: ' + f.weight.toFixed(1) + ' to ' + l.weight.toFixed(1) + ' lbs (' + sgn(d, 1) + ' lbs, ' + sgn(d / f.weight * 100, 1) + '%)' + (weeks >= 2 ? ', about ' + sgn(d / weeks, 2) + ' lbs per week' : ''));
+        if (weeks >= 2) boxes.push(['Average per week', sgn(d / weeks, 2) + ' lbs', '#6366f1', 'over ' + Math.round(weeks) + ' weeks']);
+      }
+    }
+    var cal = statOf(list, 'cal'), sug = statOf(list, 'sugar');
+    if (cal) { boxes.push(['Average calories', nf(cal.avg), '#8b5cf6', 'across ' + cal.n + ' logged days']); tl.push('- Calories: average ' + nf(cal.avg) + ' per logged day (' + cal.n + ' days logged)'); }
+    if (sug) {
+      boxes.push(['Average blood sugar', Math.round(sug.avg) + ' mg/dL', '#f97316', 'range ' + sug.min + ' to ' + sug.max + ', ' + sug.n + ' readings']);
+      tl.push('- Blood sugar: average ' + Math.round(sug.avg) + ' mg/dL, range ' + sug.min + ' to ' + sug.max + ' (' + sug.n + ' readings)');
+    }
+    boxes.push(['Entries logged', String(list.length), '#d97706', 'self-reported']);
+
+    var h = '<div class="rep">' + head + '<div class="rep-grid">' + boxes.map(function (b) {
+      return '<div class="rep-box" style="--c:' + b[2] + '"><div class="l">' + esc(b[0]) + '</div><div class="v">' + esc(b[1]) + '</div><div class="s">' + esc(b[3] || '') + '</div></div>';
+    }).join('') + '</div>';
+    if (notes) { h += '<h2>Notes for my doctor</h2><p>' + esc(notes).replace(/\n/g, '<br>') + '</p>'; tl.push('', 'Notes for my doctor: ' + notes); }
+
+    var charts = [];
+    [['weight', 'rcWeight'], ['sugar', 'rcSugar'], ['cal', 'rcCal']].forEach(function (pr) {
+      if (!$(pr[1]).checked) return;
+      var res = buildChart(pr[0], { from: w.from, to: w.to, print: true, title: METRICS[pr[0]].label + ', ' + period });
+      if (!res) return;
+      charts.push({ key: pr[0], svg: res.svg, w: res.W, h: res.H });
+      h += '<section>' + res.svg + '<div class="rep-cap">Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.</div></section>';
+    });
+
+    if ($('rcDose').checked && segs.length) {
+      h += '<h2>Dose schedule</h2><table><thead><tr><th>Dose</th><th>From</th><th>To</th><th class="num">Weeks</th><th class="num">Weight change</th><th class="num">Avg calories</th><th class="num">Avg blood sugar</th></tr></thead><tbody>';
+      tl.push('', 'Dose schedule:');
+      segs.forEach(function (sg) {
+        var it = sg.items, a = it[0].date, b = it[it.length - 1].date;
+        var ws = it.filter(function (e) { return e.weight !== null; });
+        var wc = ws.length > 1 ? sgn(ws[ws.length - 1].weight - ws[0].weight, 1) + ' lbs' : '\u2014';
+        var ca = statOf(it, 'cal'), su = statOf(it, 'sugar');
+        var wk = Math.max(1, Math.round((dayDiff(a, b) + 1) / 7));
+        h += '<tr><td><span class="chip" style="--c:' + doseColor(sg.dose) + '">' + sg.dose + ' mg</span></td><td>' + esc(fmtDate(a)) + '</td><td>' + esc(fmtDate(b)) + '</td><td class="num">' + wk + '</td><td class="num">' + wc +
+          '</td><td class="num">' + (ca ? nf(ca.avg) : '\u2014') + '</td><td class="num">' + (su ? Math.round(su.avg) + ' mg/dL' : '\u2014') + '</td></tr>';
+        tl.push('- ' + sg.dose + ' mg, ' + shortDate(a, true) + ' to ' + shortDate(b, true) + ' (' + wk + ' wk)' + (ws.length > 1 ? ', weight ' + ws[0].weight.toFixed(1) + ' to ' + ws[ws.length - 1].weight.toFixed(1) : ''));
+      });
+      h += '</tbody></table>';
+    }
+
+    var cm = list.filter(function (e) { return e.comments && e.comments.trim(); });
+    if ($('rcComments').checked && cm.length) {
+      h += '<h2>Comments and side effects (' + cm.length + ')</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight</th><th>Comment</th></tr></thead><tbody>' +
+        cm.map(function (e) {
+          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + (e.dose === null ? '\u2014' : e.dose + ' mg') + '</td><td class="num">' + (e.weight === null ? '\u2014' : e.weight.toFixed(1)) + '</td><td class="pre">' + esc(e.comments) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+    if ($('rcFull').checked) {
+      function v(x) { return x === null ? '\u2014' : esc(x); }
+      h += '<h2>Daily log (' + list.length + ' entries)</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight</th><th class="num">Calories</th><th>Food notes</th><th class="num">Blood sugar</th></tr></thead><tbody>' +
+        list.slice().reverse().map(function (e) {
+          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + v(e.dose) + '</td><td class="num">' + v(e.weight) + '</td><td class="num">' + v(e.cal) + '</td><td>' + (e.food ? esc(e.food) : '\u2014') + '</td><td class="num">' + v(e.sugar) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+    h += '<footer>Self-reported data from a personal log. This is not a medical record or medical advice.</footer></div>';
+    return { html: h, text: tl.join('\n'), charts: charts, list: list, w: w };
+  }
+
+  var previewTimer = null;
+  function renderReportPreview() {
+    var rep = buildReport();
+    $('reportPreview').innerHTML = rep ? rep.html : '';
+  }
+  function queuePreview() { clearTimeout(previewTimer); previewTimer = setTimeout(renderReportPreview, 150); }
+
+  function openReport() {
+    if (!entries.length) { say('Add some entries before making a report.'); return; }
+    var all = sorted();
+    if (!$('rFrom').value) $('rFrom').value = all[0].date;
+    if (!$('rTo').value) $('rTo').value = all[all.length - 1].date;
+    try { $('rName').value = localStorage.getItem('tirzepatide-report-name') || $('rName').value; } catch (e) {}
+    if (!rdlg.open) rdlg.showModal();
+    renderReportPreview();
+  }
+
+  function printReport() {
+    var rep = buildReport(); if (!rep) return;
+    $('printArea').innerHTML = rep.html;
+    document.documentElement.classList.add('report-mode');
+    window.print();
+  }
+  window.addEventListener('afterprint', function () {
+    document.documentElement.classList.remove('report-mode');
+    $('printArea').innerHTML = '';
+  });
+
+  function svgToPng(svg, w, h) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () {
+        var c = document.createElement('canvas'), k = 2;
+        c.width = w * k; c.height = h * k;
+        var x = c.getContext('2d');
+        x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
+        x.drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not create image')); }, 'image/png');
+      };
+      img.onerror = function () { reject(new Error('Could not render chart')); };
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    });
+  }
+  function chartFiles(rep) {
+    return Promise.all(rep.charts.map(function (c) {
+      return svgToPng(c.svg, c.w, c.h).then(function (b) {
+        return { name: 'TirzepatideLog-' + c.key + '-' + rep.w.from + '-to-' + rep.w.to + '.png', blob: b };
+      });
+    }));
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t);
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy') ? resolve() : reject(new Error('copy')); } catch (e) { reject(e); } finally { ta.remove(); }
+    });
+  }
+
+  $('openReport').addEventListener('click', openReport);
+  $('rClose').addEventListener('click', function () { if (rdlg.open) rdlg.close(); });
+  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcSugar', 'rcCal', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
+    $(id).addEventListener('input', queuePreview);
+    $(id).addEventListener('change', queuePreview);
+  });
+  $('rRange').addEventListener('change', function () {
+    var c = $('rRange').value === 'custom';
+    $('rFromWrap').hidden = !c; $('rToWrap').hidden = !c;
+  });
+  $('rName').addEventListener('input', function () { try { localStorage.setItem('tirzepatide-report-name', $('rName').value); } catch (e) {} });
+  $('rPrint').addEventListener('click', printReport);
+  $('rPng').addEventListener('click', function () {
+    var rep = buildReport();
+    if (!rep || !rep.charts.length) { say('Select at least one chart that has data in this period.'); return; }
+    chartFiles(rep).then(function (files) {
+      files.forEach(function (f, i) { setTimeout(function () { download(f.name, f.blob, 'image/png'); }, i * 350); });
+      say('Downloading ' + files.length + ' chart image' + (files.length > 1 ? 's' : '') + '.');
+    }).catch(function (e) { say('Image export failed: ' + e.message); });
+  });
+  $('rCopy').addEventListener('click', function () {
+    var rep = buildReport();
+    if (!rep || !rep.text) { say('No entries in this period.'); return; }
+    copyText(rep.text).then(function () { say('Summary copied. Paste it into a portal message or email.'); })
+      .catch(function () { say('Could not copy automatically. Select the text in the preview instead.'); });
+  });
+  $('rCsv').addEventListener('click', function () {
+    var rep = buildReport();
+    if (!rep || !rep.list.length) { say('No entries in this period.'); return; }
+    download('TirzepatideLog-' + rep.w.from + '-to-' + rep.w.to + '.csv', toCSV(rep.list));
+    say('Exported ' + rep.list.length + ' entries.');
+  });
+  $('rMail').addEventListener('click', function () {
+    var rep = buildReport();
+    if (!rep || !rep.text) { say('No entries in this period.'); return; }
+    window.location.href = 'mailto:?subject=' + encodeURIComponent('Tirzepatide progress summary') + '&body=' + encodeURIComponent(rep.text.slice(0, 1800) + '\n\n(Attach the saved PDF or chart images for the graphs.)');
+  });
+  if (navigator.share) {
+    $('rShare').hidden = false;
+    $('rShare').addEventListener('click', function () {
+      var rep = buildReport();
+      if (!rep || !rep.text) { say('No entries in this period.'); return; }
+      chartFiles(rep).then(function (files) {
+        var fl = files.map(function (f) { return new File([f.blob], f.name, { type: 'image/png' }); });
+        var data = { title: 'Tirzepatide progress summary', text: rep.text };
+        if (fl.length && navigator.canShare && navigator.canShare({ files: fl })) data.files = fl;
+        return navigator.share(data);
+      }).catch(function (e) { if (e && e.name !== 'AbortError') say('Sharing failed: ' + e.message); });
+    });
+  }
+
+  resetForm();
+  render();
+})();
+</script>
+</body>
+</html>

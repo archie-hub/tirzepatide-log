@@ -1,0 +1,6 @@
+# Personal logs and exports stay out of the repo; only the fake sample is tracked
+*.csv
+!sample-data/*.csv
+*.pdf
+*.png
+.DS_Store
