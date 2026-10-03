@@ -120,15 +120,11 @@ test('dose bands are a plain tint: no strip or dose text in the chart', async ({
   expect(labels.filter((t) => / mg$/.test(t))).toEqual([]);
   // The dose key under the chart stays.
   await expect(page.locator('#legend .chip', { hasText: /^2\.5 mg$/ })).toHaveCount(1);
-});
 
-test('doctor report charts include a dose key', async ({ page }) => {
-  await importSample(page);
+  // Doctor report charts show neither dose text nor a dose key.
   await page.locator('#openReport').click();
-  const chart = page.locator('#reportPreview svg.psvg').first();
-  const labels = await chart.locator('text').allTextContents();
-  for (const d of ['2.5 mg', '5 mg', '7.5 mg', '10 mg', '12.5 mg', '15 mg']) expect(labels).toContain(d);
-  expect(labels).toContain('Dose in effect (shaded bands)');
+  const reportLabels = await page.locator('#reportPreview svg.psvg text').allTextContents();
+  expect(reportLabels.filter((t) => / mg$|Dose in effect/.test(t))).toEqual([]);
 });
 
 test('doctor report preview renders and CSV/image export trigger downloads', async ({ page }) => {
