@@ -1,0 +1,11 @@
+{
+  "name": "tirzepatide-log",
+  "private": true,
+  "description": "Dev-only test tooling for the single-file index.html app. The app itself has no build step and no dependencies.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}

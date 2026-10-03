@@ -1,6 +1,6 @@
 # Tirzepatide Log: project context
 
-Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live at https://archie-hub.github.io/tirzepatide-log/. Optional PWA files beside it: `manifest.webmanifest`, `sw.js` (network-first cache), `icons/`, `og-image.png` (link preview); `index.html` only loads the manifest/service worker over http(s). No build step, no dependencies. The only network call is a same-origin fetch of `AJC_DATA.csv` when hosted and the browser log is empty (`loadHostedData()`). Must keep working when opened straight from disk (`file://`) and when hosted statically (GitHub Pages, S3 + CloudFront).
+Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live at https://archie-hub.github.io/tirzepatide-log/. Optional PWA files beside it: `manifest.webmanifest`, `sw.js` (network-first cache), `icons/`, `og-image.png` (link preview); `index.html` only loads the manifest/service worker over http(s). No build step, no dependencies. The only network call is a same-origin fetch of `AJC_DATA.csv` when hosted and the browser log is empty (`loadHostedData()`). Must keep working when opened straight from disk (`file://`) and when hosted statically (GitHub Pages, S3 + CloudFront). `package.json`/`tests/` are dev-only tooling (Playwright smoke tests via `npm test`) and don't affect the app's zero-dependency runtime.
 
 ## What it does
 - Logs date, dose (mg), weight (lbs), comments, calories, food notes, blood sugar (mg/dL), injection site.
@@ -30,10 +30,12 @@ storage and helpers, CSV parse/serialize, `buildChart()` (used for both the live
 - No external fonts or scripts, so it works offline.
 
 ## How it was tested
-Headless Chromium (Playwright): import `sample-data/TirzepatideLog-sample-year.csv`, check stats and charts render, hover tooltip, report preview, PNG downloads, print-to-PDF with `.report-mode`. Re-run similar checks after changes, including a 390px-wide dark-mode screenshot.
+Automated: `npm test` runs `tests/smoke.spec.js` (Playwright, Chromium) — imports `sample-data/TirzepatideLog-sample-year.csv`, checks stats and charts render, hover tooltip, report preview, CSV/PNG downloads, print-to-PDF with `.report-mode`, and a 390px-wide dark-mode render with no horizontal overflow. Run it after changes to these areas; extend the spec file rather than only checking by hand.
+Manual: headless Chromium screenshots for anything the spec doesn't cover yet (visual/layout changes, new UI).
 
 ## Next steps
 1. Done: repo is public at github.com/archie-hub/tirzepatide-log, Pages serves `main` / root.
-2. Optional: add a license, a small test script, and an ARIA/keyboard review.
+2. Done: MIT license (`LICENSE`), automated smoke test (`tests/smoke.spec.js`, run via `npm test`).
+3. Partial: ARIA/keyboard review. Dialogs, tabs and range controls already use native `<dialog>`/roving tabindex/`aria-selected`/`aria-pressed`; per-row Edit/Delete buttons now have date-specific `aria-label`s. Not yet reviewed: keyboard access to chart tooltip data (currently pointer-only; the entry table is the accessible fallback).
 
 This is a personal tracking tool, not medical advice.

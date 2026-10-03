@@ -6,3 +6,8 @@
 .DS_Store
 !og-image.png
 !icons/*.png
+
+# Dev-only test tooling (see tests/, package.json); the app itself has no deps
+node_modules/
+test-results/
+playwright-report/
