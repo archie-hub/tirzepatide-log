@@ -4,3 +4,5 @@
 *.pdf
 *.png
 .DS_Store
+!og-image.png
+!icons/*.png
