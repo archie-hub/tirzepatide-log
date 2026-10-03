@@ -640,7 +640,7 @@
     if (DOSE_COLORS[d]) return DOSE_COLORS[d];
     return 'hsl(' + (Math.round(210 + (d / 15) * 120) % 360) + ',70%,55%)';
   }
-  // Fasting blood sugar ranges (ADA): below 100 normal, 100-125 prediabetes, 126 and above diabetes
+  // Fasting glucose ranges (ADA): below 100 normal, 100-125 prediabetes, 126 and above diabetes
   var SUGAR_ZONES = [
     { below: 100, color: '#16a34a', label: 'Normal', range: 'Below 100' },
     { below: 126, color: '#d97706', label: 'Prediabetes', range: '100 to 125' },
@@ -702,7 +702,7 @@
     if (s.length) cards.push({ id: 'days', label: 'Days covered', val: dayDiff(s[0].date, s[s.length - 1].date) + 1, dec: 0, color: '#d97706', sub: s.length + ' entries logged' });
     if (sug.length) {
       var lastSug = sug[sug.length - 1].sugar, z = sugarZone(lastSug);
-      cards.push({ id: 'bs', label: 'Latest fasting blood sugar', val: lastSug, dec: 0, color: z.color, sub: 'mg/dL, ' + z.label.toLowerCase() });
+      cards.push({ id: 'bs', label: 'Latest fasting glucose', val: lastSug, dec: 0, color: z.color, sub: 'mg/dL, ' + z.label.toLowerCase() });
     }
 
     $('stats').innerHTML = cards.length ? cards.map(function (c) {
@@ -1432,24 +1432,24 @@
     if (cal) { boxes.push(['Average calories', nf(cal.avg), '#8b5cf6', 'across ' + cal.n + ' logged days']); tl.push('- Calories: average ' + nf(cal.avg) + ' per logged day (' + cal.n + ' days logged)'); }
     if (sug) {
       var sz = sugarZone(sug.avg);
-      boxes.push(['Average fasting blood sugar', Math.round(sug.avg) + ' mg/dL', sz.color, sz.label + '; range ' + sug.min + ' to ' + sug.max + ', ' + sug.n + ' readings']);
-      tl.push('- Fasting blood sugar: average ' + Math.round(sug.avg) + ' mg/dL (' + sz.label.toLowerCase() + '), range ' + sug.min + ' to ' + sug.max + ' (' + sug.n + ' readings)');
+      boxes.push(['Average fasting glucose', Math.round(sug.avg) + ' mg/dL', sz.color, sz.label + '; range ' + sug.min + ' to ' + sug.max + ', ' + sug.n + ' readings']);
+      tl.push('- Fasting glucose: average ' + Math.round(sug.avg) + ' mg/dL (' + sz.label.toLowerCase() + '), range ' + sug.min + ' to ' + sug.max + ' (' + sug.n + ' readings)');
     }
     boxes.push(['Entries logged', String(list.length), '#d97706', 'self-reported']);
 
-    // Fasting blood sugar readings counted by ADA range
+    // Fasting glucose readings counted by ADA range
     var ranges = '';
     if (sug) {
       var counts = SUGAR_ZONES.map(function (z) {
         return { z: z, n: list.filter(function (e) { return e.sugar !== null && sugarZone(e.sugar) === z; }).length };
       });
-      ranges = '<h2>Fasting blood sugar ranges</h2><div class="rep-bar">' + counts.map(function (c) {
+      ranges = '<h2>Fasting glucose ranges</h2><div class="rep-bar">' + counts.map(function (c) {
         return c.n ? '<span style="width:' + (c.n / sug.n * 100).toFixed(2) + '%;background:' + c.z.color + '"></span>' : '';
       }).join('') + '</div><table><thead><tr><th>Range</th><th>mg/dL</th><th class="num">Readings</th><th class="num">Share</th></tr></thead><tbody>' +
         counts.map(function (c) {
           return '<tr><td><span class="chip" style="--c:' + c.z.color + '">' + esc(c.z.label) + '</span></td><td>' + esc(c.z.range) + '</td><td class="num">' + c.n +
             '</td><td class="num">' + Math.round(c.n / sug.n * 100) + '%</td></tr>';
-        }).join('') + '</tbody></table><div class="rep-cap">American Diabetes Association cut-offs for fasting blood sugar. All readings were taken fasting.</div>';
+        }).join('') + '</tbody></table><div class="rep-cap">American Diabetes Association cut-offs for fasting glucose. All readings were taken fasting.</div>';
       tl.push('- Fasting readings by range: ' + counts.map(function (c) { return c.n + ' ' + c.z.label.toLowerCase(); }).join(', '));
     }
 

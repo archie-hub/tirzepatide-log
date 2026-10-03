@@ -64,7 +64,7 @@ test('short date ranges do not repeat x-axis labels', async ({ page }) => {
   expect(new Set(labels).size).toBe(labels.length);
 });
 
-test('fasting blood sugar is coloured green, amber and red by range', async ({ page }) => {
+test('fasting glucose is coloured green, amber and red by range', async ({ page }) => {
   const GREEN = '#16a34a', AMBER = '#d97706', RED = '#dc2626';
   await page.locator('#emptyImport').click();
   await page.locator('#importDlg summary').click();
@@ -79,7 +79,7 @@ test('fasting blood sugar is coloured green, amber and red by range', async ({ p
   expect(tableColors).toEqual([RED, RED, AMBER, GREEN]);
 
   // Latest-reading stat card.
-  await expect(page.locator('#stats .stat', { hasText: 'fasting blood sugar' })).toHaveAttribute('style', new RegExp(RED));
+  await expect(page.locator('#stats .stat', { hasText: 'fasting glucose' })).toHaveAttribute('style', new RegExp(RED));
 
   // Chart dots and the two threshold lines.
   await page.locator('#tab-sugar').click();
@@ -89,7 +89,7 @@ test('fasting blood sugar is coloured green, amber and red by range', async ({ p
   await expect(page.locator('#chart svg text', { hasText: '126 diabetes range' })).toHaveCount(1);
 });
 
-test('doctor report shows fasting blood sugar ranges', async ({ page }) => {
+test('doctor report shows fasting glucose ranges', async ({ page }) => {
   await page.locator('#emptyImport').click();
   await page.locator('#importDlg summary').click();
   await page.locator('#pasteBox').fill('Date,Blood Sugar (mg/dL)\n2026-10-01,95\n2026-10-02,97\n2026-10-03,110\n2026-10-04,130');
@@ -97,7 +97,7 @@ test('doctor report shows fasting blood sugar ranges', async ({ page }) => {
   await page.locator('#doImport').click();
   await page.locator('#openReport').click();
 
-  const ranges = page.locator('#reportPreview h2', { hasText: 'Fasting blood sugar ranges' });
+  const ranges = page.locator('#reportPreview h2', { hasText: 'Fasting glucose ranges' });
   await expect(ranges).toHaveCount(1);
   const rows = await ranges.locator('xpath=following-sibling::table[1]//tbody/tr').evaluateAll((trs) =>
     trs.map((tr) => [...tr.cells].map((td) => td.textContent)));
@@ -109,7 +109,7 @@ test('doctor report shows fasting blood sugar ranges', async ({ page }) => {
 
   // Still shown when the blood sugar chart is left out of the report.
   await page.locator('#rcSugar').uncheck();
-  await expect(page.locator('#reportPreview h2', { hasText: 'Fasting blood sugar ranges' })).toHaveCount(1);
+  await expect(page.locator('#reportPreview h2', { hasText: 'Fasting glucose ranges' })).toHaveCount(1);
 });
 
 test('dose bands are a plain tint: no strip or dose text in the chart', async ({ page }) => {
