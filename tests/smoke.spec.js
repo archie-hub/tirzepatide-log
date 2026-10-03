@@ -89,6 +89,38 @@ test('fasting blood sugar is coloured green, amber and red by range', async ({ p
   await expect(page.locator('#chart svg text', { hasText: '126 diabetes range' })).toHaveCount(1);
 });
 
+test('doctor report shows fasting blood sugar ranges', async ({ page }) => {
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill('Date,Blood Sugar (mg/dL)\n2026-10-01,95\n2026-10-02,97\n2026-10-03,110\n2026-10-04,130');
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await page.locator('#openReport').click();
+
+  const ranges = page.locator('#reportPreview h2', { hasText: 'Fasting blood sugar ranges' });
+  await expect(ranges).toHaveCount(1);
+  const rows = await ranges.locator('xpath=following-sibling::table[1]//tbody/tr').evaluateAll((trs) =>
+    trs.map((tr) => [...tr.cells].map((td) => td.textContent)));
+  expect(rows).toEqual([
+    ['Normal', 'Below 100', '2', '50%'],
+    ['Prediabetes', '100 to 125', '1', '25%'],
+    ['Diabetes range', '126 and above', '1', '25%'],
+  ]);
+
+  // Still shown when the blood sugar chart is left out of the report.
+  await page.locator('#rcSugar').uncheck();
+  await expect(page.locator('#reportPreview h2', { hasText: 'Fasting blood sugar ranges' })).toHaveCount(1);
+});
+
+test('dose bands have no solid strip along the top of the chart', async ({ page }) => {
+  await importSample(page);
+  const strips = await page.locator('#chart svg[role="img"] rect[height="3"]').count();
+  expect(strips).toBe(0);
+  // The dose label above each band stays.
+  const labels = await page.locator('#chart svg[role="img"] text').allTextContents();
+  expect(labels).toContain('2.5 mg');
+});
+
 test('doctor report preview renders and CSV/image export trigger downloads', async ({ page }) => {
   await importSample(page);
 

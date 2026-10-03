@@ -273,6 +273,8 @@
   .rep section { break-inside: avoid; margin-top: 16px; }
   .rep svg { width: 100%; height: auto; }
   .rep-cap { color: #5a6b7c; font-size: 11.5px; }
+  .rep-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin: 8px 0 10px; background: #dbe4ec; }
+  .rep-bar span { display: block; height: 100%; }
   .rep table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   .rep th, .rep td { padding: 5px 7px; border-bottom: 1px solid #dbe4ec; text-align: left; vertical-align: top; color: #12202e; }
   .rep th { color: #5a6b7c; font-weight: 600; }
@@ -910,8 +912,7 @@
       if (x2 - x1 < 1) return;
       var c = doseColor(sg.dose);
       shown[sg.dose] = true;
-      bands += '<rect x="' + x1.toFixed(1) + '" y="' + T + '" width="' + (x2 - x1).toFixed(1) + '" height="' + (H - T - B) + '" fill="' + c + '" opacity="0.13"/>' +
-        '<rect x="' + x1.toFixed(1) + '" y="' + T + '" width="' + (x2 - x1).toFixed(1) + '" height="3" fill="' + c + '"/>';
+      bands += '<rect x="' + x1.toFixed(1) + '" y="' + T + '" width="' + (x2 - x1).toFixed(1) + '" height="' + (H - T - B) + '" fill="' + c + '" opacity="0.13"/>';
       if (x2 - x1 > 46) bands += '<text x="' + (x1 + 6).toFixed(1) + '" y="' + (T - 9) + '" style="fill:' + c + ';font-weight:700">' + sg.dose + ' mg</text>';
     });
 
@@ -1437,6 +1438,22 @@
     }
     boxes.push(['Entries logged', String(list.length), '#d97706', 'self-reported']);
 
+    // Fasting blood sugar readings counted by ADA range
+    var ranges = '';
+    if (sug) {
+      var counts = SUGAR_ZONES.map(function (z) {
+        return { z: z, n: list.filter(function (e) { return e.sugar !== null && sugarZone(e.sugar) === z; }).length };
+      });
+      ranges = '<h2>Fasting blood sugar ranges</h2><div class="rep-bar">' + counts.map(function (c) {
+        return c.n ? '<span style="width:' + (c.n / sug.n * 100).toFixed(2) + '%;background:' + c.z.color + '"></span>' : '';
+      }).join('') + '</div><table><thead><tr><th>Range</th><th>mg/dL</th><th class="num">Readings</th><th class="num">Share</th></tr></thead><tbody>' +
+        counts.map(function (c) {
+          return '<tr><td><span class="chip" style="--c:' + c.z.color + '">' + esc(c.z.label) + '</span></td><td>' + esc(c.z.range) + '</td><td class="num">' + c.n +
+            '</td><td class="num">' + Math.round(c.n / sug.n * 100) + '%</td></tr>';
+        }).join('') + '</tbody></table><div class="rep-cap">American Diabetes Association cut-offs for fasting blood sugar. All readings were taken fasting.</div>';
+      tl.push('- Fasting readings by range: ' + counts.map(function (c) { return c.n + ' ' + c.z.label.toLowerCase(); }).join(', '));
+    }
+
     var h = '<div class="rep">' + head + '<div class="rep-grid">' + boxes.map(function (b) {
       return '<div class="rep-box" style="--c:' + b[2] + '"><div class="l">' + esc(b[0]) + '</div><div class="v">' + esc(b[1]) + '</div><div class="s">' + esc(b[3] || '') + '</div></div>';
     }).join('') + '</div>';
@@ -1448,8 +1465,11 @@
       var res = buildChart(pr[0], { from: w.from, to: w.to, print: true, title: METRICS[pr[0]].label + ', ' + period });
       if (!res) return;
       charts.push({ key: pr[0], svg: res.svg, w: res.W, h: res.H });
-      h += '<section>' + res.svg + '<div class="rep-cap">Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.</div></section>';
+      h += '<section>' + res.svg + '<div class="rep-cap">Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.' +
+        (pr[0] === 'sugar' ? ' Dot colours show the fasting range: green below 100, amber 100 to 125, red 126 and above.' : '') + '</div></section>';
+      if (pr[0] === 'sugar') { h += '<section>' + ranges + '</section>'; ranges = ''; }
     });
+    if (ranges) h += '<section>' + ranges + '</section>';   // sugar chart not selected
 
     if ($('rcDose').checked && segs.length) {
       h += '<h2>Dose schedule</h2><table><thead><tr><th>Dose</th><th>From</th><th>To</th><th class="num">Weeks</th><th class="num">Weight change</th><th class="num">Per week</th><th class="num">Avg calories</th><th class="num">Avg blood sugar</th></tr></thead><tbody>';
