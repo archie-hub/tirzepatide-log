@@ -4,7 +4,7 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 
 ## What it does
 - Logs date, dose (mg), weight (lbs), comments, calories, food notes, blood sugar (mg/dL), injection site.
-- Plan cards: next dose (weekday from settings, else last logged site date, else current dose start) with site rotation hint; goal ring with projection (28-day least-squares slope); backup status.
+- Plan cards: next dose (weekday from settings, else last logged site date, else current dose start); goal ring with projection (28-day least-squares slope); backup status.
 - "Results by dose" panel: lbs/week per dose segment (also in the doctor report).
 - Stats cards, tabbed charts (weight / blood sugar / calories) with dose bands, 7-day average line, hover tooltip, range switch (All, 6 mo, 3 mo, 30 d).
 - Entry table with edit/delete and dose-colored rows. Shows the latest 30 entries until "Show all".
