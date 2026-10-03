@@ -7,7 +7,7 @@ A single-file web page for tracking tirzepatide dose, weight, calories, food not
 - No build step, no dependencies, no server. Open `index.html` in a browser.
 - Data stays in the browser (localStorage). Nothing is uploaded.
 - Import any CSV with a column-matching step, export your log as CSV, and generate a PDF/PNG/text report.
-- Next-dose countdown with injection-site rotation, goal weight with a progress ring and projected date, results by dose (lbs per week at each dose), and a backup reminder.
+- Next-dose countdown, goal weight with a progress ring and projected date, results by dose (lbs per week at each dose), and a backup reminder.
 - Installable as an app (home screen, works offline) when hosted.
 
 ## Use it
