@@ -368,7 +368,7 @@
       <label>Dosage (mg)<input type="number" id="fDose" step="0.25" min="0" inputmode="decimal"></label>
       <label>Weight (lbs)<input type="number" id="fWeight" step="0.1" min="0" inputmode="decimal"></label>
       <label>Calories<input type="number" id="fCal" step="1" min="0" inputmode="numeric"></label>
-      <label>Fasting blood sugar (mg/dL)<input type="number" id="fSugar" step="1" min="0" inputmode="numeric"></label>
+      <label>Fasting glucose (mg/dL)<input type="number" id="fSugar" step="1" min="0" inputmode="numeric"></label>
       <label>Injection site<select id="fSite"></select><span class="note" id="siteHint"></span></label>
       <label class="wide">Food notes<input type="text" id="fFood"></label>
       <label class="wide">Comments<textarea id="fComments"></textarea></label>
@@ -859,7 +859,7 @@
   var currentMetric = 'weight', currentRange = 0, chartSeq = 0;
   var METRICS = {
     weight: { key: 'weight', label: 'Weight (lbs)', color: '#0ea5a4', dec: 1 },
-    sugar: { key: 'sugar', label: 'Fasting blood sugar (mg/dL)', color: '#f97316', dec: 0 },
+    sugar: { key: 'sugar', label: 'Fasting glucose (mg/dL)', color: '#f97316', dec: 0 },
     cal: { key: 'cal', label: 'Calories', color: '#8b5cf6', dec: 0 }
   };
   // o: { days } trailing window, or { from, to } explicit window; print:true builds a standalone light SVG
