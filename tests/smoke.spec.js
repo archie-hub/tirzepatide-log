@@ -64,6 +64,31 @@ test('short date ranges do not repeat x-axis labels', async ({ page }) => {
   expect(new Set(labels).size).toBe(labels.length);
 });
 
+test('fasting blood sugar is coloured green, amber and red by range', async ({ page }) => {
+  const GREEN = '#16a34a', AMBER = '#d97706', RED = '#dc2626';
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill('Date,Blood Sugar (mg/dL)\n2026-10-01,95\n2026-10-02,110\n2026-10-03,130\n2026-10-04,125.6');
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await expect(page.locator('#importDlg')).toBeHidden();
+
+  // Entries table (newest first). 125.6 shows as 126, so it must be red too.
+  const tableColors = await page.locator('#rows tr').evaluateAll((rows) =>
+    rows.map((r) => r.querySelector('td:nth-child(8) .chip').style.getPropertyValue('--c')));
+  expect(tableColors).toEqual([RED, RED, AMBER, GREEN]);
+
+  // Latest-reading stat card.
+  await expect(page.locator('#stats .stat', { hasText: 'fasting blood sugar' })).toHaveAttribute('style', new RegExp(RED));
+
+  // Chart dots and the two threshold lines.
+  await page.locator('#tab-sugar').click();
+  const dots = await page.locator('#chart svg[role="img"] circle:not(#xc)').evaluateAll((c) => c.map((x) => x.getAttribute('fill')));
+  expect(dots).toEqual([GREEN, AMBER, RED, RED]);
+  await expect(page.locator('#chart svg text', { hasText: '100 prediabetes' })).toHaveCount(1);
+  await expect(page.locator('#chart svg text', { hasText: '126 diabetes range' })).toHaveCount(1);
+});
+
 test('doctor report preview renders and CSV/image export trigger downloads', async ({ page }) => {
   await importSample(page);
 

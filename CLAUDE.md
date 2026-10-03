@@ -26,6 +26,7 @@ storage and helpers, CSV parse/serialize, `buildChart()` (used for both the live
 ## Design decisions
 - Dose colors: 2.5 blue, 5 green, 7.5 yellow, 10 orange, 12.5 pink, 15 violet (`doseColor()`).
 - Metric colors: weight teal `#0ea5a4`, blood sugar orange `#f97316`, calories violet `#8b5cf6`.
+- Blood sugar readings are always fasting. Values are coloured by ADA fasting range (`sugarZone()`): below 100 green `#16a34a`, 100-125 prediabetes amber `#d97706`, 126+ diabetes red `#dc2626` (rounded value decides). Applied to the stat card, entries table, chart dots (with dashed 100/126 threshold lines; the sugar 7-day line is neutral slate so it isn't confused with amber), tooltip, and doctor report.
 - Light and dark mode via CSS variables; `prefers-reduced-motion` respected. Report content is always light (print-safe).
 - No external fonts or scripts, so it works offline.
 
