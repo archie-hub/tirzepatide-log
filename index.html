@@ -1222,6 +1222,11 @@
     return m;
   }
 
+  function monthNum(name) {
+    var i = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(name.slice(0, 3).toLowerCase());
+    return i + 1;
+  }
+
   function parseDate(str, fmt) {
     str = String(str || '').trim();
     if (!str) return null;
@@ -1230,7 +1235,14 @@
     else if ((m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/.exec(str))) {
       y = +m[3]; if (y < 100) y += 2000;
       if (fmt === 'dmy') { d = +m[1]; mo = +m[2]; } else { mo = +m[1]; d = +m[2]; }
+    } else if ((m = /^([a-z]{3,})\.?,?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/i.exec(str)) && monthNum(m[1])) {
+      // "October 9, 2024 at 10:38AM", "Oct 9 2024", "October, 8 2024"
+      mo = monthNum(m[1]); d = +m[2]; y = +m[3];
+    } else if ((m = /^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,})\.?,?\s+(\d{4})\b/i.exec(str)) && monthNum(m[2])) {
+      // "9 October 2024"
+      d = +m[1]; mo = monthNum(m[2]); y = +m[3];
     } else {
+      if (!/\d{4}/.test(str)) return null;   // "August 6" would otherwise become 2001 in Chrome
       var t = new Date(str);
       if (isNaN(t.getTime())) return null;
       y = t.getFullYear(); mo = t.getMonth() + 1; d = t.getDate();

@@ -64,6 +64,14 @@ test('short date ranges do not repeat x-axis labels', async ({ page }) => {
   expect(new Set(labels).size).toBe(labels.length);
 });
 
+test('import reads month-name dates and skips ones without a year', async ({ page }) => {
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill('Date,WEIGHT/lbs\n"October 9, 2024 at 10:38AM",193.6\n"October, 8 2024 at 10:30",194.6\n9 Nov 2024,190\nAugust 6,212');
+  await page.locator('#pasteBtn').click();
+  await expect(page.locator('#previewInfo')).toHaveText('3 entries ready; 1 rows skipped (date not readable, check Date format).');
+});
+
 test('fasting glucose is coloured green, amber and red by range', async ({ page }) => {
   const GREEN = '#16a34a', AMBER = '#d97706', RED = '#dc2626';
   await page.locator('#emptyImport').click();
