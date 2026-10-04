@@ -1662,11 +1662,9 @@
 
   /* ---------- footer, install ---------- */
   function renderFooter() {
-    var hosted = /^https?:$/.test(location.protocol), live = '<a href="' + SITE_URL + '">archie-hub.github.io/tirzepatide-log</a>';
-    var where = location.href.indexOf(SITE_URL.slice(0, -1)) === 0 ? 'Live at ' + live
-      : (hosted ? 'Running at ' + esc(location.host) : 'Local copy') + ' \u00b7 live version at ' + live;
+    var hosted = /^https?:$/.test(location.protocol);
     var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.navigator.standalone);
-    $('foot').innerHTML = where + ' \u00b7 Your data stays in this browser \u00b7 Not medical advice \u00b7 ' +
+    $('foot').innerHTML = 'Your data stays in this browser \u00b7 Not medical advice \u00b7 ' +
       '<a href="https://github.com/archie-hub/tirzepatide-log">Source</a>' +
       (ios && hosted ? '<br>To install on iPhone: tap Share, then Add to Home Screen.' : '');
   }
