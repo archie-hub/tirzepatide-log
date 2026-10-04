@@ -647,6 +647,13 @@
     { below: 126, color: '#d97706', label: 'Prediabetes', range: '100 to 125' },
     { below: Infinity, color: '#dc2626', label: 'Diabetes range', range: '126 and above' }
   ];
+  // Face for a glucose zone: smile (normal), flat mouth (prediabetes), frown (diabetes range)
+  function sugarFace(z, size) {
+    var mouth = z === SUGAR_ZONES[0] ? 'M8 14.2q4 3.8 8 0' : z === SUGAR_ZONES[1] ? 'M8.5 15.2h7' : 'M8 16.4q4-3.8 8 0';
+    return '<svg class="face" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" role="img" aria-label="' + z.label + '" style="vertical-align:middle;margin-right:' + (size < 20 ? 5 : 0) + 'px">' +
+      '<circle cx="12" cy="12" r="10.5" fill="' + z.color + '"/><circle cx="8.5" cy="9.5" r="1.4" fill="#fff"/><circle cx="15.5" cy="9.5" r="1.4" fill="#fff"/>' +
+      '<path d="' + mouth + '" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  }
   function sugarZone(v) {
     v = Math.round(v);
     for (var i = 0; i < SUGAR_ZONES.length; i++) if (v < SUGAR_ZONES[i].below) return SUGAR_ZONES[i];
@@ -703,7 +710,8 @@
     if (s.length) cards.push({ id: 'days', label: 'Days covered', val: dayDiff(s[0].date, s[s.length - 1].date) + 1, dec: 0, color: '#d97706', sub: s.length + ' entries logged' });
     if (sug.length) {
       var lastSug = sug[sug.length - 1].sugar, z = sugarZone(lastSug);
-      cards.push({ id: 'bs', label: 'Latest fasting glucose', val: lastSug, dec: 0, color: z.color, sub: 'mg/dL, ' + z.label.toLowerCase() });
+      cards.push({ id: 'bs', label: 'Latest fasting glucose', val: lastSug, dec: 0, color: z.color, sub: 'mg/dL, ' + z.label.toLowerCase(),
+        extra: '<span style="position:absolute;right:12px;bottom:12px;line-height:0">' + sugarFace(z, 30) + '</span>' });
     }
 
     $('stats').innerHTML = cards.length ? cards.map(function (c) {
@@ -1460,7 +1468,7 @@
         return c.n ? '<span style="width:' + (c.n / sug.n * 100).toFixed(2) + '%;background:' + c.z.color + '"></span>' : '';
       }).join('') + '</div><table><thead><tr><th>Range</th><th>mg/dL</th><th class="num">Readings</th><th class="num">Share</th></tr></thead><tbody>' +
         counts.map(function (c) {
-          return '<tr><td><span class="chip" style="--c:' + c.z.color + '">' + esc(c.z.label) + '</span></td><td>' + esc(c.z.range) + '</td><td class="num">' + c.n +
+          return '<tr><td><span class="chip" style="--c:' + c.z.color + '">' + sugarFace(c.z, 14) + esc(c.z.label) + '</span></td><td>' + esc(c.z.range) + '</td><td class="num">' + c.n +
             '</td><td class="num">' + Math.round(c.n / sug.n * 100) + '%</td></tr>';
         }).join('') + '</tbody></table><div class="rep-cap">American Diabetes Association cut-offs for fasting glucose. All readings were taken fasting.</div>';
       tl.push('- Fasting readings by range: ' + counts.map(function (c) { return c.n + ' ' + c.z.label.toLowerCase(); }).join(', '));
