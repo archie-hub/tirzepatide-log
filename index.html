@@ -1664,8 +1664,7 @@
   function renderFooter() {
     var hosted = /^https?:$/.test(location.protocol);
     var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.navigator.standalone);
-    $('foot').innerHTML = 'Your data stays in this browser \u00b7 Not medical advice \u00b7 ' +
-      '<a href="https://github.com/archie-hub/tirzepatide-log">Source</a>' +
+    $('foot').innerHTML = 'Your data stays in this browser \u00b7 Not medical advice' +
       (ios && hosted ? '<br>To install on iPhone: tap Share, then Add to Home Screen.' : '');
   }
   var installEvt = null;
