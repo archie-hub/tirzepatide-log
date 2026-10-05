@@ -262,7 +262,12 @@ test('BMI card predicts the next stage down', async ({ page }) => {
   await importSample(page);
   await page.fill('#bmiHeight', "5'9\"");
   await page.press('#bmiHeight', 'Enter');
-  await expect(page.locator('#plan .bmi-next')).toContainText('Normal (below 25)');
+  await page.locator('#plan .bmi-c').hover();
+  await expect(page.locator('#bmiBubble')).toHaveClass(/on/);
+  await expect(page.locator('#bmiBubble .k')).toContainText('Normal (below 25)');
+  await expect(page.locator('#bmiBubble')).toContainText('Pace');
+  await page.mouse.move(0, 0);
+  await expect(page.locator('#bmiBubble')).not.toHaveClass(/on/);
 });
 
 test('BMI height can be edited from the card', async ({ page }) => {
