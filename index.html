@@ -124,7 +124,7 @@
   /* ---- plan cards: next dose, BMI ---- */
   .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
   .card {
-    --c: var(--accent); position: relative; overflow: hidden; padding: 15px 17px; border-radius: 14px;
+    --c: var(--accent); position: relative; overflow: hidden; padding: 11px 15px; border-radius: 14px;
     border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow);
   }
   @supports (background: color-mix(in srgb, red 10%, blue)) {
@@ -135,19 +135,21 @@
   }
   .card.warn { --c: var(--warn); }
   .card .l { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-  .card .big { font-size: 26px; font-weight: 750; letter-spacing: -0.02em; line-height: 1.2; margin-top: 2px; color: var(--c); }
+  .card .big { font-size: 24px; font-weight: 750; letter-spacing: -0.02em; line-height: 1.2; margin-top: 2px; color: var(--c); }
   .card .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .card .row { display: flex; gap: 14px; align-items: center; }
   .card .row > div { min-width: 0; }
   .card .actions { margin-top: 10px; }
   .linkish { background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
   .linkish:hover { border: 0; color: var(--ink); }
-  .strip { display: flex; gap: 4px; margin-top: 10px; }
+  .strip { display: flex; gap: 4px; margin-top: 8px; }
   .strip span { flex: 1; height: 7px; border-radius: 4px; background: var(--line); }
   .strip span.on { background: var(--c); }
-  .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-  .mini span, .mini i { display: block; color: var(--muted); font-size: 12.5px; font-style: normal; }
-  .mini b { display: block; font-size: 22px; font-weight: 750; letter-spacing: -0.02em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .mini > div { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 7px; }
+  .mini span { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+  .mini i { color: var(--muted); font-size: 12px; font-style: normal; }
+  .mini b { font-size: 18px; font-weight: 750; letter-spacing: -0.02em; line-height: 1.25; font-variant-numeric: tabular-nums; }
   .strip-l { display: flex; justify-content: space-between; color: var(--muted); font-size: 11.5px; margin-top: 4px; }
   .ring { width: 86px; height: 86px; flex: none; }
   .ring .ring-t { fill: var(--ink); font-size: 19px; font-weight: 750; }
@@ -173,16 +175,19 @@
   .bmi-err { color: var(--bad); font-size: 13px; margin-top: 6px; min-height: 0; }
   .bmi-next { color: var(--ink); font-weight: 600; }
   .bmi .tag { font-size: 15px; font-weight: 700; margin-left: 8px; }
-  .bmi-scale { position: relative; display: flex; height: 12px; border-radius: 6px; margin: 22px 0 6px; }
+  .bmi-top { display: flex; flex-wrap: wrap; align-items: center; column-gap: 22px; }
+  .bmi-top .sub { margin-top: 0; }
+  .bmi-top > div:last-child { flex: 1 1 280px; min-width: 0; }
+  .bmi-scale { position: relative; display: flex; height: 10px; border-radius: 5px; margin: 14px 0 4px; }
   .bmi-scale i { flex: var(--w); background: var(--c); }
   .bmi-scale i:first-child { border-radius: 6px 0 0 6px; }
   .bmi-scale i:last-child { border-radius: 0 6px 6px 0; }
-  .bmi-scale b { position: absolute; top: -7px; width: 4px; height: 26px; margin-left: -2px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--panel); }
-  .bmi-ticks { position: relative; height: 16px; font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+  .bmi-scale b { position: absolute; top: -6px; width: 4px; height: 22px; margin-left: -2px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--panel); }
+  .bmi-ticks { position: relative; height: 15px; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
   .bmi-ticks span { position: absolute; transform: translateX(-50%); }
-  .bmi-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
-  .bmi-stages div { --c: var(--accent); border-left: 4px solid var(--c); padding: 4px 8px; border-radius: 4px; font-size: 13px; }
-  .bmi-stages div span { display: block; color: var(--muted); font-size: 12px; }
+  .bmi-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 4px; }
+  .bmi-stages div { --c: var(--accent); border-left: 3px solid var(--c); padding: 1px 7px; border-radius: 4px; font-size: 12.5px; line-height: 1.35; }
+  .bmi-stages div span { display: block; color: var(--muted); font-size: 11.5px; }
   .bmi-stages div.cur { background: color-mix(in srgb, var(--c) 18%, transparent); font-weight: 700; }
   .pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; margin-top: 12px; }
   .pager-info { color: var(--muted); font-size: 13px; }
@@ -1474,7 +1479,7 @@
       var a = Math.max(g.min, lo), z = g.max === null ? hi : g.max;
       scale += '<i style="--c:' + g.color + ';--w:' + (z - a) + '" title="' + esc(g.name) + '"></i>';
       var wt = g.min === 0 ? '<' + lbsAt(18.5, h) + ' ' + WU() : g.max === null ? lbsAt(40, h) + '+ ' + WU() : lbsAt(g.min, h) + ' \u2013 ' + lbsAt(g.max - 0.1, h) + ' ' + WU();
-      list += '<div' + (g === st ? ' class="cur"' : '') + ' style="--c:' + g.color + '">' + esc(g.name) + ' \u00b7 ' + bmiRange(g) + '<span>' + wt + '</span></div>';
+      list += '<div' + (g === st ? ' class="cur"' : '') + ' style="--c:' + g.color + '">' + esc(g.name) + '<span>' + bmiRange(g) + '</span><span>' + wt + '</span></div>';
     });
     [18.5, 25, 30, 35, 40].forEach(function (t) {
       ticks += '<span style="left:' + ((t - lo) / (hi - lo) * 100) + '%">' + t + '</span>';
@@ -1482,10 +1487,9 @@
     var pos = Math.min(Math.max((b - lo) / (hi - lo), 0), 1) * 100;
     return '<div class="card bmi" style="--c:' + st.color + '"><div class="l"><span>BMI at ' + esc(fmtHeight(h)) + '</span>' +
       '<button type="button" class="linkish" data-settings="height">Edit</button></div>' +
-      '<div class="big">' + b.toFixed(1) + '<span class="tag">' + esc(st.name) + '</span></div>' +
-      '<div class="sub">' + parseFloat(fw(last.weight)) + ' ' + WU() + ' on ' + esc(fmtDate(last.date)) +
+      '<div class="bmi-top"><div class="big">' + b.toFixed(1) + '<span class="tag">' + esc(st.name) + '</span></div><div><div class="sub">' + parseFloat(fw(last.weight)) + ' ' + WU() + ' on ' + esc(fmtDate(last.date)) +
       (w.length > 1 ? '. Started at ' + b0.toFixed(1) + ' (' + esc(st0.name) + ')' + (Math.abs(b0 - b) >= 0.05 ? ', ' + (b < b0 ? 'down ' : 'up ') + Math.abs(b0 - b).toFixed(1) : '') : '') + '</div>' +
-      (nextTxt ? '<div class="sub bmi-next">' + esc(nextTxt) + '</div>' : '') +
+      (nextTxt ? '<div class="sub bmi-next">' + esc(nextTxt) + '</div>' : '') + '</div></div>' +
       '<div class="bmi-scale" role="img" aria-label="BMI ' + b.toFixed(1) + ', ' + esc(st.name) + '">' + scale + '<b style="left:' + pos + '%"></b></div>' +
       '<div class="bmi-ticks" aria-hidden="true">' + ticks + '</div><div class="bmi-stages">' + list + '</div></div>';
   }
