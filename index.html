@@ -168,8 +168,8 @@
     #ratePanel .best { display: block; margin: 4px 0 0; }
   }
   /* ---- BMI card ---- */
-  .card.bmi { grid-column: 1 / -1; }
-  @media (min-width: 700px) { .card.bmi { grid-column: span 2; } }
+  .card.bmi:not(:only-child) { grid-column: auto; }
+  .card.bmi:only-child { grid-column: 1 / -1; }
   .bmi-ask { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
   .bmi-ask input { width: 170px; font: inherit; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
   .bmi-err { color: var(--bad); font-size: 13px; margin-top: 6px; min-height: 0; }
