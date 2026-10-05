@@ -83,6 +83,17 @@
   .hero button.primary:hover { background: #eef6ff; }
   .hero button.danger { color: #fff; }
 
+  .fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; border-radius: 8px; }
+  .fold > summary::-webkit-details-marker { display: none; }
+  .fold > summary h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
+  .fold > summary h2::before { content: ""; width: 7px; height: 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; }
+  .fold[open] > summary h2::before { transform: rotate(45deg); }
+  .fold[open] > summary { margin-bottom: 12px; }
+  .fold > summary:hover h2::before { border-color: var(--ink); }
+  .fold-hint { color: var(--muted); font-size: 13px; }
+  .fold-hint::after { content: "Show"; }
+  .fold[open] .fold-hint::after { content: "Hide"; }
+  .fold .count { font-size: 13px; font-weight: 600; color: var(--muted); }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--card); padding: 18px; box-shadow: var(--shadow); }
 
   button, .btn {
@@ -408,8 +419,8 @@
     <p class="note" style="margin-bottom:0">Change is measured from the first to the last weigh-in at each dose.</p>
   </section>
 
-  <section class="panel" id="entriesPanel">
-    <h2>Entries</h2>
+  <details class="panel fold" id="entriesPanel">
+    <summary><h2>Entries <span class="count" id="entriesCount"></span></h2><span class="fold-hint"></span></summary>
     <div class="table-wrap">
       <table>
         <thead>
@@ -423,10 +434,10 @@
     </div>
     <nav class="pager" id="pager" aria-label="Entries pages" hidden></nav>
     <div id="emptyRows" class="empty" hidden>No entries yet. Add one below or import a CSV.</div>
-  </section>
+  </details>
 
-  <section class="panel">
-    <h2 id="formTitle">Add entry</h2>
+  <details class="panel fold" id="formPanel">
+    <summary><h2 id="formTitle">Add entry</h2><span class="fold-hint"></span></summary>
     <form id="entryForm" autocomplete="off">
       <label>Date<input type="date" id="fDate" required></label>
       <label>Dosage (mg)<input type="number" id="fDose" step="0.25" min="0" inputmode="decimal"></label>
@@ -443,7 +454,7 @@
         <span style="color:var(--muted);font-size:13px">Saving an existing date replaces that day's entry.</span>
       </div>
     </form>
-  </section>
+  </details>
 
   <footer class="foot" id="foot"></footer>
 </main>
@@ -1366,6 +1377,7 @@
     });
     var desc = asc.slice().reverse();
     $('emptyRows').hidden = desc.length > 0;
+    $('entriesCount').textContent = desc.length ? '(' + desc.length + ')' : '';
     var pages = Math.max(1, Math.ceil(desc.length / PAGE));
     if (page > pages) page = pages;
     var visible = desc.slice((page - 1) * PAGE, page * PAGE);
@@ -1642,6 +1654,7 @@
       $('formTitle').textContent = 'Edit entry: ' + fmtDate(e.date);
       $('saveBtn').textContent = 'Update entry';
       $('cancelBtn').hidden = false;
+      $('formPanel').open = true;
       $('entryForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });

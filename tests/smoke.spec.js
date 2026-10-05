@@ -11,6 +11,13 @@ test.beforeEach(async ({ page }) => {
   await page.goto(APP_URL);
 });
 
+// The Entries and Add entry panels start minimised; open them the way a visitor would
+async function expandPanels(page) {
+  for (const id of ['#entriesPanel', '#formPanel']) {
+    if (!(await page.locator(id).evaluate((d) => d.open))) await page.locator(id + ' > summary').click();
+  }
+}
+
 async function importSample(page) {
   await page.locator('#emptyImport').click();
   await expect(page.locator('#importDlg')).toBeVisible();
@@ -23,6 +30,7 @@ async function importSample(page) {
 
 test('imports sample data and renders stats and charts', async ({ page }) => {
   await importSample(page);
+  await expandPanels(page);
 
   await expect(page.locator('#stats .stat').first()).toBeVisible();
   await expect(page.locator('#rows tr').first()).toBeVisible();
@@ -155,6 +163,7 @@ test('blood pressure is coloured by AHA category in the table, card and chart', 
 
 test('blood pressure round-trips through the form, CSV export and the report', async ({ page }) => {
   await pasteBp(page);
+  await expandPanels(page);
   await page.locator('[data-edit="2026-10-01"]').click();
   await expect(page.locator('#fBp')).toHaveValue('118/76');
   await page.locator('#fBp').fill('145 / 76');
@@ -331,6 +340,7 @@ test('BMI chart tab appears once height is set', async ({ page }) => {
 
 test('entries table shows 5 per page with a pager', async ({ page }) => {
   await importSample(page);
+  await expandPanels(page);
   await expect(page.locator('#rows tr')).toHaveCount(5);
   await expect(page.locator('#pager')).toBeVisible();
   const first = await page.locator('#rows tr').first().innerText();
@@ -346,6 +356,7 @@ test('entries table shows 5 per page with a pager', async ({ page }) => {
 
 test('backup note, undo delete and keyboard chart reading', async ({ page }) => {
   await importSample(page);
+  await expandPanels(page);
   // Import counts as backed up; changing data makes the note say so
   await expect(page.locator('#backupNote')).toContainText('Backed up');
   const first = await page.locator('#rows tr').first().locator('td').first().innerText();
@@ -384,6 +395,7 @@ test('backup note, undo delete and keyboard chart reading', async ({ page }) => 
 
 test('metric units: kg and cm everywhere, storage and export stay in lbs', async ({ page }) => {
   await importSample(page);
+  await expandPanels(page);
   await page.fill('#bmiHeight', "5'9\"");
   await page.press('#bmiHeight', 'Enter');
   const lbs = parseFloat((await page.locator('#stats .stat').first().locator('.v').innerText()));
@@ -493,6 +505,7 @@ test('blood pressure is one field like 119/79; bad input is rejected; combined C
   await page.locator('#doImport').click();
   await expect(page.locator('#rows tr').first().locator('td:nth-child(9) .chip')).toHaveText('141/91');
 
+  await expandPanels(page);
   await page.locator('#fDate').fill('2026-10-03');
   await page.locator('#fBp').fill('abc');
   await page.locator('#saveBtn').click();
@@ -542,4 +555,26 @@ test('combined chart: pick which values to plot, hover shows real values, choice
   await page.locator('#rcCompare').check();
   await expect(page.locator('#reportPreview svg[aria-label^="Combined chart"]')).toHaveCount(1);
   await expect(page.locator('#reportPreview svg[aria-label^="Combined chart"] text', { hasText: 'Systolic' })).toHaveCount(1);
+});
+
+test('Entries and Add entry panels start minimised and expand on click', async ({ page }) => {
+  await importSample(page);
+  for (const id of ['#entriesPanel', '#formPanel']) {
+    await expect(page.locator(id)).toBeVisible();
+    await expect(page.locator(id)).not.toHaveAttribute('open', '');
+  }
+  await expect(page.locator('#rows tr').first()).toBeHidden();
+  await expect(page.locator('#entriesCount')).toHaveText(/^\(\d+\)$/);
+
+  await page.locator('#entriesPanel > summary').click();
+  await expect(page.locator('#rows tr').first()).toBeVisible();
+  await expect(page.locator('#entriesPanel .fold-hint')).toBeVisible();
+  await page.locator('#entriesPanel > summary').click();
+  await expect(page.locator('#rows tr').first()).toBeHidden();
+
+  // Editing an entry opens the form on its own.
+  await page.locator('#entriesPanel > summary').click();
+  await page.locator('#rows [data-edit]').first().click();
+  await expect(page.locator('#formPanel')).toHaveAttribute('open', '');
+  await expect(page.locator('#fDate')).toBeVisible();
 });
