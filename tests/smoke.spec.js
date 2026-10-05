@@ -481,3 +481,44 @@ test('blood pressure is one field like 119/79; bad input is rejected; combined C
   await page.locator('#saveBtn').click();
   await expect(page.locator('#rows tr').first().locator('td:nth-child(9) .chip')).toHaveText('119/79');
 });
+
+test('combined chart: pick which values to plot, hover shows real values, choice is remembered, report can include it', async ({ page }) => {
+  await importSample(page);
+  await page.locator('#tab-compare').click();
+  await expect(page.locator('#tab-compare')).toHaveAttribute('aria-selected', 'true');
+  const chart = page.locator('#chart svg[role="img"]');
+  await expect(chart).toBeVisible();
+  const lines = () => chart.locator('path[stroke-width="2.6"]');
+  const chip = (k) => page.locator('#cmpPick [data-cmp="' + k + '"]');
+
+  // Defaults: weight, glucose, systolic. BMI is unavailable until a height is saved.
+  await expect(lines()).toHaveCount(3);
+  await expect(chip('bmi')).toBeDisabled();
+  await chip('cal').click();
+  await chip('dia').click();
+  await expect(chip('cal')).toHaveAttribute('aria-pressed', 'true');
+  await expect(lines()).toHaveCount(5);
+  await chip('weight').click();
+  await chip('sugar').click();
+  await expect(lines()).toHaveCount(3);
+
+  await chart.scrollIntoViewIfNeeded();
+  const box = await chart.boundingBox();
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
+  const tip = page.locator('#tip');
+  await expect(tip).toHaveClass(/on/);
+  await expect(tip).toContainText('Systolic');
+  await expect(tip).toContainText('Diastolic');
+  await expect(tip).toContainText('Calories');
+  await expect(tip).not.toContainText('Weight');
+
+  // Remembered across a reload, and available in the doctor report.
+  await page.reload();
+  await page.locator('#tab-compare').click();
+  await expect(chip('cal')).toHaveAttribute('aria-pressed', 'true');
+  await expect(chip('weight')).toHaveAttribute('aria-pressed', 'false');
+  await page.locator('#openReport').click();
+  await page.locator('#rcCompare').check();
+  await expect(page.locator('#reportPreview svg[aria-label^="Combined chart"]')).toHaveCount(1);
+  await expect(page.locator('#reportPreview svg[aria-label^="Combined chart"] text', { hasText: 'Systolic' })).toHaveCount(1);
+});
