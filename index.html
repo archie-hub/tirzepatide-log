@@ -177,6 +177,12 @@
   .bmi-stages div { --c: var(--accent); border-left: 4px solid var(--c); padding: 4px 8px; border-radius: 4px; font-size: 13px; }
   .bmi-stages div span { display: block; color: var(--muted); font-size: 12px; }
   .bmi-stages div.cur { background: color-mix(in srgb, var(--c) 18%, transparent); font-weight: 700; }
+  .pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; margin-top: 12px; }
+  .pager-info { color: var(--muted); font-size: 13px; }
+  .pager-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .pager .cur { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .pager .gap { color: var(--muted); padding: 0 2px; }
+  .pager button:disabled { opacity: .45; cursor: default; }
   .site-t { font-size: 11.5px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
 
   .foot { text-align: center; color: var(--muted); font-size: 13px; padding: 4px 0 0; }
@@ -403,7 +409,7 @@
         <tbody id="rows"></tbody>
       </table>
     </div>
-    <div class="actions" style="margin-top:12px"><button type="button" id="moreBtn" hidden></button></div>
+    <nav class="pager" id="pager" aria-label="Entries pages" hidden></nav>
     <div id="emptyRows" class="empty" hidden>No entries yet. Add one below or import a CSV.</div>
   </section>
 
@@ -1042,7 +1048,26 @@
   }
 
   /* ---------- table ---------- */
-  var showAll = false, PAGE = 30;
+  var page = 1, PAGE = 5;   // entries per page, newest first
+  function renderPager(pages, total) {
+    var el = $('pager');
+    el.hidden = pages <= 1;
+    if (pages <= 1) return;
+    // First, last and the pages around the current one, with gaps shown as dots
+    var nums = [], last = 0;
+    for (var i = 1; i <= pages; i++) {
+      if (i === 1 || i === pages || Math.abs(i - page) <= 1) {
+        if (last && i - last > 1) nums.push('<span class="gap" aria-hidden="true">\u2026</span>');
+        nums.push('<button type="button" class="small' + (i === page ? ' cur' : '') + '" data-page="' + i + '"' +
+          (i === page ? ' aria-current="page"' : '') + ' aria-label="Page ' + i + '">' + i + '</button>');
+        last = i;
+      }
+    }
+    var from = (page - 1) * PAGE + 1, to = Math.min(page * PAGE, total);
+    el.innerHTML = '<span class="pager-info">Showing ' + from + '\u2013' + to + ' of ' + total + '</span><span class="pager-btns">' +
+      '<button type="button" class="small" data-page="' + (page - 1) + '"' + (page === 1 ? ' disabled' : '') + '>Previous</button>' + nums.join('') +
+      '<button type="button" class="small" data-page="' + (page + 1) + '"' + (page === pages ? ' disabled' : '') + '>Next</button></span>';
+  }
   function renderRows() {
     var asc = sorted(), lastW = null, deltas = {}, maxCal = 0;
     asc.forEach(function (e) {
@@ -1051,10 +1076,10 @@
     });
     var desc = asc.slice().reverse();
     $('emptyRows').hidden = desc.length > 0;
-    var visible = showAll ? desc : desc.slice(0, PAGE);
-    var more = $('moreBtn');
-    more.hidden = desc.length <= PAGE;
-    more.textContent = showAll ? 'Show latest ' + PAGE + ' only' : 'Show all ' + desc.length + ' entries';
+    var pages = Math.max(1, Math.ceil(desc.length / PAGE));
+    if (page > pages) page = pages;
+    var visible = desc.slice((page - 1) * PAGE, page * PAGE);
+    renderPager(pages, desc.length);
     function c(v, dec) { return v === null ? '<span class="dim">\u2014</span>' : (dec !== undefined ? v.toFixed(dec) : esc(v)); }
     $('rows').innerHTML = visible.map(function (e) {
       var d = deltas[e.date], dTxt = '<span class="dim">\u2014</span>';
@@ -1291,7 +1316,13 @@
       renderChart();
     });
   });
-  $('moreBtn').addEventListener('click', function () { showAll = !showAll; renderRows(); });
+  $('pager').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-page]');
+    if (!b || b.disabled) return;
+    page = parseInt(b.dataset.page, 10);
+    renderRows();
+    $('entriesPanel').scrollIntoView({ block: 'nearest' });
+  });
 
   function exportAll() {
     if (!entries.length) { say('There is nothing to export yet.'); return; }
