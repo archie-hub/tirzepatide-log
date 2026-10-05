@@ -512,6 +512,8 @@
     <label>Units<select id="sUnits"><option value="us">US (lbs, ft/in)</option><option value="metric">Metric (kg, cm)</option></select></label>
     <label>Injection day<select id="sDay"></select></label>
   </div>
+  <label class="radio" id="sRemindWrap" style="margin-top:6px"><input type="checkbox" id="sRemind"> <span>Remind me on injection day</span></label>
+  <p class="note" id="sRemindNote">The reminder is a notification shown when you open the app on your injection day (a web page cannot run in the background). Your browser will ask for permission.</p>
   <p class="note">Units only change what is shown and typed; CSV exports always use lbs. Leave the goal blank to hide it. "Work it out" uses the day you last logged an injection site, or the day your current dose started.</p>
   <div class="actions">
     <button type="button" class="primary" id="setSave">Save</button>
@@ -1959,6 +1961,8 @@
     $('sGoal').value = goalShown;
     $('sHeight').value = heightShown;
     $('sUnits').value = isMetric() ? 'metric' : 'us';
+    $('sRemind').checked = !!settings.remind;
+    $('sRemindWrap').hidden = $('sRemindNote').hidden = !('Notification' in window);
     $('sDay').value = hasDoseDay() ? String(settings.doseDay) : 'auto';
     if (!sdlg.open) sdlg.showModal();
     (focus === 'height' ? $('sHeight') : $('sGoal')).focus();
@@ -1974,12 +1978,39 @@
     if (ht !== heightShown) settings.heightIn = ht ? parseHeight(ht) : null;
     settings.units = $('sUnits').value;
     settings.doseDay = day === 'auto' ? null : parseInt(day, 10);
+    var wantRemind = $('sRemind').checked && 'Notification' in window;
+    settings.remind = wantRemind;
     saveSettings(); closeSettings(); render();
     say('Settings saved.');
+    if (wantRemind && Notification.permission === 'default') {
+      Promise.resolve(Notification.requestPermission()).then(function (r) {
+        if (r !== 'granted') { settings.remind = false; saveSettings(); say('Notifications are not allowed for this site, so the reminder is off.'); }
+        else checkReminder();
+      }).catch(function () {});
+    } else if (wantRemind && Notification.permission === 'denied') {
+      settings.remind = false; saveSettings(); say('Notifications are blocked in your browser settings, so the reminder is off.');
+    } else checkReminder();
   });
   $('setClose').addEventListener('click', closeSettings);
   $('setCancel').addEventListener('click', closeSettings);
   $('sGoal').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('setSave').click(); });
+
+  /* ---------- injection-day reminder ---------- */
+  // Fires when the app is opened (or comes back to the foreground) on injection day, once per day,
+  // and not if today's dose is already logged.
+  function checkReminder() {
+    if (!settings.remind || !('Notification' in window) || Notification.permission !== 'granted') return;
+    var d = doseInfo(), t = today();
+    if (!d || d.diff !== 0 || settings.lastRemind === t) return;
+    if (entries.some(function (e) { return e.date === t && (e.dose !== null || e.site); })) return;
+    settings.lastRemind = t; saveSettings();
+    var title = 'Injection day', opts = { body: 'Today is your ' + DAY_NAMES[d.dow] + ' dose: ' + d.dose + ' mg. Log it when you are done.', tag: 'tirzepatide-dose', icon: 'icons/icon-192.png' };
+    var fallback = function () { try { new Notification(title, opts); } catch (e) {} };
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+      navigator.serviceWorker.getRegistration().then(function (reg) { reg ? reg.showNotification(title, opts) : fallback(); }).catch(fallback);
+    } else fallback();
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkReminder(); });
 
   /* ---------- footer, install ---------- */
   function renderFooter() {
@@ -2027,6 +2058,7 @@
 
   resetForm();
   render();
+  checkReminder();
   renderFooter();
   setupApp();
   loadHostedData();
