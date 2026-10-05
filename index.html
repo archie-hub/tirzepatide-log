@@ -181,7 +181,11 @@
   .bmi-c .big { font-size: 26px; margin: 0; line-height: 1.1; }
   .bmi-c .tag { font-size: 11.5px; font-weight: 700; color: var(--c); max-width: 76px; line-height: 1.2; }
   .bmi-info { display: contents; }
-  .bmi-txt .sub:first-child { margin-top: 0; }
+  .bmi-facts { margin: 0; display: grid; gap: 3px; font-size: 13.5px; }
+  .bmi-facts > div { display: grid; grid-template-columns: 52px 1fr; gap: 8px; }
+  .bmi-facts dt { color: var(--muted); }
+  .bmi-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .bmi-facts .bmi-next dd { font-weight: 650; }
   .card.bmi { overflow: visible; }
   .bmi-bubble {
     position: absolute; left: 0; bottom: calc(100% - 6px); z-index: 5; width: max-content; max-width: 250px; pointer-events: none;
@@ -1459,13 +1463,14 @@
     var last = w[w.length - 1], st = bmiStage(bmiOf(last.weight, h)), si = BMI_STAGES.indexOf(st);
     if (si === 1) return { normal: true };
     if (si < 2) return null;
-    var tw = (st.min - 0.05) * h * h / 703, toGo = last.weight - tw, sl = recentSlope(w), proj;
+    var tw = (st.min - 0.05) * h * h / 703, toGo = last.weight - tw, sl = recentSlope(w), proj, pace;
     if (sl !== null && sl < -0.01) {
       var dd = Math.round(toGo / -sl);
+      pace = dd > 3650 ? 'Years away at this pace' : sgn(dw(sl * 7), 1) + ' ' + WU() + '/wk \u2192 about ' + shortDate(addDays(last.date, dd), true);
       proj = dd > 3650 ? 'At your recent pace that is years away.'
         : 'At your recent pace (' + sgn(dw(sl * 7), 1) + ' ' + WU() + '/wk), around ' + shortDate(addDays(last.date, dd), true) + '.';
-    } else proj = 'Your recent pace is flat, so there is no projected date yet.';
-    return { tgt: BMI_STAGES[si - 1], below: st.min, tw: Math.floor(tw * 10) / 10, toGo: toGo, proj: proj };
+    } else { proj = 'Your recent pace is flat, so there is no projected date yet.'; pace = 'Flat lately, no date yet'; }
+    return { tgt: BMI_STAGES[si - 1], below: st.min, tw: Math.floor(tw * 10) / 10, toGo: toGo, proj: proj, pace: pace };
   }
   function bmiNextText(w, h) {
     var n = bmiNextInfo(w, h);
@@ -1496,7 +1501,8 @@
     }
     var last = w[w.length - 1], first = w[0];
     var b = bmiOf(last.weight, h), st = bmiStage(b), b0 = bmiOf(first.weight, h), st0 = bmiStage(b0);
-    var nextTxt = bmiNextText(w, h);
+    var nx = bmiNextInfo(w, h);
+    function fact(k, v, cls) { return '<div' + (cls ? ' class="' + cls + '"' : '') + '><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>'; }
     var lo = 15, hi = 45, arcs = '', A0 = 135, SWEEP = 270, CX = 62, CY = 62, RR = 50;
     function pt(deg, r) { var t = deg * Math.PI / 180; return (CX + r * Math.cos(t)).toFixed(2) + ' ' + (CY + r * Math.sin(t)).toFixed(2); }
     function ang(v) { return A0 + (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo) * SWEEP; }
@@ -1514,9 +1520,12 @@
       '<button type="button" class="linkish" data-settings="height">Edit</button></div>' +
       '<div class="bmi-body"><div class="bmi-ring" role="img" aria-label="BMI ' + b.toFixed(1) + ', ' + esc(st.name) + '">' + ring +
       '<div class="bmi-bubble" id="bmiBubble" aria-hidden="true"></div><div class="bmi-c"><div class="big">' + b.toFixed(1) + '</div><div class="tag">' + esc(st.name) + '</div></div></div>' +
-      '<div class="bmi-info"><div class="bmi-txt"><div class="sub">' + parseFloat(fw(last.weight)) + ' ' + WU() + ' on ' + esc(fmtDate(last.date)) +
-      (w.length > 1 ? '. Started at ' + b0.toFixed(1) + ' (' + esc(st0.name) + ')' + (Math.abs(b0 - b) >= 0.05 ? ', ' + (b < b0 ? 'down ' : 'up ') + Math.abs(b0 - b).toFixed(1) : '') : '') + '</div>' +
-      (nextTxt ? '<div class="sub bmi-next">' + esc(nextTxt) + '</div>' : '') + '</div>' +
+      '<div class="bmi-info"><dl class="bmi-facts">' +
+      fact('Latest', parseFloat(fw(last.weight)) + ' ' + WU() + ' \u00b7 ' + shortDate(last.date, false)) +
+      (w.length > 1 ? fact('Start', b0.toFixed(1) + ' \u2192 ' + b.toFixed(1) + (Math.abs(b0 - b) >= 0.05 ? ' (' + (b < b0 ? '\u25BC ' : '\u25B2 ') + Math.abs(b0 - b).toFixed(1) + ')' : '') + (st0 !== st ? ', was ' + st0.name : '')) : '') +
+      (nx ? (nx.normal ? fact('Status', 'In the normal range', 'bmi-next') :
+        fact('Next', nx.tgt.name + ' (below ' + nx.below + ') at ' + (isMetric() ? Math.floor(dw(nx.tw) * 10) / 10 : nx.tw).toFixed(1) + ' ' + WU() + ' \u00b7 ' + fw(nx.toGo) + ' to go', 'bmi-next') + fact('Pace', nx.pace)) : '') +
+      '</dl>' +
       '</div></div></div>';
   }
   function saveBmiHeight() {
