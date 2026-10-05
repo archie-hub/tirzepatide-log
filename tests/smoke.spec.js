@@ -837,3 +837,101 @@ test('body measures: files without them still import, and nothing extra shows', 
   await page.locator('#tab-waist').click();
   await expect(page.locator('#chart')).toContainText('No Waist');
 });
+
+async function setUnits(page, units) {
+  await page.locator('#stats [data-settings], #plan [data-settings]').first().click();
+  await page.selectOption('#sUnits', units);
+  await page.locator('#setSave').click();
+}
+const storedEntries = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('tirzepatide-log-v1')));
+
+test('UK units: absolute weights in stones and pounds, changes stay in pounds, storage and CSV stay lbs', async ({ page }) => {
+  await pasteProgress(page);               // 200.0 on 2026-07-01 ... 175.0 on 2026-10-01
+  await setUnits(page, 'uk');
+  const card = page.locator('#stats .stat', { hasText: 'Latest weight' });
+  await expect(card).toContainText('(st lb)');
+  await expect(card).toContainText('12 st 7');                       // 175 lbs = 12 st 7 lb
+  await expect(page.locator('#stats .stat', { hasText: 'Change since' })).toContainText('12.5% lost');   // percent unchanged
+  await expect(page.locator('#plan')).not.toContainText('NaN');
+
+  await expandPanels(page);
+  await expect(page.locator('#entriesPanel thead')).toContainText('Weight (st lb)');
+  await expect(page.locator('#rows tr').first().locator('td').nth(2)).toHaveText('12 st 7');
+  await expect(page.locator('#rows tr').first().locator('td').nth(3)).toContainText('3.0');   // change vs 178 stays in lbs (3 lbs)
+
+  // Weight chart: decimal stones on the axis, exact stones and pounds in the tooltip
+  const svg = page.locator('#chart svg[role="img"]');
+  await expect(svg).toHaveAttribute('aria-label', /Weight \(st\)/);
+  await svg.scrollIntoViewIfNeeded();
+  const b = await svg.boundingBox();
+  await page.mouse.move(b.x + b.width - 30, b.y + b.height / 2);
+  await expect(page.locator('#tip')).toContainText('12 st 7 lb');
+
+  // Storage unchanged; CSV export still lbs
+  expect((await storedEntries(page)).map((e) => e.weight)).toEqual([200, 196, 189.9, 179, 178, 175]);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
+  const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
+  expect(csv[6].split(',')[2]).toBe('175.0');
+});
+
+test('UK units: weights can be typed as stones and pounds, pounds or stones; bad input is rejected', async ({ page }) => {
+  await pasteProgress(page);
+  await setUnits(page, 'uk');
+  await expandPanels(page);
+  const add = async (date, text) => {
+    await page.fill('#fDate', date);
+    await page.fill('#fWeight', text);
+    await page.locator('#saveBtn').click();
+  };
+  await add('2026-10-02', '12 st 5 lb');      // 173
+  await add('2026-10-03', '12 4');            // 172
+  await add('2026-10-04', '170 lbs');         // 170
+  await add('2026-10-05', '12.5');            // 12.5 stones = 175
+  const byDate = Object.fromEntries((await storedEntries(page)).map((e) => [e.date, e.weight]));
+  expect([byDate['2026-10-02'], byDate['2026-10-03'], byDate['2026-10-04'], byDate['2026-10-05']]).toEqual([173, 172, 170, 175]);
+
+  await add('2026-10-06', 'abc');
+  expect((await storedEntries(page)).some((e) => e.date === '2026-10-06')).toBe(false);
+  expect(await page.locator('#fWeight').evaluate((el) => el.validationMessage)).toContain('stones');
+});
+
+test('UK units: untouched edit keeps exact pounds; goal and start weight in stones; switching back restores lbs', async ({ page }) => {
+  await pasteProgress(page);
+  await setUnits(page, 'uk');
+  await page.locator('#stats [data-settings]').first().click();
+  await page.fill('#sGoal', '12 0');           // 168 lbs
+  await page.fill('#sBaseline', '14 9');       // 205 lbs
+  await page.locator('#setSave').click();
+  await expect(page.locator('#stats .stat', { hasText: 'Goal' })).toContainText('Goal: 12 st 0 lb');
+  expect(await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('tirzepatide-settings')); return [s.goal, s.baseline]; })).toEqual([168, 205]);
+
+  await expandPanels(page);
+  const before = JSON.stringify(await storedEntries(page));
+  await page.locator('[data-edit="2026-08-01"]').click();           // 189.9 lbs = 13 st 7.9
+  await expect(page.locator('#fWeight')).toHaveValue('13 st 7.9 lb');
+  await page.locator('#saveBtn').click();
+  expect(JSON.stringify(await storedEntries(page))).toBe(before);
+
+  await setUnits(page, 'us');
+  await expect(page.locator('#stats .stat', { hasText: 'Latest weight' })).toContainText('175');
+  await expect(page.locator('#stats .stat', { hasText: 'Goal' })).toContainText('Goal: 168 lbs');
+  await expect(page.locator('#fWeight')).toHaveAttribute('type', 'number');
+});
+
+test('UK units: doctor report and BMI weights use stones and pounds', async ({ page }) => {
+  await pasteProgress(page);
+  await page.fill('#bmiHeight', "5'10\"");
+  await page.press('#bmiHeight', 'Enter');
+  await setUnits(page, 'uk');
+  await page.locator('#openReport').click();
+  const boxes = page.locator('#reportPreview .rep-box');
+  await expect(boxes.filter({ hasText: 'Weight' }).first()).toContainText('14 st 4 → 12 st 7 lb');
+  await expect(boxes.filter({ hasText: 'Highest / lowest' })).toContainText('14 st 4 / 12 st 7 lb');
+  await expect(boxes.filter({ hasText: 'Change' }).first()).toContainText('−25.0 lbs');   // differences stay in lbs
+  await expect(page.locator('#reportPreview')).not.toContainText('NaN');
+  await page.keyboard.press('Escape');
+  // BMI stage weight ranges in the bubble
+  const seg = page.locator('.bmi-seg').nth(1);
+  await seg.focus();
+  await expect(page.locator('#bmiBubble')).toContainText(' st ');
+});

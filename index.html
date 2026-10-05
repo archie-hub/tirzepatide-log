@@ -452,7 +452,7 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Dose</th><th class="wide-only">Dates</th><th class="num">Weeks</th><th class="num wide-only">Weight (<span class="wu">lbs</span>)</th><th class="num">Change</th><th class="num">Per week</th></tr>
+          <tr><th>Dose</th><th class="wide-only">Dates</th><th class="num">Weeks</th><th class="num wide-only">Weight (<span class="wua">lbs</span>)</th><th class="num">Change</th><th class="num">Per week</th></tr>
         </thead>
         <tbody id="rateRows"></tbody>
       </table>
@@ -466,7 +466,7 @@
       <table>
         <thead>
           <tr>
-            <th>Date</th><th class="num">Dose (mg)</th><th class="num">Weight (<span class="wu">lbs</span>)</th><th class="num">Change</th>
+            <th>Date</th><th class="num">Dose (mg)</th><th class="num">Weight (<span class="wua">lbs</span>)</th><th class="num">Change</th>
             <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th class="num">BP</th><th class="num">Waist (<span class="lu">in</span>)</th><th></th>
           </tr>
         </thead>
@@ -482,7 +482,7 @@
     <form id="entryForm" autocomplete="off">
       <label>Date<input type="date" id="fDate" required></label>
       <label>Dosage (mg)<input type="number" id="fDose" step="0.25" min="0" inputmode="decimal"></label>
-      <label><span>Weight (<span class="wu">lbs</span>)</span><input type="number" id="fWeight" step="0.1" min="0" inputmode="decimal"></label>
+      <label><span>Weight (<span class="wua">lbs</span>)</span><input type="number" id="fWeight" step="0.1" min="0" inputmode="decimal"></label>
       <label>Calories<input type="number" id="fCal" step="1" min="0" inputmode="numeric"></label>
       <label>Fasting glucose (mg/dL)<input type="number" id="fSugar" step="1" min="0" inputmode="numeric"></label>
       <label>Blood pressure (mmHg)<input type="text" id="fBp" placeholder="119/79" inputmode="numeric" maxlength="9"></label>
@@ -572,10 +572,10 @@
     <button type="button" class="small" id="setClose">Close</button>
   </div>
   <div class="opts" style="margin-top:0">
-    <label><span>Goal weight (<span class="wu">lbs</span>)</span><input type="number" id="sGoal" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
-    <label><span>Starting weight before treatment (<span class="wu">lbs</span>), optional</span><input type="number" id="sBaseline" step="0.1" min="0" inputmode="decimal" placeholder="blank = first weigh-in"></label>
+    <label><span>Goal weight (<span class="wua">lbs</span>)</span><input type="number" id="sGoal" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
+    <label><span>Starting weight before treatment (<span class="wua">lbs</span>), optional</span><input type="number" id="sBaseline" step="0.1" min="0" inputmode="decimal" placeholder="blank = first weigh-in"></label>
     <label>Height<input type="text" id="sHeight" placeholder="e.g. 5'9&quot; or 175 cm"></label>
-    <label>Units<select id="sUnits"><option value="us">US (lbs, ft/in)</option><option value="metric">Metric (kg, cm)</option></select></label>
+    <label>Units<select id="sUnits"><option value="us">US (lbs, ft/in)</option><option value="metric">Metric (kg, cm)</option><option value="uk">UK (stones and lbs, ft/in)</option></select></label>
     <label>Injection day<select id="sDay"></select></label>
   </div>
   <p class="note">Units only change what is shown and typed; CSV exports always use lbs. Leave the goal blank to hide it. The starting weight is only needed when your first logged weight is not where you began treatment; progress percentages are measured from it. "Work it out" uses the day you last logged an injection site, or the day your current dose started.</p>
@@ -671,10 +671,49 @@
   function dl(inches) { return isMetric() ? inches * 2.54 : inches; }
   function flen(inches) { return dl(inches).toFixed(1); }
   function fromDl(v) { return isMetric() ? Math.round(v / 2.54 * 100) / 100 : v; }
+  // UK units: absolute body weights show as stones and pounds ("13 st 5.2 lb"); changes, rates and amounts to go stay in pounds
+  function isUK() { return settings.units === 'uk'; }
+  function stLb(lbs, dec, compact) {
+    dec = dec === undefined ? 1 : dec;
+    var f = Math.pow(10, dec), st = Math.floor(lbs / 14), lb = Math.round((lbs - st * 14) * f) / f;
+    if (lb >= 14) { st++; lb = 0; }
+    return st + ' st ' + parseFloat(lb.toFixed(dec)) + (compact ? '' : ' lb');
+  }
+  function fwu(lbs, dec) { return isUK() ? stLb(lbs, dec) : fw(lbs, dec) + ' ' + WU(); }      // absolute weight with its unit
+  function fwa(lbs) { return isUK() ? stLb(lbs, 1, true) : fw(lbs); }                         // absolute weight for a column headed WUA()
+  function fwuTrim(lbs) { return isUK() ? stLb(lbs) : parseFloat(fw(lbs)) + ' ' + WU(); }    // like fwu, without trailing zeros
+  function WUA() { return isUK() ? 'st lb' : WU(); }                                          // header label for absolute-weight columns
+  function WUC() { return isUK() ? 'st' : WU(); }                                             // chart axis label (stones are decimal there)
+  function unitSfx() { return isUK() ? ' lb' : ' ' + WU(); }                                  // after compact stone values
+  function goalLabel(g) { return isUK() ? stLb(g) : parseFloat(fw(g)) + ' ' + WU(); }
+  // A target weight rounded down to 0.1 so it is genuinely below the threshold
+  function fwFloor(lbs) { return isUK() ? stLb(lbs) : (isMetric() ? Math.floor(dw(lbs) * 10) / 10 : lbs).toFixed(1) + ' ' + WU(); }
+  function wShow(lbs) { return isUK() ? stLb(lbs) : (isMetric() ? fw(lbs) : String(lbs)); }   // as typed back into a field
+  function stToLbs(st, lb) { return Math.round((st * 14 + lb) * 100) / 100; }
+  // "13 5.2", "13 st 5 lb", "13st", "185 lbs", or a bare number (under 40 = stones, otherwise pounds). Returns lbs or null.
+  function parseStLb(raw) {
+    var t = String(raw === null || raw === undefined ? '' : raw).trim().toLowerCase().replace(/,/g, '.'), m;
+    if (!t) return null;
+    if ((m = /^(\d+(?:\.\d+)?)\s*(?:st|stone|stones)\b\s*(?:(\d+(?:\.\d+)?)\s*(?:lb|lbs|pounds)?)?$/.exec(t))) return stToLbs(+m[1], m[2] ? +m[2] : 0);
+    if ((m = /^(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)$/.exec(t))) return stToLbs(+m[1], +m[2]);
+    if ((m = /^(\d+(?:\.\d+)?)\s*(?:lb|lbs|pounds)$/.exec(t))) return +m[1];
+    if ((m = /^(\d+(?:\.\d+)?)$/.exec(t))) return +m[1] < 40 ? Math.round(+m[1] * 14 * 100) / 100 : +m[1];
+    return null;
+  }
+  // A typed weight in whatever the units were showing; blank or unreadable gives null
+  function readW(raw, metric, uk) {
+    if (uk) return parseStLb(raw);
+    var v = num(raw); return v === null ? null : toLbs(v, metric);
+  }
   function toLbs(x, metric) { return metric ? Math.round(x / KG * 100) / 100 : x; }
   function renderUnits() {
     Array.prototype.forEach.call(document.querySelectorAll('.wu'), function (el) { el.textContent = WU(); });
     Array.prototype.forEach.call(document.querySelectorAll('.lu'), function (el) { el.textContent = LU(); });
+    Array.prototype.forEach.call(document.querySelectorAll('.wua'), function (el) { el.textContent = WUA(); });
+    // stones and pounds are typed as text ("13 5.2"); everything else stays a number field
+    ['fWeight', 'sGoal', 'sBaseline'].forEach(function (id) { var el = $(id); if (el) { el.type = isUK() ? 'text' : 'number'; } });
+    $('sGoal').placeholder = isUK() ? 'e.g. 12 7' : 'e.g. 180';
+    $('fWeight').placeholder = isUK() ? 'e.g. 13 5.2' : '';
   }
 
   /* ---------- storage ---------- */
@@ -1017,10 +1056,10 @@
   }
   function insightBoxes(all, w) {
     var out = [], tv = thisVsLast(w), ex = extremes(w), weeks = weeklyAverages(all), bw = bestWeek(weeks), rr = rollingRates(w), cs = consistency(w);
-    if (tv) out.push(insBox('#0ea5a4', 'This week vs last', sgn(dw(tv.change), 1) + ' ' + WU(), 'average ' + fw(tv.now) + ' vs ' + fw(tv.before)));
+    if (tv) out.push(insBox('#0ea5a4', 'This week vs last', sgn(dw(tv.change), 1) + ' ' + WU(), 'average ' + fwa(tv.now) + ' vs ' + fwa(tv.before)));
     if (ex) {
-      out.push(insBox('#dc2626', 'Highest weight', fw(ex.hi.weight) + ' ' + WU(), fmtDate(ex.hi.date)));
-      out.push(insBox('#16a34a', 'Lowest weight', fw(ex.lo.weight) + ' ' + WU(), fmtDate(ex.lo.date)));
+      out.push(insBox('#dc2626', 'Highest weight', fwu(ex.hi.weight), fmtDate(ex.hi.date)));
+      out.push(insBox('#16a34a', 'Lowest weight', fwu(ex.lo.weight), fmtDate(ex.lo.date)));
     }
     if (bw) out.push(insBox('#6366f1', 'Best week', sgn(dw(bw.change), 1) + ' ' + WU(), 'week ' + bw.week + ' (' + shortDate(bw.from, false) + ' to ' + shortDate(bw.to, false) + '), average vs the week before'));
     if (rr.length) {
@@ -1036,8 +1075,8 @@
     return out;
   }
   function weeklyTable(weeks) {
-    return '<table><thead><tr><th>Week</th><th>Dates</th><th class="num">Average (' + WU() + ')</th><th class="num">Change</th><th class="num">Weigh-ins</th></tr></thead><tbody>' + weeks.map(function (b) {
-      return '<tr><td>' + b.week + '</td><td>' + esc(shortDate(b.from, false) + ' to ' + shortDate(b.to, false)) + '</td><td class="num">' + fw(b.avg) + '</td><td class="num">' +
+    return '<table><thead><tr><th>Week</th><th>Dates</th><th class="num">Average (' + WUA() + ')</th><th class="num">Change</th><th class="num">Weigh-ins</th></tr></thead><tbody>' + weeks.map(function (b) {
+      return '<tr><td>' + b.week + '</td><td>' + esc(shortDate(b.from, false) + ' to ' + shortDate(b.to, false)) + '</td><td class="num">' + fwa(b.avg) + '</td><td class="num">' +
         (b.change === null ? '\u2014' : sgn(dw(b.change), 1)) + '</td><td class="num">' + b.n + '</td></tr>';
     }).join('') + '</tbody></table>';
   }
@@ -1085,7 +1124,7 @@
     el.hidden = !pi || (w.length < 2 && !pi.hasBase && !body);
     if (el.hidden) return;
     var firstOpen = true, chips = pi.ms.filter(function (m) { if (m.hit) return true; if (firstOpen) { firstOpen = false; return true; } return false; }).map(function (m) {
-      return m.hit ? '<span class="chip" style="--c:#16a34a" title="First weigh-in at or below ' + esc(fw(m.target)) + ' ' + WU() + ' on ' + esc(fmtDate(m.hit.date)) + '">' + m.pct + '% \u00b7 week ' + m.hit.week + '</span>'
+      return m.hit ? '<span class="chip" style="--c:#16a34a" title="First weigh-in at or below ' + esc(fwu(m.target)) + ' on ' + esc(fmtDate(m.hit.date)) + '">' + m.pct + '% \u00b7 week ' + m.hit.week + '</span>'
         : '<span class="chip next" style="--c:#64748b">' + m.pct + '% \u00b7 ' + esc(fw(m.toGo)) + ' ' + WU() + ' to go</span>';
     }).join('');
     var main = (w.length < 2 && !pi.hasBase) ? '' : '<span class="wk">Week ' + pi.week + ' on treatment</span>' + chips +
@@ -1107,13 +1146,14 @@
     var sug = s.filter(function (e) { return e.sugar !== null; });
     if (w.length) {
       var first = w[0], last = w[w.length - 1], d = last.weight - first.weight, gi = goalInfo(w);
-      cards.push({ id: 'wt', label: 'Latest weight (' + WU() + ')', val: dw(last.weight), dec: 1, color: '#0ea5a4',
-        extra: spark(w.slice(-40).map(function (e) { return dw(e.weight); })) });
+      var wtCard = { id: 'wt', label: 'Latest weight (' + WUA() + ')', color: '#0ea5a4', extra: spark(w.slice(-40).map(function (e) { return dw(e.weight); })) };
+      if (isUK()) wtCard.text = stLb(last.weight, 1, true); else { wtCard.val = dw(last.weight); wtCard.dec = 1; }
+      cards.push(wtCard);
       if (!gi) {
         cards.push({ id: 'goal', label: 'Goal weight', text: 'Not set', color: '#6366f1',
           extra: '<div class="sub"><button type="button" class="linkish" data-settings>Set a goal</button></div>' });
       } else {
-        cards.push({ id: 'goal', label: 'Goal: ' + parseFloat(fw(gi.goal)) + ' ' + WU(), edit: true, text: gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'Reached', color: '#6366f1',
+        cards.push({ id: 'goal', label: 'Goal: ' + goalLabel(gi.goal), edit: true, text: gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'Reached', color: '#6366f1',
           sub: gi.proj, ring: gi.pct });
       }
       cards.push({ id: 'chg', label: 'Change since ' + fmtDate(first.date), val: dw(d), dec: 1, sign: true,
@@ -1258,7 +1298,7 @@
     var best = rated.length > 1 ? rated.reduce(function (x, y) { return y.rate < x.rate ? y : x; }) : null;
     if (best && best.rate >= 0) best = null;
     $('rateRows').innerHTML = rows.map(function (r) {
-      var c = doseColor(r.dose), wt = r.ws.length ? fw(r.ws[0].weight) + (r.ws.length > 1 ? ' \u2192 ' + fw(r.ws[r.ws.length - 1].weight) : '') : '\u2014';
+      var c = doseColor(r.dose), wt = r.ws.length ? fwa(r.ws[0].weight) + (r.ws.length > 1 ? ' \u2192 ' + fwa(r.ws[r.ws.length - 1].weight) : '') : '\u2014';
       var ch = r.change === null ? '<span class="dim">\u2014</span>'
         : '<span class="delta ' + (r.change < 0 ? 'down' : r.change > 0 ? 'up' : '') + '">' + sgn(dw(r.change), 1) + '</span>';
       var rate = r.rate === null ? '<span class="dim">\u2014</span>'
@@ -1273,7 +1313,7 @@
   /* ---------- chart ---------- */
   var currentMetric = 'weight', currentRange = 0, chartSeq = 0;
   var METRICS = {
-    weight: { key: 'weight', get label() { return 'Weight (' + WU() + ')'; }, color: '#0ea5a4', dec: 1 },
+    weight: { key: 'weight', get label() { return 'Weight (' + WUC() + ')'; }, color: '#0ea5a4', dec: 1 },
     bmi: { key: 'bmi', label: 'BMI', color: '#0284c7', dec: 1 },
     sugar: { key: 'sugar', label: 'Fasting glucose (mg/dL)', color: '#f97316', dec: 0 },
     waist: { key: 'waist', get label() { return 'Waist (' + LU() + ')'; }, color: '#c026d3', dec: 1 },
@@ -1284,7 +1324,7 @@
   };
   // Series available on the combined chart; each is scaled to its own range so different units can share one plot
   var COMPARE_SERIES = [
-    { k: 'weight', get label() { return 'Weight'; }, color: '#0ea5a4', val: function (e) { return e.weight; }, fmt: function (v) { return fw(v) + ' ' + WU(); } },
+    { k: 'weight', get label() { return 'Weight'; }, color: '#0ea5a4', val: function (e) { return e.weight; }, fmt: function (v) { return fwu(v); } },
     { k: 'bmi', label: 'BMI', color: '#0284c7', val: function (e) { return e.weight === null || !settings.heightIn ? null : bmiOf(e.weight, settings.heightIn); }, fmt: function (v) { return v.toFixed(1); } },
     { k: 'sugar', label: 'Glucose', color: '#f97316', val: function (e) { return e.sugar; }, fmt: function (v) { return Math.round(v) + ' mg/dL'; } },
     { k: 'sys', label: 'Systolic', color: '#e11d48', val: function (e) { return e.sys; }, fmt: function (v) { return Math.round(v) + ' mmHg'; } },
@@ -1315,6 +1355,8 @@
       rateThr = dw(rateThr);
     } else if (m.key === 'waist' && isMetric()) {
       all = all.map(function (e) { return Object.assign({}, e, { waist: e.waist == null ? null : e.waist * 2.54 }); });
+    } else if (m.key === 'weight' && isUK()) {   // decimal stones on the axis; the exact pounds ride along for tooltips
+      all = all.map(function (e) { return Object.assign({}, e, { lbs: e.weight, weight: e.weight === null ? null : e.weight / 14 }); });
     } else if (m.key === 'weight' && isMetric()) {
       all = all.map(function (e) { return Object.assign({}, e, { weight: e.weight === null ? null : e.weight * KG }); });
     }
@@ -1351,9 +1393,10 @@
     var halfHeight = (m.key === 'waist' && settings.heightIn) ? dl(settings.heightIn / 2) : null;   // waist-to-height ratio of 0.5
     if (halfHeight) vals.push(halfHeight);
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-    var pad = Math.max((hi - lo) * 0.08, (m.key === 'weight' || m.key === 'waist') ? 1 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 0.5 : (bp ? 6 : (m.key === 'rate' ? 0.15 : 50)))));
+    var wUk = m.key === 'weight' && isUK();
+    var pad = Math.max((hi - lo) * 0.08, wUk ? 0.1 : (m.key === 'weight' || m.key === 'waist') ? 1 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 0.5 : (bp ? 6 : (m.key === 'rate' ? 0.15 : 50)))));
     lo -= pad; hi += pad;
-    var unit = m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 1 : (bp ? 10 : (m.key === 'rate' ? 0.5 : 2))));
+    var unit = wUk ? 0.5 : m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 1 : (bp ? 10 : (m.key === 'rate' ? 0.5 : 2))));
     lo = Math.floor(lo / unit) * unit;
     hi = lo + Math.ceil((hi - lo) / 4 / unit) * unit * 4;
     function X(d) { return single ? L + (W - L - R) / 2 : L + (dayDiff(t0, d) / span) * (W - L - R); }
@@ -1622,11 +1665,11 @@
       var p = pts[best], px = xs[best];
       xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.style.display = '';
       xc.setAttribute('cx', px); xc.setAttribute('cy', Y(p.v)); xc.style.display = '';
-      var h = '<b>' + esc(fmtDate(p.e.date)) + '</b><br>' + esc(m.label) + ': ' + (m.key === 'bp' ? bpText(p.e) : p.v.toFixed(m.dec));
+      var h = '<b>' + esc(fmtDate(p.e.date)) + '</b><br>' + esc(m.label) + ': ' + (m.key === 'bp' ? bpText(p.e) : (m.key === 'weight' && isUK()) ? stLb(p.e.lbs) : p.v.toFixed(m.dec));
       if (m.key === 'bp') h += ' (' + bpZone(p.v, p.d).label.toLowerCase() + ')';
       if (m.key === 'sugar') h += ' (' + sugarZone(p.v).label.toLowerCase() + ')';
-      if (m.key === 'bmi') h += ' (' + bmiStage(p.v).name.toLowerCase() + ')<br>Weight: ' + fw(p.e.weight) + ' ' + WU();
-      if (!single) h += '<br>7-day average: ' + (m.key === 'bp' ? Math.round(p.a) + '/' + Math.round(p.a2) : p.a.toFixed(m.dec));
+      if (m.key === 'bmi') h += ' (' + bmiStage(p.v).name.toLowerCase() + ')<br>Weight: ' + fwu(p.e.weight);
+      if (!single) h += '<br>7-day average: ' + (m.key === 'bp' ? Math.round(p.a) + '/' + Math.round(p.a2) : (m.key === 'weight' && isUK()) ? stLb(p.a * 14) : p.a.toFixed(m.dec));
       if (p.e.dose !== null) h += '<br>Dose: ' + p.e.dose + ' mg';
       if (p.e.comments) h += '<br><i>' + esc(p.e.comments.length > 80 ? p.e.comments.slice(0, 80) + '\u2026' : p.e.comments) + '</i>';
       tip.innerHTML = h; tip.classList.add('on');
@@ -1693,7 +1736,7 @@
       return '<tr style="--c:' + doseColor(e.dose) + '">' +
         '<td>' + esc(fmtDate(e.date)) + '</td>' +
         '<td class="num">' + dose + (e.site ? '<div class="site-t">' + esc(e.site) + '</div>' : '') + '</td>' +
-        '<td class="num">' + (e.weight === null ? c(null) : fw(e.weight)) + '</td>' +
+        '<td class="num">' + (e.weight === null ? c(null) : fwa(e.weight)) + '</td>' +
         '<td class="num">' + dTxt + '</td>' +
         '<td class="notes">' + (e.comments ? esc(e.comments) : '<span class="dim">\u2014</span>') + '</td>' +
         '<td class="num">' + (e.cal === null ? '<span class="dim">\u2014</span>' : '<div class="calcell"><i style="width:' + pct + '%"></i><span>' + e.cal + '</span></div>') + '</td>' +
@@ -1727,6 +1770,7 @@
     return g.min === 0 ? '<18.5' : g.max === null ? '40+' : g.min + ' \u2013 ' + (g.max - 0.1).toFixed(1);
   }
   function lbsAt(bmi, inches) { return Math.round(dw(bmi * inches * inches / 703)); }   // in the display unit
+  function lbsAtTxt(bmi, inches) { return isUK() ? stLb(Math.round(bmi * inches * inches / 703), 0, true) : String(lbsAt(bmi, inches)); }
   // Accepts 5'9", 5 9, 5ft 9in, 69, 69 in, 175 cm. Returns inches (36 to 100) or null.
   function parseHeight(str) {
     str = String(str || '').toLowerCase().trim();
@@ -1762,7 +1806,7 @@
     var n = bmiNextInfo(w, h);
     if (!n) return '';
     if (n.normal) return 'You are in the normal range.';
-    return 'Next stage: ' + n.tgt.name + ' (below ' + n.below + ') at ' + (isMetric() ? Math.floor(dw(n.tw) * 10) / 10 : n.tw).toFixed(1) + ' ' + WU() + ', ' + fw(n.toGo) + ' to go. ' + n.proj;
+    return 'Next stage: ' + n.tgt.name + ' (below ' + n.below + ') at ' + fwFloor(n.tw) + ', ' + fw(n.toGo) + ' ' + WU() + ' to go. ' + n.proj;
   }
   // Hovering, focusing or tapping a colour on the ring describes that stage; the number in the middle shows the progress details
   function bmiDetail(ev, on) {
@@ -1804,7 +1848,7 @@
     function ang(v) { return A0 + (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo) * SWEEP; }
     BMI_STAGES.forEach(function (g) {
       var a0 = ang(g.min) + (g.min > lo ? 0.8 : 0), a1 = ang(g.max === null ? hi : g.max) - (g.max === null ? 0 : 0.8);
-      var wt = g.min === 0 ? '<' + lbsAt(18.5, h) + ' ' + WU() : g.max === null ? lbsAt(40, h) + '+ ' + WU() : lbsAt(g.min, h) + ' – ' + lbsAt(g.max - 0.1, h) + ' ' + WU();
+      var wt = (g.min === 0 ? '<' + lbsAtTxt(18.5, h) : g.max === null ? lbsAtTxt(40, h) + '+' : lbsAtTxt(g.min, h) + ' – ' + lbsAtTxt(g.max - 0.1, h)) + unitSfx();
       var desc = 'BMI ' + bmiRange(g) + ' · ' + wt;
       arcs += '<path class="bmi-seg' + (g === st ? ' cur' : '') + '" tabindex="0" role="img" aria-label="' + esc(g.name + ', ' + desc) + '" data-name="' + esc(g.name) + '" data-desc="' + esc(desc) + '" data-c="' + g.color +
         '" d="M' + pt(a0, RR) + 'A' + RR + ' ' + RR + ' 0 ' + (a1 - a0 > 180 ? 1 : 0) + ' 1 ' + pt(a1, RR) + '" fill="none" stroke="' + g.color + '" stroke-width="11" stroke-linecap="butt"/>';
@@ -1812,11 +1856,11 @@
     var mk = pt(ang(b), RR).split(' ');
     var ring = '<svg viewBox="0 0 124 124" aria-hidden="true">' + arcs +
       '<circle cx="' + mk[0] + '" cy="' + mk[1] + '" r="8" fill="var(--ink)" stroke="var(--panel)" stroke-width="3"/></svg>';
-    var rows = [['Latest', parseFloat(fw(last.weight)) + ' ' + WU() + ' · ' + shortDate(last.date, false)]];
+    var rows = [['Latest', fwuTrim(last.weight) + ' · ' + shortDate(last.date, false)]];
     if (w.length > 1) rows.push(['Start', b0.toFixed(1) + ' → ' + b.toFixed(1) + (Math.abs(b0 - b) >= 0.05 ? ' (' + (b < b0 ? '▼ ' : '▲ ') + Math.abs(b0 - b).toFixed(1) + ')' : '') + (st0 !== st ? ', was ' + st0.name : '')]);
     if (nx && nx.normal) rows.push(['Status', 'In the normal range', 1]);
     else if (nx) {
-      rows.push(['Next', nx.tgt.name + ' (below ' + nx.below + ') at ' + (isMetric() ? Math.floor(dw(nx.tw) * 10) / 10 : nx.tw).toFixed(1) + ' ' + WU() + ' · ' + fw(nx.toGo) + ' to go', 1]);
+      rows.push(['Next', nx.tgt.name + ' (below ' + nx.below + ') at ' + fwFloor(nx.tw) + ' · ' + fw(nx.toGo) + ' ' + WU() + ' to go', 1]);
       rows.push(['Pace', nx.pace]);
     }
     var facts = '<dl>' + rows.map(function (r) { return '<div' + (r[2] ? ' class="k"' : '') + '><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl>';
@@ -1888,14 +1932,17 @@
   // Weight is typed in the display unit. An untouched weight on an edited entry keeps its stored lbs value exactly.
   var weightShown = null, weightOrig = null;
   function formWeight() {
-    var raw = $('fWeight').value, v = num(raw);
-    if (v === null) return null;
+    var raw = $('fWeight').value;
+    if (!raw.trim()) return null;
     if (editingDate && weightOrig !== null && raw === weightShown) return weightOrig;
-    return toLbs(v, isMetric());
+    return readW(raw, isMetric(), isUK());
   }
+  $('fWeight').addEventListener('input', function () { this.setCustomValidity(''); });
   $('fBp').addEventListener('input', function () { this.setCustomValidity(''); });
   $('entryForm').addEventListener('submit', function (ev) {
     ev.preventDefault();
+    var wRaw = $('fWeight').value.trim();
+    if (wRaw && !(editingDate && wRaw === weightShown) && formWeight() === null) { $('fWeight').setCustomValidity('Enter weight like 13 5.2 (stones and pounds) or 185 lbs'); $('fWeight').reportValidity(); return; }
     var bpRaw = $('fBp').value.trim(), bp = parseBp(bpRaw);
     if (bpRaw && !bp) { $('fBp').setCustomValidity('Enter blood pressure like 119/79 (top number first).'); $('fBp').reportValidity(); return; }
     var e = {
@@ -1955,7 +2002,7 @@
       editingDate = e.date;
       $('fDate').value = e.date;
       $('fDose').value = e.dose === null ? '' : e.dose;
-      weightOrig = e.weight; weightShown = e.weight === null ? '' : (isMetric() ? fw(e.weight) : String(e.weight));
+      weightOrig = e.weight; weightShown = e.weight === null ? '' : wShow(e.weight);
       $('fWeight').value = weightShown;
       $('fCal').value = e.cal === null ? '' : e.cal;
       $('fSugar').value = e.sugar === null ? '' : e.sugar;
@@ -2298,16 +2345,16 @@
     }
     if (wl.length) {
       var f = wl[0], l = wl[wl.length - 1], d = l.weight - f.weight, weeks = dayDiff(f.date, l.date) / 7;
-      boxes.push(['Weight', fw(f.weight) + ' \u2192 ' + fw(l.weight) + ' ' + WU(), '#0ea5a4', fmtDate(f.date) + ' to ' + fmtDate(l.date)]);
+      boxes.push(['Weight', fwa(f.weight) + ' \u2192 ' + fwu(l.weight), '#0ea5a4', fmtDate(f.date) + ' to ' + fmtDate(l.date)]);
       if (wl.length > 1) {
         boxes.push(['Change', sgn(dw(d), 1) + ' ' + WU(), d <= 0 ? '#059669' : '#ea580c', sgn(d / f.weight * 100, 1) + '% of starting weight']);
-        tl.push('- Weight: ' + fw(f.weight) + ' to ' + fw(l.weight) + ' ' + WU() + ' (' + sgn(dw(d), 1) + ' ' + WU() + ', ' + sgn(d / f.weight * 100, 1) + '%)' + (weeks >= 2 ? ', about ' + sgn(dw(d / weeks), 2) + ' ' + WU() + ' per week' : ''));
+        tl.push('- Weight: ' + fwa(f.weight) + ' to ' + fwu(l.weight) + ' (' + sgn(dw(d), 1) + ' ' + WU() + ', ' + sgn(d / f.weight * 100, 1) + '%)' + (weeks >= 2 ? ', about ' + sgn(dw(d / weeks), 2) + ' ' + WU() + ' per week' : ''));
         if (weeks >= 2) boxes.push(['Average per week', sgn(dw(d / weeks), 2) + ' ' + WU(), '#6366f1', 'over ' + Math.round(weeks) + ' weeks']);
       }
     }
     var upto = sorted().filter(function (e) { return e.date <= w.to; }), pi = progressInfo(upto);
     if (pi && (wl.length > 1 || pi.hasBase)) {
-      var lostTxt = fw(Math.abs(pi.lost)) + ' ' + WU() + (pi.hasBase ? ' from a start weight of ' + fw(pi.base) + ' ' + WU() : ' from the first weigh-in');
+      var lostTxt = fw(Math.abs(pi.lost)) + ' ' + WU() + (pi.hasBase ? ' from a start weight of ' + fwu(pi.base) : ' from the first weigh-in');
       boxes.push([pi.lost >= 0 ? 'Weight lost' : 'Weight gained', pctText(pi.pct), pi.lost >= 0 ? '#059669' : '#ea580c', lostTxt]);
       boxes.push(['Weeks on treatment', 'Week ' + pi.week, '#6366f1', 'since ' + fmtDate(pi.start)]);
       tl.push('- Total weight ' + (pi.lost >= 0 ? 'lost' : 'gained') + ': ' + pctText(pi.pct) + ' (' + lostTxt + '), week ' + pi.week + ' of treatment');
@@ -2333,8 +2380,8 @@
     }
     var ex = extremes(wl);
     if (ex && wl.length > 1) {
-      boxes.push(['Highest / lowest', fw(ex.hi.weight) + ' / ' + fw(ex.lo.weight) + ' ' + WU(), '#64748b', shortDate(ex.hi.date, true) + ' / ' + shortDate(ex.lo.date, true)]);
-      tl.push('- Highest weight ' + fw(ex.hi.weight) + ' ' + WU() + ' (' + shortDate(ex.hi.date, true) + '), lowest ' + fw(ex.lo.weight) + ' ' + WU() + ' (' + shortDate(ex.lo.date, true) + ')');
+      boxes.push(['Highest / lowest', fwa(ex.hi.weight) + ' / ' + fwu(ex.lo.weight), '#64748b', shortDate(ex.hi.date, true) + ' / ' + shortDate(ex.lo.date, true)]);
+      tl.push('- Highest weight ' + fwu(ex.hi.weight) + ' (' + shortDate(ex.hi.date, true) + '), lowest ' + fwu(ex.lo.weight) + ' (' + shortDate(ex.lo.date, true) + ')');
     }
     var weeksP = weeklyAverages(upto).filter(function (b) { return b.to >= w.from; }), bwk = bestWeek(weeksP);
     if (bwk) {
@@ -2366,9 +2413,9 @@
     if (ipat) tl.push('- ' + injectionText(ipat));
     var gi = goalInfo(allW);
     if (gi) {
-      boxes.push(['Goal: ' + parseFloat(fw(gi.goal)) + ' ' + WU(), gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'Reached', '#6366f1',
+      boxes.push(['Goal: ' + goalLabel(gi.goal), gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'Reached', '#6366f1',
         Math.round(gi.pct * 100) + '% of the way. ' + gi.proj]);
-      tl.push('- Goal: ' + parseFloat(fw(gi.goal)) + ' ' + WU() + ', ' + (gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'reached') + ' (' + Math.round(gi.pct * 100) + '% of the way). ' + gi.proj);
+      tl.push('- Goal: ' + goalLabel(gi.goal) + ', ' + (gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'reached') + ' (' + Math.round(gi.pct * 100) + '% of the way). ' + gi.proj);
     }
     if (wl.length && settings.heightIn) {
       var hb = settings.heightIn, b1 = bmiOf(wl[wl.length - 1].weight, hb), s1 = bmiStage(b1), b0r = bmiOf(wl[0].weight, hb), s0r = bmiStage(b0r);
@@ -2377,7 +2424,7 @@
       var bi = bmiNextInfo(allW, hb);
       if (bi && bi.normal) tl.push('- BMI: in the normal range');
       else if (bi) {
-        boxes.push(['BMI next stage', bi.tgt.name, bi.tgt.color, 'below ' + bi.below + ' at ' + (isMetric() ? Math.floor(dw(bi.tw) * 10) / 10 : bi.tw).toFixed(1) + ' ' + WU() + ' (' + fw(bi.toGo) + ' to go). ' + bi.proj]);
+        boxes.push(['BMI next stage', bi.tgt.name, bi.tgt.color, 'below ' + bi.below + ' at ' + fwFloor(bi.tw) + ' (' + fw(bi.toGo) + ' ' + WU() + ' to go). ' + bi.proj]);
         tl.push('- ' + bmiNextText(allW, hb));
       }
       tl.push('- BMI: ' + (wl.length > 1 ? b0r.toFixed(1) + ' (' + s0r.name.toLowerCase() + ') to ' : '') + b1.toFixed(1) + ' (' + s1.name.toLowerCase() + '), height ' + fmtHeight(hb));
@@ -2457,7 +2504,7 @@
         BMI_STAGES.map(function (g) {
           var cur = bmiStage(bmiOf(wl[wl.length - 1].weight, settings.heightIn)) === g, hh = settings.heightIn;
           return '<tr' + (cur ? ' style="font-weight:700"' : '') + '><td><span class="chip" style="--c:' + g.color + '">' + esc(g.name) + (cur ? ' (current)' : '') + '</span></td><td>' + bmiRange(g) + '</td><td class="num">' +
-            (g.min === 0 ? '<' + lbsAt(18.5, hh) : g.max === null ? lbsAt(40, hh) + '+' : lbsAt(g.min, hh) + ' \u2013 ' + lbsAt(g.max - 0.1, hh)) + ' ' + WU() + '</td></tr>';
+            (g.min === 0 ? '<' + lbsAtTxt(18.5, hh) : g.max === null ? lbsAtTxt(40, hh) + '+' : lbsAtTxt(g.min, hh) + ' \u2013 ' + lbsAtTxt(g.max - 0.1, hh)) + unitSfx() + '</td></tr>';
         }).join('') + '</tbody></table></section>';
       if (pr[0] === 'sugar') { h += '<section>' + ranges + '</section>'; ranges = ''; }
       if (pr[0] === 'bp') { h += '<section>' + bpRanges + '</section>'; bpRanges = ''; }
@@ -2466,9 +2513,9 @@
     if (bpRanges) h += '<section>' + bpRanges + '</section>';   // blood pressure chart not selected
 
     if ($('rcWeekly').checked && weeksP.length) {
-      h += '<h2>Weekly averages' + (weeksP.length > 26 ? ' (last 26 weeks)' : '') + '</h2><table><thead><tr><th>Week</th><th>Dates</th><th class="num">Average (' + WU() + ')</th><th class="num">Change</th><th class="num">Weigh-ins</th></tr></thead><tbody>' +
+      h += '<h2>Weekly averages' + (weeksP.length > 26 ? ' (last 26 weeks)' : '') + '</h2><table><thead><tr><th>Week</th><th>Dates</th><th class="num">Average (' + WUA() + ')</th><th class="num">Change</th><th class="num">Weigh-ins</th></tr></thead><tbody>' +
         weeksP.slice(-26).map(function (b) {
-          return '<tr><td>' + b.week + '</td><td>' + esc(shortDate(b.from, false) + ' to ' + shortDate(b.to, false)) + '</td><td class="num">' + fw(b.avg) + '</td><td class="num">' +
+          return '<tr><td>' + b.week + '</td><td>' + esc(shortDate(b.from, false) + ' to ' + shortDate(b.to, false)) + '</td><td class="num">' + fwa(b.avg) + '</td><td class="num">' +
             (b.change === null ? '\u2014' : sgn(dw(b.change), 1)) + '</td><td class="num">' + b.n + '</td></tr>';
         }).join('') + '</tbody></table>';
     }
@@ -2486,23 +2533,23 @@
         h += '<tr><td><span class="chip" style="--c:' + doseColor(sg.dose) + '">' + sg.dose + ' mg</span></td><td>' + esc(fmtDate(a)) + '</td><td>' + esc(fmtDate(b)) + '</td><td class="num">' + wk + '</td><td class="num">' + wc +
           '</td><td class="num">' + (pw || '\u2014') + '</td><td class="num">' + (ca ? nf(ca.avg) : '\u2014') + '</td><td class="num">' + (su ? sugarText(su.avg, ' mg/dL') : '\u2014') + '</td><td class="num">' +
           (bs_ ? '<span style="color:' + bpZone(bs_.avg, bd_.avg).color + ';font-weight:700">' + Math.round(bs_.avg) + '/' + Math.round(bd_.avg) + '</span>' : '\u2014') + '</td></tr>';
-        tl.push('- ' + sg.dose + ' mg, ' + shortDate(a, true) + ' to ' + shortDate(b, true) + ' (' + wk + ' wk)' + (ws.length > 1 ? ', weight ' + fw(ws[0].weight) + ' to ' + fw(ws[ws.length - 1].weight) : '') + (pw ? ' (' + pw + '/wk)' : ''));
+        tl.push('- ' + sg.dose + ' mg, ' + shortDate(a, true) + ' to ' + shortDate(b, true) + ' (' + wk + ' wk)' + (ws.length > 1 ? ', weight ' + fwa(ws[0].weight) + ' to ' + fwa(ws[ws.length - 1].weight) : '') + (pw ? ' (' + pw + '/wk)' : ''));
       });
       h += '</tbody></table>';
     }
 
     var cm = list.filter(function (e) { return e.comments && e.comments.trim(); });
     if ($('rcComments').checked && cm.length) {
-      h += '<h2>Comments and side effects (' + cm.length + ')</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (' + WU() + ')</th><th>Comment</th></tr></thead><tbody>' +
+      h += '<h2>Comments and side effects (' + cm.length + ')</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (' + WUA() + ')</th><th>Comment</th></tr></thead><tbody>' +
         cm.map(function (e) {
-          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + (e.dose === null ? '\u2014' : e.dose + ' mg') + '</td><td class="num">' + (e.weight === null ? '\u2014' : fw(e.weight)) + '</td><td class="pre">' + esc(e.comments) + '</td></tr>';
+          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + (e.dose === null ? '\u2014' : e.dose + ' mg') + '</td><td class="num">' + (e.weight === null ? '\u2014' : fwa(e.weight)) + '</td><td class="pre">' + esc(e.comments) + '</td></tr>';
         }).join('') + '</tbody></table>';
     }
     if ($('rcFull').checked) {
       function v(x) { return x === null ? '\u2014' : esc(x); }
-      h += '<h2>Daily log (' + list.length + ' entries)</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (' + WU() + ')</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th class="num">BP</th><th>Site</th></tr></thead><tbody>' +
+      h += '<h2>Daily log (' + list.length + ' entries)</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (' + WUA() + ')</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th class="num">BP</th><th>Site</th></tr></thead><tbody>' +
         list.slice().reverse().map(function (e) {
-          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + v(e.dose) + '</td><td class="num">' + (e.weight === null ? '\u2014' : fw(e.weight)) + '</td><td class="num">' + v(e.cal) + '</td><td>' + (e.food ? esc(e.food) : '\u2014') + '</td><td class="num">' + (e.sugar === null ? '\u2014' : sugarText(e.sugar, '')) + '</td><td class="num">' + (hasBp(e) ? '<span style="color:' + bpZone(e.sys, e.dia).color + ';font-weight:700">' + bpText(e) + '</span>' : '\u2014') + '</td><td>' + (e.site ? esc(e.site) : '\u2014') + '</td></tr>';
+          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + v(e.dose) + '</td><td class="num">' + (e.weight === null ? '\u2014' : fwa(e.weight)) + '</td><td class="num">' + v(e.cal) + '</td><td>' + (e.food ? esc(e.food) : '\u2014') + '</td><td class="num">' + (e.sugar === null ? '\u2014' : sugarText(e.sugar, '')) + '</td><td class="num">' + (hasBp(e) ? '<span style="color:' + bpZone(e.sys, e.dia).color + ';font-weight:700">' + bpText(e) + '</span>' : '\u2014') + '</td><td>' + (e.site ? esc(e.site) : '\u2014') + '</td></tr>';
         }).join('') + '</tbody></table>';
     }
     h += '<footer>Self-reported data from a personal log. This is not a medical record or medical advice.</footer></div>';
@@ -2630,13 +2677,13 @@
   var goalShown = '', heightShown = '';
   var baselineShown = '';
   function openSettings(focus) {
-    goalShown = settings.goal ? (isMetric() ? fw(settings.goal) : String(settings.goal)) : '';
+    goalShown = settings.goal ? wShow(settings.goal) : '';
     heightShown = settings.heightIn ? fmtHeight(settings.heightIn) : '';
     $('sGoal').value = goalShown;
-    baselineShown = settings.baseline ? (isMetric() ? fw(settings.baseline) : String(settings.baseline)) : '';
+    baselineShown = settings.baseline ? wShow(settings.baseline) : '';
     $('sBaseline').value = baselineShown;
     $('sHeight').value = heightShown;
-    $('sUnits').value = isMetric() ? 'metric' : 'us';
+    $('sUnits').value = isMetric() ? 'metric' : isUK() ? 'uk' : 'us';
     $('sDay').value = hasDoseDay() ? String(settings.doseDay) : 'auto';
     if (!sdlg.open) sdlg.showModal();
     (focus === 'height' ? $('sHeight') : $('sGoal')).focus();
@@ -2645,12 +2692,15 @@
   $('setSave').addEventListener('click', function () {
     var ht = $('sHeight').value.trim();
     if (ht && ht !== heightShown && !parseHeight(ht)) { say('Height not understood. Try 5\'9", 69 in or 175 cm.'); return; }
-    var g = num($('sGoal').value), day = $('sDay').value, wasMetric = isMetric();
+    var wasMetric = isMetric(), wasUK = isUK(), day = $('sDay').value;
+    var g = readW($('sGoal').value, wasMetric, wasUK);
+    if ($('sGoal').value.trim() && g === null) { say('Goal weight not understood. Try 12 7 (stones and pounds), 175 lbs or 80 kg.'); return; }
+    if ($('sBaseline').value.trim() && readW($('sBaseline').value, wasMetric, wasUK) === null) { say('Starting weight not understood.'); return; }
     // The goal and height fields are read in the units that were showing when the dialog opened
-    if (g && g > 0) settings.goal = $('sGoal').value === goalShown && settings.goal ? settings.goal : toLbs(g, wasMetric);
+    if (g && g > 0) settings.goal = $('sGoal').value === goalShown && settings.goal ? settings.goal : g;
     else settings.goal = null;
-    var bw = num($('sBaseline').value);
-    if (bw && bw > 0) settings.baseline = $('sBaseline').value === baselineShown && settings.baseline ? settings.baseline : toLbs(bw, wasMetric);
+    var bw = readW($('sBaseline').value, wasMetric, wasUK);
+    if (bw && bw > 0) settings.baseline = $('sBaseline').value === baselineShown && settings.baseline ? settings.baseline : bw;
     else settings.baseline = null;
     if (ht !== heightShown) settings.heightIn = ht ? parseHeight(ht) : null;
     settings.units = $('sUnits').value;
