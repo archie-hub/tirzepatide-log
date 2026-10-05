@@ -86,6 +86,10 @@
   .hero button.primary:hover { background: #eef6ff; }
   .hero button.danger { color: #fff; }
 
+  .progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; }
+  .progress .wk { font-weight: 750; margin-right: 4px; }
+  .progress .chip.next { border-style: dashed; background: transparent; }
+  .progress .muted { color: var(--muted); font-size: 13px; }
   .fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; border-radius: 8px; }
   .fold > summary::-webkit-details-marker { display: none; }
   .fold > summary h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
@@ -401,6 +405,8 @@
 
   <section class="plan" id="plan" aria-label="Next dose and BMI"></section>
 
+  <section class="panel progress" id="progress" aria-label="Progress milestones" hidden></section>
+
   <section class="panel" id="chartPanel">
     <div class="chart-top">
       <div class="tabs" role="tablist" aria-label="Chart metric">
@@ -546,11 +552,12 @@
   </div>
   <div class="opts" style="margin-top:0">
     <label><span>Goal weight (<span class="wu">lbs</span>)</span><input type="number" id="sGoal" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
+    <label><span>Starting weight before treatment (<span class="wu">lbs</span>), optional</span><input type="number" id="sBaseline" step="0.1" min="0" inputmode="decimal" placeholder="blank = first weigh-in"></label>
     <label>Height<input type="text" id="sHeight" placeholder="e.g. 5'9&quot; or 175 cm"></label>
     <label>Units<select id="sUnits"><option value="us">US (lbs, ft/in)</option><option value="metric">Metric (kg, cm)</option></select></label>
     <label>Injection day<select id="sDay"></select></label>
   </div>
-  <p class="note">Units only change what is shown and typed; CSV exports always use lbs. Leave the goal blank to hide it. "Work it out" uses the day you last logged an injection site, or the day your current dose started.</p>
+  <p class="note">Units only change what is shown and typed; CSV exports always use lbs. Leave the goal blank to hide it. The starting weight is only needed when your first logged weight is not where you began treatment; progress percentages are measured from it. "Work it out" uses the day you last logged an injection site, or the day your current dose started.</p>
   <div class="actions">
     <button type="button" class="primary" id="setSave">Save</button>
     <button type="button" id="setCancel">Cancel</button>
@@ -826,9 +833,48 @@
       pts.join(' ') + '"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="currentColor"/></svg>';
   }
   // Goal progress and projection text for weights w (sorted, with weight); null when no goal is set
+  /* ---------- progress maths ---------- */
+  var MILESTONES = [5, 10, 15, 20, 25];   // percent of starting weight lost
+  function baselineOf(w) { return settings.baseline || (w.length ? w[0].weight : null); }
+  function treatStart(all) { var d = all.filter(function (e) { return e.dose !== null; })[0]; return (d || all[0]).date; }
+  function weekNo(startIso, iso) { return Math.floor(dayDiff(startIso, iso) / 7) + 1; }
+  // all = every entry (sorted) up to the date of interest. Returns null with no weigh-ins.
+  function progressInfo(all) {
+    var w = all.filter(function (e) { return e.weight !== null; });
+    if (!w.length || !all.length) return null;
+    var base = baselineOf(w), last = w[w.length - 1], start = treatStart(all), lost = base - last.weight;
+    var ms = MILESTONES.map(function (p) {
+      var target = base * (1 - p / 100), hit = w.filter(function (e) { return e.weight <= target; })[0];
+      return { pct: p, target: target, hit: hit ? { date: hit.date, week: weekNo(start, hit.date) } : null, toGo: hit ? 0 : last.weight - target };
+    });
+    // weight lost at week 12 (day 84): the nearest weigh-in within a week of it, only once the log reaches that far
+    var d84 = addDays(start, 84), w12 = null;
+    if (dayDiff(start, last.date) >= 84 - 7) {
+      w.forEach(function (e) {
+        var off = Math.abs(dayDiff(d84, e.date));
+        if (off <= 7 && (!w12 || off < w12.off)) w12 = { off: off, date: e.date, pct: (base - e.weight) / base * 100, lost: base - e.weight };
+      });
+    }
+    return { base: base, hasBase: !!settings.baseline, last: last, start: start, lost: lost, pct: lost / base * 100,
+      week: weekNo(start, all[all.length - 1].date), ms: ms, w12: w12 };
+  }
+  // Sub line of the Change card: percent of the starting (or baseline) weight and the week on treatment
+  function pctSub(all, d, first) {
+    var pi = progressInfo(all);
+    if (!pi) return (d / first.weight * 100).toFixed(1) + '% of starting weight';
+    return Math.abs(pi.pct).toFixed(1) + '% ' + (pi.lost >= 0 ? 'lost' : 'gained') + (pi.hasBase ? ' from start' : '') + ' \u00b7 week ' + pi.week;
+  }
+  function pctText(p) { return (p >= 0 ? '' : '+') + Math.abs(p).toFixed(1) + '%'; }
+  function milestoneText(pi) {
+    var reached = pi.ms.filter(function (m) { return m.hit; }), next = pi.ms.filter(function (m) { return !m.hit; })[0];
+    var parts = reached.map(function (m) { return m.pct + '% in week ' + m.hit.week + ' (' + shortDate(m.hit.date, true) + ')'; });
+    if (next) parts.push('next, ' + next.pct + '%: ' + fw(next.toGo) + ' ' + WU() + ' to go');
+    return parts.join('; ');
+  }
+
   function goalInfo(w) {
     var goal = settings.goal; if (!goal || !w.length) return null;
-    var first = w[0], last = w[w.length - 1], total = first.weight - goal, lost = first.weight - last.weight, left = last.weight - goal;
+    var first = w[0], last = w[w.length - 1], base = baselineOf(w), total = base - goal, lost = base - last.weight, left = last.weight - goal;
     var pct = total > 0 ? Math.min(Math.max(lost / total, 0), 1) : (left <= 0 ? 1 : 0), slope = recentSlope(w), date = null, proj;
     if (left <= 0) proj = 'Goal reached. Nice work.';
     else if (slope !== null && slope < -0.01) {
@@ -856,6 +902,17 @@
   function plateauText(pl) {
     return 'Weight has been steady for about ' + Math.max(3, Math.round(pl.days / 7)) + ' weeks (within ' + fw(Math.max(pl.range, 0.1)) + ' ' + WU() + ' since ' + fmtDate(pl.since) + ').';
   }
+  function renderProgress() {
+    var el = $('progress'), pi = progressInfo(sorted()), w = sorted().filter(function (e) { return e.weight !== null; });
+    el.hidden = !pi || (w.length < 2 && !pi.hasBase);
+    if (el.hidden) return;
+    var firstOpen = true, chips = pi.ms.filter(function (m) { if (m.hit) return true; if (firstOpen) { firstOpen = false; return true; } return false; }).map(function (m) {
+      return m.hit ? '<span class="chip" style="--c:#16a34a" title="First weigh-in at or below ' + esc(fw(m.target)) + ' ' + WU() + ' on ' + esc(fmtDate(m.hit.date)) + '">' + m.pct + '% \u00b7 week ' + m.hit.week + '</span>'
+        : '<span class="chip next" style="--c:#64748b">' + m.pct + '% \u00b7 ' + esc(fw(m.toGo)) + ' ' + WU() + ' to go</span>';
+    }).join('');
+    el.innerHTML = '<span class="wk">Week ' + pi.week + ' on treatment</span>' + chips +
+      (pi.w12 ? '<span class="muted">Lost at week 12: ' + pctText(pi.w12.pct) + '</span>' : '');
+  }
   function renderPlateau() {
     var pl = plateauInfo(sorted().filter(function (e) { return e.weight !== null; })), el = $('plateau');
     el.hidden = !pl;
@@ -879,7 +936,7 @@
       }
       cards.push({ id: 'chg', label: 'Change since ' + fmtDate(first.date), val: dw(d), dec: 1, sign: true,
         color: d > 0 ? 'var(--bad)' : 'var(--good)', arrow: d < 0 ? '\u25BC ' : (d > 0 ? '\u25B2 ' : ''),
-        sub: (d / first.weight * 100).toFixed(1) + '% of starting weight' });
+        sub: pctSub(s, d, first) });
     }
     if (sug.length) {
       var lastSug = sug[sug.length - 1].sugar, z = sugarZone(lastSug);
@@ -1586,8 +1643,8 @@
     $('ratePanel').hidden = empty;
     $('entriesPanel').hidden = empty;
     renderHero();
-    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); }
-    else $('plateau').hidden = true;
+    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderProgress(); }
+    else { $('plateau').hidden = true; $('progress').hidden = true; }
   }
 
   /* ---------- form ---------- */
@@ -2024,6 +2081,19 @@
         if (weeks >= 2) boxes.push(['Average per week', sgn(dw(d / weeks), 2) + ' ' + WU(), '#6366f1', 'over ' + Math.round(weeks) + ' weeks']);
       }
     }
+    var upto = sorted().filter(function (e) { return e.date <= w.to; }), pi = progressInfo(upto);
+    if (pi && (wl.length > 1 || pi.hasBase)) {
+      var lostTxt = fw(Math.abs(pi.lost)) + ' ' + WU() + (pi.hasBase ? ' from a start weight of ' + fw(pi.base) + ' ' + WU() : ' from the first weigh-in');
+      boxes.push([pi.lost >= 0 ? 'Weight lost' : 'Weight gained', pctText(pi.pct), pi.lost >= 0 ? '#059669' : '#ea580c', lostTxt]);
+      boxes.push(['Weeks on treatment', 'Week ' + pi.week, '#6366f1', 'since ' + fmtDate(pi.start)]);
+      tl.push('- Total weight ' + (pi.lost >= 0 ? 'lost' : 'gained') + ': ' + pctText(pi.pct) + ' (' + lostTxt + '), week ' + pi.week + ' of treatment');
+      boxes.push(['Milestones', pi.ms.filter(function (m) { return m.hit; }).length + ' of ' + MILESTONES.length, '#16a34a', milestoneText(pi)]);
+      tl.push('- Milestones: ' + milestoneText(pi));
+      if (pi.w12) {
+        boxes.push(['Lost at week 12', pctText(pi.w12.pct), '#0ea5a4', fw(pi.w12.lost) + ' ' + WU() + ' by ' + fmtDate(pi.w12.date)]);
+        tl.push('- Lost at week 12: ' + pctText(pi.w12.pct) + ' (' + fw(pi.w12.lost) + ' ' + WU() + ', weigh-in on ' + shortDate(pi.w12.date, true) + ')');
+      }
+    }
     var allW = sorted().filter(function (e) { return e.weight !== null && e.date <= w.to; });
     var pl = plateauInfo(allW);
     if (pl) {
@@ -2287,10 +2357,13 @@
   $('sDay').innerHTML = '<option value="auto">Work it out from my log</option>' +
     DAY_NAMES.map(function (d, i) { return '<option value="' + i + '">' + d + '</option>'; }).join('');
   var goalShown = '', heightShown = '';
+  var baselineShown = '';
   function openSettings(focus) {
     goalShown = settings.goal ? (isMetric() ? fw(settings.goal) : String(settings.goal)) : '';
     heightShown = settings.heightIn ? fmtHeight(settings.heightIn) : '';
     $('sGoal').value = goalShown;
+    baselineShown = settings.baseline ? (isMetric() ? fw(settings.baseline) : String(settings.baseline)) : '';
+    $('sBaseline').value = baselineShown;
     $('sHeight').value = heightShown;
     $('sUnits').value = isMetric() ? 'metric' : 'us';
     $('sDay').value = hasDoseDay() ? String(settings.doseDay) : 'auto';
@@ -2305,6 +2378,9 @@
     // The goal and height fields are read in the units that were showing when the dialog opened
     if (g && g > 0) settings.goal = $('sGoal').value === goalShown && settings.goal ? settings.goal : toLbs(g, wasMetric);
     else settings.goal = null;
+    var bw = num($('sBaseline').value);
+    if (bw && bw > 0) settings.baseline = $('sBaseline').value === baselineShown && settings.baseline ? settings.baseline : toLbs(bw, wasMetric);
+    else settings.baseline = null;
     if (ht !== heightShown) settings.heightIn = ht ? parseHeight(ht) : null;
     settings.units = $('sUnits').value;
     settings.doseDay = day === 'auto' ? null : parseInt(day, 10);
