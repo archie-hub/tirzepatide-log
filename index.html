@@ -381,6 +381,7 @@
         <button class="tab" role="tab" id="tab-weight" data-metric="weight" aria-selected="true" aria-controls="chart" tabindex="0">Weight</button>
         <button class="tab" role="tab" id="tab-bmi" data-metric="bmi" aria-selected="false" aria-controls="chart" tabindex="-1" hidden>BMI</button>
         <button class="tab" role="tab" id="tab-sugar" data-metric="sugar" aria-selected="false" aria-controls="chart" tabindex="-1">Glucose</button>
+        <button class="tab" role="tab" id="tab-bp" data-metric="bp" aria-selected="false" aria-controls="chart" tabindex="-1">Blood pressure</button>
         <button class="tab" role="tab" id="tab-cal" data-metric="cal" aria-selected="false" aria-controls="chart" tabindex="-1">Calories</button>
       </div>
       <div class="seg" id="range" role="group" aria-label="Date range">
@@ -414,7 +415,7 @@
         <thead>
           <tr>
             <th>Date</th><th class="num">Dose (mg)</th><th class="num">Weight (<span class="wu">lbs</span>)</th><th class="num">Change</th>
-            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th></th>
+            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th class="num">BP</th><th></th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -432,6 +433,8 @@
       <label><span>Weight (<span class="wu">lbs</span>)</span><input type="number" id="fWeight" step="0.1" min="0" inputmode="decimal"></label>
       <label>Calories<input type="number" id="fCal" step="1" min="0" inputmode="numeric"></label>
       <label>Fasting glucose (mg/dL)<input type="number" id="fSugar" step="1" min="0" inputmode="numeric"></label>
+      <label>Systolic (mmHg)<input type="number" id="fSys" step="1" min="0" inputmode="numeric"></label>
+      <label>Diastolic (mmHg)<input type="number" id="fDia" step="1" min="0" inputmode="numeric"></label>
       <label>Injection site<select id="fSite"></select></label>
       <label class="wide">Food notes<input type="text" id="fFood"></label>
       <label class="wide">Comments<textarea id="fComments"></textarea></label>
@@ -543,6 +546,7 @@
     <label class="radio"><input type="checkbox" id="rcWeight" checked> <span>Weight chart</span></label>
     <label class="radio" id="rcBmiWrap"><input type="checkbox" id="rcBmi" checked> <span id="rcBmiText">BMI chart and stages</span></label>
     <label class="radio"><input type="checkbox" id="rcSugar" checked> <span>Glucose chart</span></label>
+    <label class="radio"><input type="checkbox" id="rcBp" checked> <span>Blood pressure chart</span></label>
     <label class="radio"><input type="checkbox" id="rcCal" checked> <span>Calories chart</span></label>
     <label class="radio"><input type="checkbox" id="rcDose" checked> <span>Dose schedule table</span></label>
     <label class="radio"><input type="checkbox" id="rcComments" checked> <span>Comments and side effects</span></label>
@@ -569,7 +573,7 @@
   var SETTINGS_KEY = 'tirzepatide-settings';
   var SITE_URL = 'https://archie-hub.github.io/tirzepatide-log/';
   // Keep in sync with the value array built in toCSV() below when adding a field.
-  var COLUMNS = ['Date', 'Dosage (mg)', 'Weight (lbs)', 'Comments', 'Calories', 'Food Notes', 'Blood Sugar (mg/dL)', 'Injection Site'];
+  var COLUMNS = ['Date', 'Dosage (mg)', 'Weight (lbs)', 'Comments', 'Calories', 'Food Notes', 'Blood Sugar (mg/dL)', 'Injection Site', 'Systolic (mmHg)', 'Diastolic (mmHg)'];
   // Rotation order for the "next site" hint
   var SITES = ['Stomach (left)', 'Stomach (right)', 'Thigh (left)', 'Thigh (right)', 'Arm (left)', 'Arm (right)'];
   var DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -604,7 +608,7 @@
   function load() {
     try {
       var raw = localStorage.getItem(STORE_KEY);
-      if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) return p; }
+      if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) { p.forEach(function (e) { if (e.sys === undefined) e.sys = null; if (e.dia === undefined) e.dia = null; }); return p; } }
     } catch (e) {}
     return [];
   }
@@ -689,7 +693,7 @@
         e.date,
         e.dose === null ? '' : e.dose.toFixed(2),
         e.weight === null ? '' : e.weight.toFixed(1),
-        e.comments, e.cal, e.food, e.sugar, e.site || ''
+        e.comments, e.cal, e.food, e.sugar, e.site || '', e.sys, e.dia
       ].map(csvCell).join(','));
     });
     return lines.join('\r\n');
@@ -718,6 +722,23 @@
     v = Math.round(v);
     for (var i = 0; i < SUGAR_ZONES.length; i++) if (v < SUGAR_ZONES[i].below) return SUGAR_ZONES[i];
   }
+  // Blood pressure categories (AHA): the higher of the two numbers decides
+  var BP_ZONES = [
+    { color: '#16a34a', label: 'Normal', range: 'Below 120 and below 80' },
+    { color: '#d4a106', label: 'Elevated', range: '120 to 129 and below 80' },
+    { color: '#f97316', label: 'Hypertension stage 1', short: 'Stage 1', range: '130 to 139 or 80 to 89' },
+    { color: '#dc2626', label: 'Hypertension stage 2', short: 'Stage 2', range: '140 or higher, or 90 or higher' }
+  ];
+  function bpZone(sys, dia) {
+    sys = Math.round(sys); dia = Math.round(dia);
+    if (sys >= 140 || dia >= 90) return BP_ZONES[3];
+    if (sys >= 130 || dia >= 80) return BP_ZONES[2];
+    if (sys >= 120) return BP_ZONES[1];
+    return BP_ZONES[0];
+  }
+  function hasBp(e) { return e.sys !== null && e.sys !== undefined && e.dia !== null && e.dia !== undefined; }
+  function bpText(e) { return Math.round(e.sys) + '/' + Math.round(e.dia); }
+  function bpChip(e) { var z = bpZone(e.sys, e.dia); return '<span class="chip" style="--c:' + z.color + '" title="' + z.label + '">' + bpText(e) + '</span>'; }
   function addDays(iso, n) {
     var p = iso.split('-'), t = new Date(+p[0], +p[1] - 1, +p[2] + n);
     return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
@@ -821,6 +842,12 @@
       var lastSug = sug[sug.length - 1].sugar, z = sugarZone(lastSug);
       cards.push({ id: 'bs', label: 'Latest fasting glucose', val: lastSug, dec: 0, color: z.color, sub: 'mg/dL, ' + z.label.toLowerCase(),
         extra: '<span style="position:absolute;right:12px;bottom:12px;line-height:0">' + sugarFace(z, 30) + '</span>' });
+    }
+
+    var bpl = s.filter(hasBp);
+    if (bpl.length) {
+      var lb = bpl[bpl.length - 1], bz = bpZone(lb.sys, lb.dia);
+      cards.push({ id: 'bp', label: 'Latest blood pressure', text: bpText(lb), color: bz.color, sub: 'mmHg, ' + bz.label.toLowerCase() });
     }
 
     $('stats').innerHTML = cards.length ? cards.map(function (c) {
@@ -952,6 +979,7 @@
     weight: { key: 'weight', get label() { return 'Weight (' + WU() + ')'; }, color: '#0ea5a4', dec: 1 },
     bmi: { key: 'bmi', label: 'BMI', color: '#0284c7', dec: 1 },
     sugar: { key: 'sugar', label: 'Fasting glucose (mg/dL)', color: '#f97316', dec: 0 },
+    bp: { key: 'bp', label: 'Blood pressure (mmHg)', color: '#e11d48', dec: 0 },
     cal: { key: 'cal', label: 'Calories', color: '#8b5cf6', dec: 0 }
   };
   // o: { days } trailing window, or { from, to } explicit window; print:true builds a standalone light SVG
@@ -965,13 +993,17 @@
     } else if (m.key === 'weight' && isMetric()) {
       all = all.map(function (e) { return Object.assign({}, e, { weight: e.weight === null ? null : e.weight * KG }); });
     }
-    var series = all.filter(function (e) { return e[m.key] !== null; });
+    var bp = m.key === 'bp', vk = bp ? 'sys' : m.key;   // blood pressure plots systolic with diastolic beside it
+    var series = all.filter(function (e) { return bp ? hasBp(e) : e[m.key] !== null; });
     if (!series.length) return null;
-    var avg = series.map(function (e, i) {
-      var sum = 0, n = 0;
-      for (var j = i; j >= 0 && dayDiff(series[j].date, e.date) <= 6; j--) { sum += series[j][m.key]; n++; }
-      return sum / n;
-    });
+    function trail(key) {
+      return series.map(function (e, i) {
+        var sum = 0, n = 0;
+        for (var j = i; j >= 0 && dayDiff(series[j].date, e.date) <= 6; j--) { sum += series[j][key]; n++; }
+        return sum / n;
+      });
+    }
+    var avg = trail(vk), avg2 = bp ? trail('dia') : null;
     var lastAll = all[all.length - 1].date, idxs = [];
     series.forEach(function (e, i) {
       var ok = (o.from || o.to) ? ((!o.from || e.date >= o.from) && (!o.to || e.date <= o.to))
@@ -979,20 +1011,21 @@
       if (ok) idxs.push(i);
     });
     if (!idxs.length) { if (o.print) return null; idxs = [series.length - 1]; }
-    var pts = idxs.map(function (i) { return { e: series[i], v: series[i][m.key], a: avg[i] }; });
+    var pts = idxs.map(function (i) { return { e: series[i], v: series[i][vk], a: avg[i], d: bp ? series[i].dia : null, a2: bp ? avg2[i] : null }; });
     var single = pts.length === 1;
     var t0 = pts[0].e.date, tN = pts[pts.length - 1].e.date, span = Math.max(dayDiff(t0, tN), 1);
 
     var W = 900, H = o.print ? 300 : 320, L = 48, R = 16, T = o.title ? 32 : 14, B = 34, gid = 'ag' + (++chartSeq);
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
     // Glucose dots carry the range colours, so its average line stays neutral
-    var lc = (m.key === 'sugar' || m.key === 'bmi') ? '#64748b' : m.color;
-    var vals = []; pts.forEach(function (p) { vals.push(p.v, p.a); });
+    var lc = (m.key === 'sugar' || m.key === 'bmi' || bp) ? '#64748b' : m.color;
+    var vals = []; pts.forEach(function (p) { vals.push(p.v, p.a); if (bp) vals.push(p.d, p.a2); });
     if (m.key === 'sugar') vals.push(100);   // always show the prediabetes threshold
+    if (bp) vals.push(80, 120);              // and the normal limits for both numbers
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-    var pad = Math.max((hi - lo) * 0.08, m.key === 'weight' ? 1 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 0.5 : 50)));
+    var pad = Math.max((hi - lo) * 0.08, m.key === 'weight' ? 1 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 0.5 : (bp ? 6 : 50))));
     lo -= pad; hi += pad;
-    var unit = m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 1 : 2));
+    var unit = m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 1 : (bp ? 10 : 2)));
     lo = Math.floor(lo / unit) * unit;
     hi = lo + Math.ceil((hi - lo) / 4 / unit) * unit * 4;
     function X(d) { return single ? L + (W - L - R) / 2 : L + (dayDiff(t0, d) / span) * (W - L - R); }
@@ -1025,12 +1058,15 @@
     }
     var zoneLabels = '';   // drawn after the dots so they stay readable
     var thresholds = m.key === 'sugar' ? SUGAR_ZONES.slice(0, 2).map(function (z) { return { below: z.below, next: sugarZone(z.below) }; })
-      : m.key === 'bmi' ? BMI_STAGES.slice(1).map(function (g) { return { below: g.min, next: { color: g.color, label: g.name } }; }) : [];
+      : m.key === 'bmi' ? BMI_STAGES.slice(1).map(function (g) { return { below: g.min, next: { color: g.color, label: g.name } }; })
+      : bp ? [{ below: 120, t: 'top 120 elevated', c: BP_ZONES[1].color }, { below: 130, t: 'top 130 stage 1', c: BP_ZONES[2].color }, { below: 140, t: 'top 140 stage 2', c: BP_ZONES[3].color },
+              { below: 80, t: 'bottom 80 stage 1', c: BP_ZONES[2].color }, { below: 90, t: 'bottom 90 stage 2', c: BP_ZONES[3].color }].map(function (z) { return { below: z.below, text: z.t, next: { color: z.c, label: '' } }; })
+      : [];
     thresholds.forEach(function (z) {
       if (z.below <= lo || z.below >= hi) return;
       var zy = Y(z.below).toFixed(1), next = z.next;
       g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + zy + '" y2="' + zy + '" stroke="' + next.color + '" stroke-width="1.5" stroke-dasharray="6 5"/>';
-      zoneLabels += '<text x="' + (W - R - 4) + '" y="' + (zy - 5) + '" text-anchor="end" style="fill:' + next.color + ';font-weight:700;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + z.below + ' ' + next.label.toLowerCase() + '</text>';
+      zoneLabels += '<text x="' + (W - R - 4) + '" y="' + (zy - 5) + '" text-anchor="end" style="fill:' + next.color + ';font-weight:700;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + (z.text || z.below + ' ' + next.label.toLowerCase()) + '</text>';
     });
     var yearSpan = span > 240;
     if (single) g += '<text x="' + X(t0) + '" y="' + (H - 10) + '" text-anchor="middle">' + esc(shortDate(t0, false)) + '</text>';
@@ -1047,15 +1083,22 @@
     }
     var fade = o.print ? '' : ' class="fade"', draw = o.print ? '' : ' class="draw"';
     var line = pts.map(function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a).toFixed(1); });
-    if (!single) {
+    if (!single && !bp) {
       g += '<path' + fade + ' fill="url(#' + gid + ')" d="M' + line.join('L') + 'L' + X(tN).toFixed(1) + ',' + (H - B) + 'L' + X(t0).toFixed(1) + ',' + (H - B) + 'Z"/>';
     }
     var r = pts.length > 120 ? 2 : (pts.length > 45 ? 2.8 : 4.2);
-    pts.forEach(function (p) {
+    if (bp) pts.forEach(function (p) {
+      var zc = bpZone(p.v, p.d).color, rr = single ? 6 : r, x = X(p.e.date).toFixed(1);
+      g += '<line' + fade + ' x1="' + x + '" x2="' + x + '" y1="' + Y(p.v).toFixed(1) + '" y2="' + Y(p.d).toFixed(1) + '" stroke="' + zc + '" stroke-width="' + (rr * 1.1).toFixed(1) + '" stroke-linecap="round" opacity="' + (pts.length > 45 ? '0.28' : '0.4') + '"/>' +
+        '<circle' + fade + ' cx="' + x + '" cy="' + Y(p.v).toFixed(1) + '" r="' + rr + '" fill="' + zc + '" opacity="0.95"/>' +
+        '<circle' + fade + ' cx="' + x + '" cy="' + Y(p.d).toFixed(1) + '" r="' + rr + '" fill="' + C.panel + '" stroke="' + zc + '" stroke-width="2"/>';
+    }); else pts.forEach(function (p) {
       g += '<circle' + fade + ' cx="' + X(p.e.date).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + (single ? 6 : r) + '" fill="' + (m.key === 'sugar' ? sugarZone(p.v).color : m.key === 'bmi' ? bmiStage(p.v).color : m.color) + '" opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.9' : (pts.length > 45 ? '0.45' : '0.85')) + '"/>';
     });
     g += zoneLabels;
-    if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="M' + line.join('L') + '"/>';
+    if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="' + (bp ? 2 : 3.2) + '" stroke-linecap="round" stroke-linejoin="round" d="M' + line.join('L') + '"/>';
+    if (bp && !single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="2" stroke-opacity="0.55" stroke-linecap="round" stroke-linejoin="round" d="M' +
+      pts.map(function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a2).toFixed(1); }).join('L') + '"/>';
     if (!o.print) g += '<line id="xh" y1="' + T + '" y2="' + (H - B) + '" stroke="' + C.muted + '" stroke-dasharray="3 4" style="display:none"/>' +
          '<circle id="xc" r="6.5" fill="' + C.panel + '" stroke="' + lc + '" stroke-width="3" style="display:none"/>';
 
@@ -1082,10 +1125,15 @@
     if (currentMetric === 'sugar') lg = SUGAR_ZONES.map(function (z) {
       return '<span class="chip" style="--c:' + z.color + '">' + z.range + ' ' + z.label.toLowerCase() + '</span>';
     }).join('') + lg;
+    if (currentMetric === 'bp') lg = BP_ZONES.map(function (z) {
+      return '<span class="chip" style="--c:' + z.color + '">' + esc(z.label) + ': ' + esc(z.range) + '</span>';
+    }).join('') + lg;
     if (currentMetric === 'bmi') lg = BMI_STAGES.map(function (g) {
       return '<span class="chip" style="--c:' + g.color + '">' + esc(g.name) + ' ' + bmiRange(g) + '</span>';
     }).join('') + lg;
-    $('legend').innerHTML = lg + '<span>' + (single ? '' : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') + '</span>';
+    $('legend').innerHTML = lg + '<span>' + (single ? '' : currentMetric === 'bp'
+      ? 'Each bar runs from diastolic (hollow dot) up to systolic (solid dot). Grey lines are 7-day averages (systolic above, diastolic below). Hover or touch the chart for details.'
+      : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') + '</span>';
 
     var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), xc = svg.querySelector('#xc'), cur = -1;
     tip.setAttribute('aria-live', 'polite');
@@ -1101,10 +1149,11 @@
       var p = pts[best], px = xs[best];
       xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.style.display = '';
       xc.setAttribute('cx', px); xc.setAttribute('cy', Y(p.v)); xc.style.display = '';
-      var h = '<b>' + esc(fmtDate(p.e.date)) + '</b><br>' + esc(m.label) + ': ' + p.v.toFixed(m.dec);
+      var h = '<b>' + esc(fmtDate(p.e.date)) + '</b><br>' + esc(m.label) + ': ' + (m.key === 'bp' ? bpText(p.e) : p.v.toFixed(m.dec));
+      if (m.key === 'bp') h += ' (' + bpZone(p.v, p.d).label.toLowerCase() + ')';
       if (m.key === 'sugar') h += ' (' + sugarZone(p.v).label.toLowerCase() + ')';
       if (m.key === 'bmi') h += ' (' + bmiStage(p.v).name.toLowerCase() + ')<br>Weight: ' + fw(p.e.weight) + ' ' + WU();
-      if (!single) h += '<br>7-day average: ' + p.a.toFixed(m.dec);
+      if (!single) h += '<br>7-day average: ' + (m.key === 'bp' ? Math.round(p.a) + '/' + Math.round(p.a2) : p.a.toFixed(m.dec));
       if (p.e.dose !== null) h += '<br>Dose: ' + p.e.dose + ' mg';
       if (p.e.comments) h += '<br><i>' + esc(p.e.comments.length > 80 ? p.e.comments.slice(0, 80) + '\u2026' : p.e.comments) + '</i>';
       tip.innerHTML = h; tip.classList.add('on');
@@ -1176,6 +1225,7 @@
         '<td class="num">' + (e.cal === null ? '<span class="dim">\u2014</span>' : '<div class="calcell"><i style="width:' + pct + '%"></i><span>' + e.cal + '</span></div>') + '</td>' +
         '<td class="food">' + (e.food ? esc(e.food) : '<span class="dim">\u2014</span>') + '</td>' +
         '<td class="num">' + (e.sugar === null ? c(null) : '<span class="chip" style="--c:' + sugarZone(e.sugar).color + '" title="' + sugarZone(e.sugar).label + '">' + e.sugar + '</span>') + '</td>' +
+        '<td class="num">' + (hasBp(e) ? bpChip(e) : c(null)) + '</td>' +
         '<td style="white-space:nowrap"><button class="small" data-edit="' + esc(e.date) + '" aria-label="Edit entry for ' + esc(fmtDate(e.date)) + '">Edit</button> ' +
         '<button class="small danger" data-del="' + esc(e.date) + '" aria-label="Delete entry for ' + esc(fmtDate(e.date)) + '">Delete</button></td>' +
         '</tr>';
@@ -1336,7 +1386,9 @@
       cal: num($('fCal').value),
       food: $('fFood').value,
       sugar: num($('fSugar').value),
-      site: $('fSite').value
+      site: $('fSite').value,
+      sys: num($('fSys').value),
+      dia: num($('fDia').value)
     };
     if (!e.date) return;
     if (editingDate && editingDate !== e.date) {
@@ -1384,6 +1436,8 @@
       $('fWeight').value = weightShown;
       $('fCal').value = e.cal === null ? '' : e.cal;
       $('fSugar').value = e.sugar === null ? '' : e.sugar;
+      $('fSys').value = e.sys == null ? '' : e.sys;
+      $('fDia').value = e.dia == null ? '' : e.dia;
       $('fFood').value = e.food || '';
       $('fComments').value = e.comments || '';
       setSiteValue(e.site || '');
@@ -1456,6 +1510,8 @@
     { k: 'site', label: 'Injection site', words: ['site', 'inject'] },
     { k: 'food', label: 'Food notes', words: ['food', 'meal', 'ate'] },
     { k: 'comments', label: 'Comments', words: ['comment', 'journal', 'note'] },
+    { k: 'sys', label: 'Systolic (mmHg)', words: ['systol'] },
+    { k: 'dia', label: 'Diastolic (mmHg)', words: ['diastol'] },
     { k: 'sugar', label: 'Glucose (mg/dL)', words: ['blood', 'sugar', 'glucose'] }
   ];
   var pending = null, mapping = {};
@@ -1471,7 +1527,7 @@
   }
   function downloadTemplate() {
     download('TirzepatideLog-template.csv',
-      COLUMNS.join(',') + '\r\n2026-01-05,2.50,210.0,"First dose, felt fine",2100,Chicken salad,105,Stomach (left)');
+      COLUMNS.join(',') + '\r\n2026-01-05,2.50,210.0,"First dose, felt fine",2100,Chicken salad,105,Stomach (left),122,78');
   }
 
   function openImport() {
@@ -1537,7 +1593,8 @@
       if (w !== null && kg) w = Math.round(w * 2.20462 * 10) / 10;
       out.push({
         date: date, dose: num(cell(r, 'dose')), weight: w, comments: cell(r, 'comments'),
-        cal: num(cell(r, 'cal')), food: cell(r, 'food'), sugar: num(cell(r, 'sugar')), site: cell(r, 'site').trim()
+        cal: num(cell(r, 'cal')), food: cell(r, 'food'), sugar: num(cell(r, 'sugar')), site: cell(r, 'site').trim(),
+        sys: num(cell(r, 'sys')), dia: num(cell(r, 'dia'))
       });
     });
     var byDate = {};
@@ -1748,6 +1805,14 @@
       boxes.push(['Latest fasting glucose', ls.sugar + ' mg/dL', lz.color, lz.label + ', ' + fmtDate(ls.date)]);
       tl.push('- Fasting glucose: average ' + Math.round(sug.avg) + ' mg/dL (' + sz.label.toLowerCase() + '), range ' + sug.min + ' to ' + sug.max + ' (' + sug.n + ' readings)');
     }
+    var bpr = list.filter(hasBp), bpAvg = null;
+    if (bpr.length) {
+      var as = statOf(bpr, 'sys'), ad = statOf(bpr, 'dia'), lbp = bpr[bpr.length - 1], lbz = bpZone(lbp.sys, lbp.dia);
+      bpAvg = { sys: as.avg, dia: ad.avg, z: bpZone(as.avg, ad.avg) };
+      boxes.push(['Average blood pressure', Math.round(as.avg) + '/' + Math.round(ad.avg) + ' mmHg', bpAvg.z.color, bpAvg.z.label + '; ' + bpr.length + ' readings']);
+      boxes.push(['Latest blood pressure', bpText(lbp) + ' mmHg', lbz.color, lbz.label + ', ' + fmtDate(lbp.date)]);
+      tl.push('- Blood pressure: average ' + Math.round(as.avg) + '/' + Math.round(ad.avg) + ' mmHg (' + bpAvg.z.label.toLowerCase() + '), systolic ' + as.min + ' to ' + as.max + ', diastolic ' + ad.min + ' to ' + ad.max + ' (' + bpr.length + ' readings); latest ' + bpText(lbp) + ' on ' + shortDate(lbp.date, true));
+    }
     var dcov = dayDiff(list[0].date, list[list.length - 1].date) + 1;
     boxes.push(['Entries logged', String(list.length), '#d97706', dcov + ' days covered, self-reported']);
     tl.push('- Entries: ' + list.length + ' over ' + dcov + ' days');
@@ -1773,19 +1838,34 @@
       tl.push('- Fasting readings by range: ' + counts.map(function (c) { return c.n + ' ' + c.z.label.toLowerCase(); }).join(', '));
     }
 
+    // Blood pressure readings counted by category
+    var bpRanges = '';
+    if (bpr.length) {
+      var bc = BP_ZONES.map(function (z) { return { z: z, n: bpr.filter(function (e) { return bpZone(e.sys, e.dia) === z; }).length }; });
+      bpRanges = '<h2>Blood pressure categories</h2><div class="rep-bar">' + bc.map(function (c) {
+        return c.n ? '<span style="width:' + (c.n / bpr.length * 100).toFixed(2) + '%;background:' + c.z.color + '"></span>' : '';
+      }).join('') + '</div><table><thead><tr><th>Category</th><th>mmHg</th><th class="num">Readings</th><th class="num">Share</th></tr></thead><tbody>' +
+        bc.map(function (c) {
+          return '<tr><td><span class="chip" style="--c:' + c.z.color + '">' + esc(c.z.label) + '</span></td><td>' + esc(c.z.range) + '</td><td class="num">' + c.n +
+            '</td><td class="num">' + Math.round(c.n / bpr.length * 100) + '%</td></tr>';
+        }).join('') + '</tbody></table><div class="rep-cap">American Heart Association categories; the higher of the two numbers decides. Home readings are self-reported.</div>';
+      tl.push('- Blood pressure readings by category: ' + bc.map(function (c) { return c.n + ' ' + c.z.label.toLowerCase(); }).join(', '));
+    }
+
     var h = '<div class="rep">' + head + '<div class="rep-grid">' + boxes.map(function (b) {
       return '<div class="rep-box" style="--c:' + b[2] + '"><div class="l">' + esc(b[0]) + '</div><div class="v">' + esc(b[1]) + '</div><div class="s">' + esc(b[3] || '') + '</div></div>';
     }).join('') + '</div>';
     if (notes) { h += '<h2>Notes for my doctor</h2><p>' + esc(notes).replace(/\n/g, '<br>') + '</p>'; tl.push('', 'Notes for my doctor: ' + notes); }
 
     var charts = [];
-    [['weight', 'rcWeight'], ['bmi', 'rcBmi'], ['sugar', 'rcSugar'], ['cal', 'rcCal']].forEach(function (pr) {
+    [['weight', 'rcWeight'], ['bmi', 'rcBmi'], ['sugar', 'rcSugar'], ['bp', 'rcBp'], ['cal', 'rcCal']].forEach(function (pr) {
       if (!$(pr[1]).checked || $(pr[1]).disabled) return;
       var res = buildChart(pr[0], { from: w.from, to: w.to, print: true, title: METRICS[pr[0]].label + ', ' + period });
       if (!res) return;
       charts.push({ key: pr[0], svg: res.svg, w: res.W, h: res.H });
       h += '<section>' + res.svg + '<div class="rep-cap">Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.' +
         (pr[0] === 'sugar' ? ' Dot colours show the fasting range: green below 100, amber 100 to 125, red 126 and above.' : '') +
+        (pr[0] === 'bp' ? ' Each bar runs from diastolic (hollow dot) to systolic (solid dot), coloured by category: green normal, amber elevated, orange stage 1, red stage 2. Dashed lines mark the category limits for the top and bottom number.' : '') +
         (pr[0] === 'bmi' ? ' Dot colours show the BMI stage; dashed lines mark the stage boundaries. Height ' + esc(fmtHeight(settings.heightIn)) + '.' : '') + '</div></section>';
       if (pr[0] === 'bmi') h += '<section><h2>BMI stages</h2><table><thead><tr><th>Stage</th><th>BMI</th><th class="num">Weight at ' + esc(fmtHeight(settings.heightIn)) + '</th></tr></thead><tbody>' +
         BMI_STAGES.map(function (g) {
@@ -1794,11 +1874,13 @@
             (g.min === 0 ? '<' + lbsAt(18.5, hh) : g.max === null ? lbsAt(40, hh) + '+' : lbsAt(g.min, hh) + ' \u2013 ' + lbsAt(g.max - 0.1, hh)) + ' ' + WU() + '</td></tr>';
         }).join('') + '</tbody></table></section>';
       if (pr[0] === 'sugar') { h += '<section>' + ranges + '</section>'; ranges = ''; }
+      if (pr[0] === 'bp') { h += '<section>' + bpRanges + '</section>'; bpRanges = ''; }
     });
     if (ranges) h += '<section>' + ranges + '</section>';   // sugar chart not selected
+    if (bpRanges) h += '<section>' + bpRanges + '</section>';   // blood pressure chart not selected
 
     if ($('rcDose').checked && segs.length) {
-      h += '<h2>Dose schedule</h2><table><thead><tr><th>Dose</th><th>From</th><th>To</th><th class="num">Weeks</th><th class="num">Weight change</th><th class="num">Per week</th><th class="num">Avg calories</th><th class="num">Avg glucose</th></tr></thead><tbody>';
+      h += '<h2>Dose schedule</h2><table><thead><tr><th>Dose</th><th>From</th><th>To</th><th class="num">Weeks</th><th class="num">Weight change</th><th class="num">Per week</th><th class="num">Avg calories</th><th class="num">Avg glucose</th><th class="num">Avg BP</th></tr></thead><tbody>';
       tl.push('', 'Dose schedule:');
       segs.forEach(function (sg) {
         var it = sg.items, a = it[0].date, b = it[it.length - 1].date;
@@ -1806,10 +1888,11 @@
         var wspan = ws.length > 1 ? dayDiff(ws[0].date, ws[ws.length - 1].date) : 0;
         var pw = wspan >= 6 ? sgn(dw((ws[ws.length - 1].weight - ws[0].weight) / (wspan / 7)), 2) + ' ' + WU() : null;
         var wc = ws.length > 1 ? sgn(dw(ws[ws.length - 1].weight - ws[0].weight), 1) + ' ' + WU() : '\u2014';
-        var ca = statOf(it, 'cal'), su = statOf(it, 'sugar');
+        var ca = statOf(it, 'cal'), su = statOf(it, 'sugar'), bi_ = it.filter(hasBp), bs_ = statOf(bi_, 'sys'), bd_ = statOf(bi_, 'dia');
         var wk = Math.max(1, Math.round((dayDiff(a, b) + 1) / 7));
         h += '<tr><td><span class="chip" style="--c:' + doseColor(sg.dose) + '">' + sg.dose + ' mg</span></td><td>' + esc(fmtDate(a)) + '</td><td>' + esc(fmtDate(b)) + '</td><td class="num">' + wk + '</td><td class="num">' + wc +
-          '</td><td class="num">' + (pw || '\u2014') + '</td><td class="num">' + (ca ? nf(ca.avg) : '\u2014') + '</td><td class="num">' + (su ? sugarText(su.avg, ' mg/dL') : '\u2014') + '</td></tr>';
+          '</td><td class="num">' + (pw || '\u2014') + '</td><td class="num">' + (ca ? nf(ca.avg) : '\u2014') + '</td><td class="num">' + (su ? sugarText(su.avg, ' mg/dL') : '\u2014') + '</td><td class="num">' +
+          (bs_ ? '<span style="color:' + bpZone(bs_.avg, bd_.avg).color + ';font-weight:700">' + Math.round(bs_.avg) + '/' + Math.round(bd_.avg) + '</span>' : '\u2014') + '</td></tr>';
         tl.push('- ' + sg.dose + ' mg, ' + shortDate(a, true) + ' to ' + shortDate(b, true) + ' (' + wk + ' wk)' + (ws.length > 1 ? ', weight ' + fw(ws[0].weight) + ' to ' + fw(ws[ws.length - 1].weight) : '') + (pw ? ' (' + pw + '/wk)' : ''));
       });
       h += '</tbody></table>';
@@ -1824,9 +1907,9 @@
     }
     if ($('rcFull').checked) {
       function v(x) { return x === null ? '\u2014' : esc(x); }
-      h += '<h2>Daily log (' + list.length + ' entries)</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (' + WU() + ')</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th>Site</th></tr></thead><tbody>' +
+      h += '<h2>Daily log (' + list.length + ' entries)</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (' + WU() + ')</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th class="num">BP</th><th>Site</th></tr></thead><tbody>' +
         list.slice().reverse().map(function (e) {
-          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + v(e.dose) + '</td><td class="num">' + (e.weight === null ? '\u2014' : fw(e.weight)) + '</td><td class="num">' + v(e.cal) + '</td><td>' + (e.food ? esc(e.food) : '\u2014') + '</td><td class="num">' + (e.sugar === null ? '\u2014' : sugarText(e.sugar, '')) + '</td><td>' + (e.site ? esc(e.site) : '\u2014') + '</td></tr>';
+          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + v(e.dose) + '</td><td class="num">' + (e.weight === null ? '\u2014' : fw(e.weight)) + '</td><td class="num">' + v(e.cal) + '</td><td>' + (e.food ? esc(e.food) : '\u2014') + '</td><td class="num">' + (e.sugar === null ? '\u2014' : sugarText(e.sugar, '')) + '</td><td class="num">' + (hasBp(e) ? '<span style="color:' + bpZone(e.sys, e.dia).color + ';font-weight:700">' + bpText(e) + '</span>' : '\u2014') + '</td><td>' + (e.site ? esc(e.site) : '\u2014') + '</td></tr>';
         }).join('') + '</tbody></table>';
     }
     h += '<footer>Self-reported data from a personal log. This is not a medical record or medical advice.</footer></div>';
@@ -1898,7 +1981,7 @@
 
   $('openReport').addEventListener('click', openReport);
   $('rClose').addEventListener('click', function () { if (rdlg.open) rdlg.close(); });
-  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcBmi', 'rcSugar', 'rcCal', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
+  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcBmi', 'rcSugar', 'rcBp', 'rcCal', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
     $(id).addEventListener('input', queuePreview);
     $(id).addEventListener('change', queuePreview);
   });

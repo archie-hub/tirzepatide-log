@@ -28,7 +28,7 @@ test('imports sample data and renders stats and charts', async ({ page }) => {
   await expect(page.locator('#rows tr').first()).toBeVisible();
 
   // Chart tabs: each metric should render an accessible SVG chart.
-  for (const tabId of ['#tab-weight', '#tab-sugar', '#tab-cal']) {
+  for (const tabId of ['#tab-weight', '#tab-sugar', '#tab-bp', '#tab-cal']) {
     await page.locator(tabId).click();
     await expect(page.locator(tabId)).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#chart svg[role="img"]')).toBeVisible();
@@ -121,6 +121,62 @@ test('doctor report shows fasting glucose ranges', async ({ page }) => {
   await expect(page.locator('#reportPreview h2', { hasText: 'Fasting glucose ranges' })).toHaveCount(1);
 });
 
+const BP_CSV = 'Date,Systolic (mmHg),Diastolic (mmHg)\n2026-10-01,118,76\n2026-10-02,125,78\n2026-10-03,128,84\n2026-10-04,134,79\n2026-10-05,126,92';
+
+async function pasteBp(page) {
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill(BP_CSV);
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await expect(page.locator('#importDlg')).toBeHidden();
+}
+
+test('blood pressure is coloured by AHA category in the table, card and chart', async ({ page }) => {
+  const GREEN = '#16a34a', AMBER = '#d4a106', ORANGE = '#f97316', RED = '#dc2626';
+  await pasteBp(page);
+
+  // Newest first: 126/92 stage 2 (diastolic decides), 134/79 stage 1, 128/84 stage 1 (diastolic decides), 125/78 elevated, 118/76 normal.
+  const rows = await page.locator('#rows tr').evaluateAll((trs) =>
+    trs.map((r) => { const c = r.querySelector('.bp-cell .chip, td:nth-child(9) .chip'); return [c.textContent, c.style.getPropertyValue('--c')]; }));
+  expect(rows).toEqual([['126/92', RED], ['134/79', ORANGE], ['128/84', ORANGE], ['125/78', AMBER], ['118/76', GREEN]]);
+
+  const card = page.locator('#stats .stat', { hasText: 'blood pressure' });
+  await expect(card).toContainText('126/92');
+  await expect(card).toHaveAttribute('style', new RegExp(RED));
+
+  await page.locator('#tab-bp').click();
+  await expect(page.locator('#tab-bp')).toHaveAttribute('aria-selected', 'true');
+  const solid = await page.locator('#chart svg[role="img"] circle[opacity="0.95"]:not(#xc)').evaluateAll((c) => c.map((x) => x.getAttribute('fill')));
+  expect(solid).toEqual([GREEN, AMBER, ORANGE, ORANGE, RED]);
+  await expect(page.locator('#chart svg text', { hasText: 'top 140 stage 2' })).toHaveCount(1);
+  await expect(page.locator('#chart svg text', { hasText: 'bottom 90 stage 2' })).toHaveCount(1);
+});
+
+test('blood pressure round-trips through the form, CSV export and the report', async ({ page }) => {
+  await pasteBp(page);
+  await page.locator('[data-edit="2026-10-01"]').click();
+  await expect(page.locator('#fSys')).toHaveValue('118');
+  await expect(page.locator('#fDia')).toHaveValue('76');
+  await page.locator('#fSys').fill('145');
+  await page.locator('#saveBtn').click();
+  await expect(page.locator('#rows tr', { hasText: '145/76' })).toHaveCount(1);
+
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
+  const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
+  expect(csv[0]).toBe('Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg)');
+  expect(csv[1]).toBe('2026-10-01,,,,,,,,145,76');
+
+  await page.locator('#openReport').click();
+  await expect(page.locator('#reportPreview .rep-box', { hasText: 'Latest blood pressure' })).toContainText('126/92');
+  const cats = page.locator('#reportPreview h2', { hasText: 'Blood pressure categories' });
+  const table = await cats.locator('xpath=following-sibling::table[1]//tbody/tr').evaluateAll((trs) =>
+    trs.map((tr) => [tr.cells[0].textContent, tr.cells[2].textContent]));
+  expect(table).toEqual([['Normal', '0'], ['Elevated', '1'], ['Hypertension stage 1', '2'], ['Hypertension stage 2', '2']]);
+  await page.locator('#rcBp').uncheck();
+  await expect(page.locator('#reportPreview h2', { hasText: 'Blood pressure categories' })).toHaveCount(1);
+});
+
 test('dose bands are a plain tint: no strip or dose text in the chart', async ({ page }) => {
   await importSample(page);
   const strips = await page.locator('#chart svg[role="img"] rect[height="3"]').count();
@@ -206,7 +262,7 @@ test('top row is weight, goal, change, glucose; no backup card; report shows BMI
   await importSample(page);
   const labels = await page.locator('#stats .stat .l').allInnerTexts();
   expect(labels.map((l) => l.split(/[:(]|Since|since/)[0].trim().replace(/\s*Edit$/, ''))).toEqual(
-    ['Latest weight', 'Goal weight', 'Change', 'Latest fasting glucose']);
+    ['Latest weight', 'Goal weight', 'Change', 'Latest fasting glucose', 'Latest blood pressure']);
   await expect(page.locator('#plan')).not.toContainText('Backup');
   await expect(page.locator('[data-export]')).toHaveCount(0);
 
