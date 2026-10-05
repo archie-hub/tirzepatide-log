@@ -211,6 +211,8 @@ test('top row is weight, goal, change, glucose; no backup card; report shows BMI
 
   await page.locator('#openReport').click();
   await expect(page.locator('#reportPreview .rep-box', { hasText: 'BMI' })).toHaveCount(0);   // no height yet
+  await expect(page.locator('#rcBmi')).toBeDisabled();
+  await expect(page.locator('#rcBmiText')).toContainText('set your height');
   await page.keyboard.press('Escape');
   await page.fill('#bmiHeight', "5'9\"");
   await page.press('#bmiHeight', 'Enter');
@@ -220,6 +222,8 @@ test('top row is weight, goal, change, glucose; no backup card; report shows BMI
   await expect(box).toContainText('BMI');
 
   // Everything on the dashboard is also in the report
+  await expect(page.locator('#rcBmi')).toBeEnabled();
+  await expect(page.locator('#reportPreview svg').filter({ hasText: 'BMI,' })).toHaveCount(1);
   const boxLabels = await page.locator('#reportPreview .rep-box .l').allInnerTexts();
   for (const want of ['Dose', 'Weight', 'Change', 'BMI', 'BMI next stage', 'Next dose', 'Latest fasting glucose', 'Entries logged']) {
     expect(boxLabels, want).toContain(want);

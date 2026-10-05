@@ -529,7 +529,7 @@
   </div>
   <div class="checks" role="group" aria-label="Include in report">
     <label class="radio"><input type="checkbox" id="rcWeight" checked> <span>Weight chart</span></label>
-    <label class="radio" id="rcBmiWrap"><input type="checkbox" id="rcBmi" checked> <span>BMI chart and stages</span></label>
+    <label class="radio" id="rcBmiWrap"><input type="checkbox" id="rcBmi" checked> <span id="rcBmiText">BMI chart and stages</span></label>
     <label class="radio"><input type="checkbox" id="rcSugar" checked> <span>Glucose chart</span></label>
     <label class="radio"><input type="checkbox" id="rcCal" checked> <span>Calories chart</span></label>
     <label class="radio"><input type="checkbox" id="rcDose" checked> <span>Dose schedule table</span></label>
@@ -1666,7 +1666,7 @@
 
     var charts = [];
     [['weight', 'rcWeight'], ['bmi', 'rcBmi'], ['sugar', 'rcSugar'], ['cal', 'rcCal']].forEach(function (pr) {
-      if (!$(pr[1]).checked) return;
+      if (!$(pr[1]).checked || $(pr[1]).disabled) return;
       var res = buildChart(pr[0], { from: w.from, to: w.to, print: true, title: METRICS[pr[0]].label + ', ' + period });
       if (!res) return;
       charts.push({ key: pr[0], svg: res.svg, w: res.W, h: res.H });
@@ -1732,7 +1732,9 @@
     if (!$('rFrom').value) $('rFrom').value = all[0].date;
     if (!$('rTo').value) $('rTo').value = all[all.length - 1].date;
     try { $('rName').value = localStorage.getItem('tirzepatide-report-name') || $('rName').value; } catch (e) {}
-    $('rcBmiWrap').hidden = !settings.heightIn;
+    // Without a height there is nothing to calculate: keep the option visible but off, with a hint
+    $('rcBmi').disabled = !settings.heightIn;
+    $('rcBmiText').textContent = settings.heightIn ? 'BMI chart and stages' : 'BMI chart and stages (set your height on the BMI card first)';
     if (!rdlg.open) rdlg.showModal();
     renderReportPreview();
   }
