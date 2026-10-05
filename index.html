@@ -390,6 +390,23 @@
     <p class="note" style="margin-bottom:0">Change is measured from the first to the last weigh-in at each dose.</p>
   </section>
 
+  <section class="panel" id="entriesPanel">
+    <h2>Entries</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th class="num">Dose (mg)</th><th class="num">Weight (lbs)</th><th class="num">Change</th>
+            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="actions" style="margin-top:12px"><button type="button" id="moreBtn" hidden></button></div>
+    <div id="emptyRows" class="empty" hidden>No entries yet. Add one below or import a CSV.</div>
+  </section>
+
   <section class="panel">
     <h2 id="formTitle">Add entry</h2>
     <form id="entryForm" autocomplete="off">
@@ -407,23 +424,6 @@
         <span style="color:var(--muted);font-size:13px">Saving an existing date replaces that day's entry.</span>
       </div>
     </form>
-  </section>
-
-  <section class="panel" id="entriesPanel">
-    <h2>Entries</h2>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th><th class="num">Dose (mg)</th><th class="num">Weight (lbs)</th><th class="num">Change</th>
-            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th></th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-    <div class="actions" style="margin-top:12px"><button type="button" id="moreBtn" hidden></button></div>
-    <div id="emptyRows" class="empty" hidden>No entries yet. Add one above or import a CSV.</div>
   </section>
 
   <footer class="foot" id="foot"></footer>
