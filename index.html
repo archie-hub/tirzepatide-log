@@ -973,7 +973,8 @@
     if (d) {
       var when = d.diff === 0 ? 'Today' : d.diff === 1 ? 'Tomorrow' : DAY_NAMES[d.dow];
       var filled = d.diff === 0 ? 7 : 7 - d.diff, strip = '';
-      for (var i = 0; i < 7; i++) strip += '<span' + (i < filled ? ' class="on"' : '') + '></span>';
+      // filled segments warm from green (just dosed) to red (dose day) as the next dose gets closer
+      for (var i = 0; i < 7; i++) strip += '<span' + (i < filled ? ' class="on" style="background:hsl(' + Math.round(140 - i * 140 / 6) + ',72%,45%)"' : '') + '></span>';
       var stale = dayDiff(d.lastEntry, today()) > 14, dc = doseColor(d.dose);
       var sameYr = d.since.slice(0, 4) === today().slice(0, 4);
       cards.push(card(dc, 'Current dose', '', d.dose + ' mg', 'Week ' + d.week + ' since ' + (sameYr ? shortDate(d.since, false) : fmtDate(d.since))));
