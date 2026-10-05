@@ -6,6 +6,7 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 - Logs date, dose (mg), weight (lbs), comments, calories, food notes, glucose (mg/dL), injection site.
 - Plan cards: next dose (weekday from settings, else last logged site date, else current dose start); goal ring with projection (28-day least-squares slope); backup status.
 - "Results by dose" panel: lbs/week per dose segment (also in the doctor report).
+- BMI panel: asks for height (ft + in, saved as `settings.heightIn`), shows BMI from the latest weigh-in, a color-coded scale and a stage table with the weight range per stage at that height. Stages (`BMI_STAGES`): underweight blue, normal green, overweight amber, obesity I orange, II deep orange, III red; the rounded value decides.
 - Stats cards, tabbed charts (weight / glucose / calories) with dose bands, 7-day average line, hover tooltip, range switch (All, 6 mo, 3 mo, 30 d).
 - Entry table with edit/delete and dose-colored rows. Shows the latest 30 entries until "Show all".
 - Import wizard: file, drag and drop, or pasted CSV; auto-matches columns, handles `MM/DD/YYYY` vs `DD/MM/YYYY`, converts kg to lbs, merge or replace by date.
@@ -13,7 +14,7 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 - "Doctor report": date-range report with summary boxes, charts, fasting glucose ranges (counts and share per ADA range), dose schedule, comments table, optional full log. Output via print/PDF, PNG chart images, copied text summary, mailto, Web Share, CSV for the range.
 
 ## Data and privacy rules
-- All data lives in the visitor's browser (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, dose day and backup timestamps under `tirzepatide-settings`). Never add code that uploads data.
+- All data lives in the visitor's browser (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, dose day, height and backup timestamps under `tirzepatide-settings`). Never add code that uploads data.
 - Never commit real health data. `.gitignore` excludes `*.csv` except `sample-data/`. The sample file is fake.
 - Every localStorage call is wrapped in try/catch; the app must render with empty storage.
 

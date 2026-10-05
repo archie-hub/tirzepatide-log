@@ -167,6 +167,26 @@ test('print report builds print-safe markup without crashing', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
+test('BMI panel asks for height, shows stage and persists it', async ({ page }) => {
+  await importSample(page);
+  await expect(page.locator('#bmiPanel')).toBeVisible();
+  await expect(page.locator('#bmiOut')).toContainText('Enter your height');
+
+  await page.fill('#bmiFt', '5');
+  await page.fill('#bmiIn', '9');
+  await page.locator('#bmiForm button[type=submit]').click();
+  await expect(page.locator('.bmi-now .v')).toBeVisible();
+  const bmi = parseFloat(await page.locator('.bmi-now .v').innerText());
+  expect(bmi).toBeGreaterThan(15);
+  expect(bmi).toBeLessThan(60);
+  await expect(page.locator('.bmi-stage tr')).toHaveCount(7);   // header + 6 stages
+  await expect(page.locator('.bmi-stage tr.cur')).toHaveCount(1);
+
+  await page.reload();
+  await expect(page.locator('.bmi-now .v')).toBeVisible();
+  await expect(page.locator('#bmiFt')).toHaveValue('5');
+});
+
 test('renders without errors at 390px in dark mode', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.setViewportSize({ width: 390, height: 844 });
