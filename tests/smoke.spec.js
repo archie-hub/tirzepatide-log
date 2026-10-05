@@ -384,6 +384,15 @@ test('weight label stays on one line in the entry form and settings', async ({ p
   expect(await h('#sGoal')).toBeLessThan(24);
 });
 
+test('form fields use the same 15px text as the rest of the page', async ({ page }) => {
+  await importSample(page);
+  const size = (sel) => page.locator(sel).evaluate((el) => getComputedStyle(el).fontSize);
+  for (const id of ['#fDate', '#fDose', '#fWeight', '#fCal', '#fSugar', '#fSite', '#fFood', '#fComments']) {
+    expect(await size(id), id).toBe('15px');
+  }
+  expect(await size('body')).toBe('15px');
+});
+
 test('renders without errors at 390px in dark mode', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.setViewportSize({ width: 390, height: 844 });
