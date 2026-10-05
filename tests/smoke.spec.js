@@ -668,3 +668,101 @@ test('progress: panel is hidden until there are two weigh-ins', async ({ page })
   await page.locator('#doImport').click();
   await expect(page.locator('#progress')).toBeHidden();
 });
+
+// 57 daily weigh-ins from 2026-08-01, losing exactly 0.5 lb/day (3.5 lb/week) from 200 lbs: 200.0 -> 172.0.
+// 3.5/week is more than 1% of body weight (1.72) a week, so the fast-loss flag must be on.
+function steadyLossCsv(extra) {
+  const rows = ['Date,Dosage (mg),Weight (lbs)'];
+  const t0 = Date.UTC(2026, 7, 1);
+  for (let i = 0; i < 57; i++) {
+    const d = new Date(t0 + i * 86400000).toISOString().slice(0, 10);
+    rows.push(d + ',2.5,' + (extra ? extra(i, d) : (200 - 0.5 * i).toFixed(1)));
+  }
+  return rows.join('\n');
+}
+async function pasteCsv(page, csv) {
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill(csv);
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await expect(page.locator('#importDlg')).toBeHidden();
+}
+
+test('insights: fast-loss notice, pace, extremes, best week, streak and weekly averages', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await expect(page.locator('#fastNote')).toBeVisible();
+  await expect(page.locator('#fastNote')).toContainText('3.5 lbs a week');
+
+  await expect(page.locator('#insightsPanel')).toBeVisible();
+  await expect(page.locator('#insightsPanel')).not.toHaveAttribute('open', '');   // minimised by default
+  await page.locator('#insightsPanel > summary').click();
+  const box = (label) => page.locator('#insights .ins', { hasText: label });
+  await expect(box('4-week pace')).toContainText('−3.50 lbs/wk');
+  await expect(box('4-week pace')).toContainText('Faster than 1% of body weight');
+  await expect(box('This week vs last')).toContainText('−3.5 lbs');     // averages 173.5 vs 177.0
+  await expect(box('Highest weight')).toContainText('200.0 lbs');
+  await expect(box('Lowest weight')).toContainText('172.0 lbs');
+  await expect(box('Best week')).toContainText('week 2');               // first week with a −3.5 change
+  await expect(box('Logging streak')).toContainText('57 days');
+  await expect(box('Weigh-ins')).toContainText('57');
+  await expect(box('Weigh-ins')).toContainText('every 1.0 days');
+  const rows = await page.locator('#insights table tbody tr').count();
+  expect(rows).toBe(9);                                                  // 57 days = 9 week buckets (8 full + 1 day)
+});
+
+test('insights: no fast-loss notice for a gentle pace; gaps are reported', async ({ page }) => {
+  // 0.1 lb/day = 0.7 lb/week, well under 1%. Skip days 20-27 to make an 8-day gap in the log.
+  const rows = ['Date,Dosage (mg),Weight (lbs)'], t0 = Date.UTC(2026, 7, 1);
+  for (let i = 0; i < 50; i++) if (i < 20 || i > 27) rows.push(new Date(t0 + i * 86400000).toISOString().slice(0, 10) + ',2.5,' + (200 - 0.1 * i).toFixed(1));
+  await pasteCsv(page, rows.join('\n'));
+  await expect(page.locator('#fastNote')).toBeHidden();
+  await page.locator('#insightsPanel > summary').click();
+  await expect(page.locator('#insights .ins', { hasText: 'Weigh-ins' })).toContainText('Longest gap 9 days');
+});
+
+test('pace chart tab: zero line, fast-loss line and orange dots', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await page.locator('#tab-rate').click();
+  await expect(page.locator('#tab-rate')).toHaveAttribute('aria-selected', 'true');
+  const svg = page.locator('#chart svg[role="img"]');
+  await expect(svg).toBeVisible();
+  await expect(svg.locator('text', { hasText: 'no change' })).toHaveCount(1);
+  await expect(svg.locator('text', { hasText: 'faster than 1% of body weight a week' })).toHaveCount(1);
+  expect(await svg.locator('circle[fill="#f97316"]').count()).toBeGreaterThan(10);
+  await svg.scrollIntoViewIfNeeded();
+  const b = await svg.boundingBox();
+  await page.mouse.move(b.x + b.width * 0.8, b.y + b.height / 2);
+  await expect(page.locator('#tip')).toContainText('Loss pace');
+});
+
+test('insights: weight by injection day shows once there are four weeks of data', async ({ page }) => {
+  // +0.8 the day after a Monday injection, -0.8 on injection day itself
+  await pasteCsv(page, steadyLossCsv((i, d) => {
+    const dow = new Date(d + 'T00:00:00Z').getUTCDay();
+    return (190 + (dow === 2 ? 0.8 : dow === 1 ? -0.8 : 0)).toFixed(1);
+  }));
+  await page.locator('#stats [data-settings], #plan [data-settings]').first().click();
+  await page.selectOption('#sDay', '1');
+  await page.locator('#setSave').click();
+  await page.locator('#insightsPanel > summary').click();
+  await expect(page.locator('#insights svg.bars')).toBeVisible();
+  await expect(page.locator('#insights')).toContainText('Usually heaviest 1 day after');
+  await expect(page.locator('#insights')).toContainText('lightest on injection day');
+});
+
+test('insights are in the doctor report: pace, extremes, best week, consistency, weekly table, pace chart', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await page.locator('#openReport').click();
+  const boxes = page.locator('#reportPreview .rep-box');
+  await expect(boxes.filter({ hasText: '4-week pace' })).toContainText('−3.50 lbs/wk');
+  await expect(boxes.filter({ hasText: '4-week pace' })).toContainText('faster than 1%');
+  await expect(boxes.filter({ hasText: 'Highest / lowest' })).toContainText('200.0 / 172.0');
+  await expect(boxes.filter({ hasText: 'Best week' })).toContainText('week 2');
+  await expect(boxes.filter({ hasText: 'Weigh-in consistency' })).toContainText('57 weigh-ins');
+  await expect(page.locator('#reportPreview h2', { hasText: 'Weekly averages' })).toHaveCount(0);
+  await page.locator('#rcWeekly').check();
+  await page.locator('#rcRate').check();
+  await expect(page.locator('#reportPreview h2', { hasText: 'Weekly averages' })).toHaveCount(1);
+  await expect(page.locator('#reportPreview svg[aria-label^="Loss pace"]')).toHaveCount(1);
+});

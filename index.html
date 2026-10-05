@@ -76,6 +76,7 @@
   .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 14px;
     max-width: calc(100vw - 32px); padding: 10px 14px; border-radius: 12px; background: #12202e; color: #fff; box-shadow: 0 8px 30px rgba(0,0,0,.3); font-size: 14px; }
   .toast button { background: transparent; color: #7dd3fc; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 4px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+  .notice.warn { border-left-color: #f97316; }
   .notice { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); border-left: 4px solid #64748b; background: var(--panel); font-size: 14px; }
   .backup { margin-top: 2px; }
   .backup.warn { color: #fde68a; font-weight: 600; }
@@ -90,6 +91,14 @@
   .progress .wk { font-weight: 750; margin-right: 4px; }
   .progress .chip.next { border-style: dashed; background: transparent; }
   .progress .muted { color: var(--muted); font-size: 13px; }
+  .ins-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  .ins { border: 1px solid var(--line); border-left: 4px solid var(--c, var(--accent)); border-radius: 10px; padding: 8px 12px; }
+  .ins .l { color: var(--muted); font-size: 12.5px; }
+  .ins .v { font-size: 20px; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .ins .sub { color: var(--muted); font-size: 12.5px; }
+  #insights h3 { margin: 16px 0 6px; font-size: 14px; }
+  #insights svg.bars { width: 100%; max-width: 480px; height: auto; display: block; }
+  #insights svg.bars text { fill: var(--muted); font-size: 11px; }
   .fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; border-radius: 8px; }
   .fold > summary::-webkit-details-marker { display: none; }
   .fold > summary h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
@@ -402,10 +411,16 @@
   <section class="stats" id="stats" aria-label="Summary"></section>
 
   <div class="notice" id="plateau" role="status" hidden></div>
+  <div class="notice warn" id="fastNote" role="status" hidden></div>
 
   <section class="plan" id="plan" aria-label="Next dose and BMI"></section>
 
   <section class="panel progress" id="progress" aria-label="Progress milestones" hidden></section>
+
+  <details class="panel fold" id="insightsPanel" hidden>
+    <summary><h2>More insights</h2><span class="fold-hint"></span></summary>
+    <div id="insights"></div>
+  </details>
 
   <section class="panel" id="chartPanel">
     <div class="chart-top">
@@ -413,6 +428,7 @@
         <button class="tab" role="tab" id="tab-weight" data-metric="weight" aria-selected="true" aria-controls="chart" tabindex="0">Weight</button>
         <button class="tab" role="tab" id="tab-bmi" data-metric="bmi" aria-selected="false" aria-controls="chart" tabindex="-1" hidden>BMI</button>
         <button class="tab" role="tab" id="tab-sugar" data-metric="sugar" aria-selected="false" aria-controls="chart" tabindex="-1">Glucose</button>
+        <button class="tab" role="tab" id="tab-rate" data-metric="rate" aria-selected="false" aria-controls="chart" tabindex="-1">Pace</button>
         <button class="tab" role="tab" id="tab-bp" data-metric="bp" aria-selected="false" aria-controls="chart" tabindex="-1">Blood pressure</button>
         <button class="tab" role="tab" id="tab-cal" data-metric="cal" aria-selected="false" aria-controls="chart" tabindex="-1">Calories</button>
         <button class="tab" role="tab" id="tab-compare" data-metric="compare" aria-selected="false" aria-controls="chart" tabindex="-1">Combined</button>
@@ -591,6 +607,8 @@
     <label class="radio"><input type="checkbox" id="rcBp" checked> <span>Blood pressure chart</span></label>
     <label class="radio"><input type="checkbox" id="rcCal" checked> <span>Calories chart</span></label>
     <label class="radio"><input type="checkbox" id="rcCompare"> <span>Combined chart (the items chosen on the Combined tab)</span></label>
+    <label class="radio"><input type="checkbox" id="rcRate"> <span>Loss pace chart</span></label>
+    <label class="radio"><input type="checkbox" id="rcWeekly"> <span>Weekly averages table</span></label>
     <label class="radio"><input type="checkbox" id="rcDose" checked> <span>Dose schedule table</span></label>
     <label class="radio"><input type="checkbox" id="rcComments" checked> <span>Comments and side effects</span></label>
     <label class="radio"><input type="checkbox" id="rcFull"> <span>Full daily log table</span></label>
@@ -864,6 +882,86 @@
     if (!pi) return (d / first.weight * 100).toFixed(1) + '% of starting weight';
     return Math.abs(pi.pct).toFixed(1) + '% ' + (pi.lost >= 0 ? 'lost' : 'gained') + (pi.hasBase ? ' from start' : '') + ' \u00b7 week ' + pi.week;
   }
+  // Rolling 4-week pace in lbs/week (negative = losing), one value per weigh-in that has enough history
+  function rollingRates(w) {
+    return w.map(function (e, i) { var sl = slopeUpTo(w, i); return sl === null ? null : { date: e.date, v: sl * 7 }; }).filter(Boolean);
+  }
+  var FAST_PCT = 1;   // % of body weight per week; faster than this is flagged for information only
+  function fastThreshold(lbs) { return lbs * FAST_PCT / 100; }
+  function fastLoss(w) {
+    var sl = recentSlope(w); if (sl === null) return null;
+    var rate = sl * 7, last = w[w.length - 1].weight;
+    return -rate > fastThreshold(last) ? { rate: rate, thr: fastThreshold(last) } : null;
+  }
+  function fastText(f) {
+    return 'Weight has been dropping about ' + fw(-f.rate) + ' ' + WU() + ' a week over the last 4 weeks, faster than ' + FAST_PCT + '% of body weight a week (' + fw(f.thr) + ' ' + WU() + '). That pace is often treated as rapid, so it is worth mentioning to your clinician.';
+  }
+  // Seven-day buckets numbered like "week on treatment"; change is against the previous week when it has data too
+  function weeklyAverages(all) {
+    var w = all.filter(function (e) { return e.weight !== null; }); if (!w.length) return [];
+    var start = treatStart(all), map = {}, out = [];
+    w.forEach(function (e) {
+      var k = weekNo(start, e.date); (map[k] = map[k] || { week: k, from: e.date, to: e.date, sum: 0, n: 0 });
+      var b = map[k]; b.sum += e.weight; b.n++; if (e.date < b.from) b.from = e.date; if (e.date > b.to) b.to = e.date;
+    });
+    Object.keys(map).map(Number).sort(function (a, b) { return a - b; }).forEach(function (k) {
+      var b = map[k]; b.avg = b.sum / b.n; var prev = map[k - 1];
+      b.change = prev ? b.avg - prev.avg : null; b.enough = b.n >= 2 && (!prev || prev.n >= 2);
+      out.push(b);
+    });
+    return out;
+  }
+  function bestWeek(weeks) {
+    var best = null;
+    weeks.forEach(function (b) { if (b.change !== null && b.enough && (!best || b.change < best.change)) best = b; });
+    return best && best.change < 0 ? best : null;
+  }
+  function extremes(w) {
+    if (!w.length) return null;
+    var hi = w[0], lo = w[0];
+    w.forEach(function (e) { if (e.weight > hi.weight) hi = e; if (e.weight < lo.weight) lo = e; });
+    return { hi: hi, lo: lo };
+  }
+  // Last 7 days (ending at the latest weigh-in) against the 7 days before
+  function thisVsLast(w) {
+    if (!w.length) return null;
+    var end = w[w.length - 1].date, a = [], b = [];
+    w.forEach(function (e) { var d = dayDiff(e.date, end); if (d <= 6) a.push(e.weight); else if (d <= 13) b.push(e.weight); });
+    if (!a.length || !b.length) return null;
+    function avg(x) { return x.reduce(function (p, q) { return p + q; }, 0) / x.length; }
+    return { now: avg(a), before: avg(b), change: avg(a) - avg(b) };
+  }
+  function consistency(w) {
+    if (!w.length) return null;
+    var gaps = [], longest = null, dates = {};
+    w.forEach(function (e, i) {
+      dates[e.date] = true;
+      if (i) { var g = dayDiff(w[i - 1].date, e.date); gaps.push(g); if (!longest || g > longest.days) longest = { days: g, from: w[i - 1].date, to: e.date }; }
+    });
+    var end = w[w.length - 1].date, streak = 0;
+    while (dates[addDays(end, -streak)]) streak++;
+    function share(n) { var c = 0; for (var i = 0; i < n; i++) if (dates[addDays(end, -i)]) c++; return Math.round(c / n * 100); }
+    return { n: w.length, avgGap: gaps.length ? gaps.reduce(function (p, q) { return p + q; }, 0) / gaps.length : null, longest: longest && longest.days > 1 ? longest : null,
+      streak: streak, p30: share(30), p90: share(90) };
+  }
+  // Average weight (vs its own 7-day neighbourhood) by days since the injection weekday; null until there are about 4 weeks
+  function injectionPattern(w) {
+    var di = doseInfo(); if (!di || w.length < 14 || dayDiff(w[0].date, w[w.length - 1].date) < 27) return null;
+    var sums = [0, 0, 0, 0, 0, 0, 0], ns = [0, 0, 0, 0, 0, 0, 0];
+    w.forEach(function (e) {
+      var near = w.filter(function (x) { return Math.abs(dayDiff(e.date, x.date)) <= 3; });
+      if (near.length < 4) return;
+      var mean = near.reduce(function (p, q) { return p + q.weight; }, 0) / near.length, k = (weekday(e.date) - di.dow + 7) % 7;
+      sums[k] += e.weight - mean; ns[k]++;
+    });
+    if (ns.some(function (n) { return n < 3; })) return null;
+    return { dow: di.dow, days: sums.map(function (t, k) { return { k: k, v: t / ns[k], n: ns[k] }; }) };
+  }
+  function injectionText(ip) {
+    var hi = ip.days.reduce(function (a, b) { return b.v > a.v ? b : a; }), lo = ip.days.reduce(function (a, b) { return b.v < a.v ? b : a; });
+    function nm(d) { return d.k === 0 ? 'on injection day' : d.k + (d.k === 1 ? ' day' : ' days') + ' after'; }
+    return 'Usually heaviest ' + nm(hi) + ' (' + sgn(dw(hi.v), 1) + ' ' + WU() + ' vs your 7-day average) and lightest ' + nm(lo) + ' (' + sgn(dw(lo.v), 1) + ').';
+  }
   function pctText(p) { return (p >= 0 ? '' : '+') + Math.abs(p).toFixed(1) + '%'; }
   function milestoneText(pi) {
     var reached = pi.ms.filter(function (m) { return m.hit; }), next = pi.ms.filter(function (m) { return !m.hit; })[0];
@@ -902,6 +1000,56 @@
   function plateauText(pl) {
     return 'Weight has been steady for about ' + Math.max(3, Math.round(pl.days / 7)) + ' weeks (within ' + fw(Math.max(pl.range, 0.1)) + ' ' + WU() + ' since ' + fmtDate(pl.since) + ').';
   }
+  function insBox(color, label, val, sub) {
+    return '<div class="ins" style="--c:' + color + '"><div class="l">' + esc(label) + '</div><div class="v">' + esc(val) + '</div>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>';
+  }
+  function insightBoxes(all, w) {
+    var out = [], tv = thisVsLast(w), ex = extremes(w), weeks = weeklyAverages(all), bw = bestWeek(weeks), rr = rollingRates(w), cs = consistency(w);
+    if (tv) out.push(insBox('#0ea5a4', 'This week vs last', sgn(dw(tv.change), 1) + ' ' + WU(), 'average ' + fw(tv.now) + ' vs ' + fw(tv.before)));
+    if (ex) {
+      out.push(insBox('#dc2626', 'Highest weight', fw(ex.hi.weight) + ' ' + WU(), fmtDate(ex.hi.date)));
+      out.push(insBox('#16a34a', 'Lowest weight', fw(ex.lo.weight) + ' ' + WU(), fmtDate(ex.lo.date)));
+    }
+    if (bw) out.push(insBox('#6366f1', 'Best week', sgn(dw(bw.change), 1) + ' ' + WU(), 'week ' + bw.week + ' (' + shortDate(bw.from, false) + ' to ' + shortDate(bw.to, false) + '), average vs the week before'));
+    if (rr.length) {
+      var cur = rr[rr.length - 1], fastest = rr.reduce(function (a, b) { return b.v < a.v ? b : a; }), ff = fastLoss(w);
+      out.push(insBox(ff ? '#f97316' : '#0284c7', '4-week pace', sgn(dw(cur.v), 2) + ' ' + WU() + '/wk',
+        'fastest ' + sgn(dw(fastest.v), 2) + ' on ' + shortDate(fastest.date, true) + (ff ? '. Faster than ' + FAST_PCT + '% of body weight a week' : '')));
+    }
+    if (cs) {
+      out.push(insBox('#d97706', 'Logging streak', cs.streak + (cs.streak === 1 ? ' day' : ' days'), 'weighed in on ' + cs.p30 + '% of the last 30 days, ' + cs.p90 + '% of the last 90'));
+      out.push(insBox('#64748b', 'Weigh-ins', String(cs.n), (cs.avgGap !== null ? 'every ' + cs.avgGap.toFixed(1) + ' days on average' : '') +
+        (cs.longest ? '. Longest gap ' + cs.longest.days + ' days (' + shortDate(cs.longest.from, false) + ' to ' + shortDate(cs.longest.to, false) + ')' : '')));
+    }
+    return out;
+  }
+  function weeklyTable(weeks) {
+    return '<table><thead><tr><th>Week</th><th>Dates</th><th class="num">Average (' + WU() + ')</th><th class="num">Change</th><th class="num">Weigh-ins</th></tr></thead><tbody>' + weeks.map(function (b) {
+      return '<tr><td>' + b.week + '</td><td>' + esc(shortDate(b.from, false) + ' to ' + shortDate(b.to, false)) + '</td><td class="num">' + fw(b.avg) + '</td><td class="num">' +
+        (b.change === null ? '\u2014' : sgn(dw(b.change), 1)) + '</td><td class="num">' + b.n + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  }
+  function barsSvg(ip) {
+    var W = 420, H = 130, mid = 62, max = Math.max.apply(null, ip.days.map(function (d) { return Math.abs(d.v); })) || 1, g = '';
+    ip.days.forEach(function (d, i) {
+      var x = 14 + i * 57, h = Math.abs(d.v) / max * 46, up = d.v > 0, y = up ? mid - h : mid;
+      g += '<rect x="' + x + '" y="' + y.toFixed(1) + '" width="40" height="' + Math.max(h, 1).toFixed(1) + '" rx="4" fill="' + (up ? '#f97316' : '#0ea5a4') + '" opacity="0.85"><title>' + esc(sgn(dw(d.v), 2) + ' ' + WU() + ', ' + d.n + ' weigh-ins') + '</title></rect>' +
+        '<text x="' + (x + 20) + '" y="' + (up ? y - 4 : y + h + 12).toFixed(1) + '" text-anchor="middle">' + esc(sgn(dw(d.v), 1)) + '</text>' +
+        '<text x="' + (x + 20) + '" y="' + (H - 10) + '" text-anchor="middle">' + (i === 0 ? 'Inj. day' : '+' + i) + '</text>';
+    });
+    return '<svg class="bars" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Average weight by days since injection, relative to the 7-day average">' +
+      '<line x1="8" x2="' + (W - 8) + '" y1="' + mid + '" y2="' + mid + '" stroke="var(--line)"/>' + g + '</svg>';
+  }
+  function renderInsights() {
+    var all = sorted(), w = all.filter(function (e) { return e.weight !== null; }), el = $('insightsPanel');
+    el.hidden = w.length < 2;
+    if (el.hidden) return;
+    var h = '<div class="ins-grid">' + insightBoxes(all, w).join('') + '</div>', ip = injectionPattern(w);
+    if (ip) h += '<h3>Weight by injection day</h3>' + barsSvg(ip) + '<p class="note" style="margin:4px 0 0">' + esc(injectionText(ip)) + ' Bars show the average difference from the surrounding 7-day average, by days since your injection day.</p>';
+    var weeks = weeklyAverages(all).slice(-12).reverse();
+    if (weeks.length) h += '<h3>Weekly averages (last ' + weeks.length + ' weeks)</h3><div class="table-wrap">' + weeklyTable(weeks) + '</div>';
+    $('insights').innerHTML = h;
+  }
   function renderProgress() {
     var el = $('progress'), pi = progressInfo(sorted()), w = sorted().filter(function (e) { return e.weight !== null; });
     el.hidden = !pi || (w.length < 2 && !pi.hasBase);
@@ -917,6 +1065,9 @@
     var pl = plateauInfo(sorted().filter(function (e) { return e.weight !== null; })), el = $('plateau');
     el.hidden = !pl;
     if (pl) el.textContent = plateauText(pl);
+    var wts = sorted().filter(function (e) { return e.weight !== null; }), ff = fastLoss(wts);
+    $('fastNote').hidden = !ff;
+    if (ff) $('fastNote').textContent = fastText(ff);
   }
   function renderStats() {
     var s = sorted(), cards = [];
@@ -996,14 +1147,17 @@
       week: Math.max(1, Math.floor(dayDiff(since, t) / 7) + 1), lastEntry: s[s.length - 1].date };
   }
   // Least-squares slope (lbs per day) over the last 28 days of weigh-ins
-  function recentSlope(w) {
-    var end = w[w.length - 1].date, pts = w.filter(function (e) { return dayDiff(e.date, end) <= 28; });
+  // Least-squares slope (lbs/day) of the weigh-ins in the 28 days up to w[endIdx]; null when there is too little data
+  function slopeUpTo(w, endIdx) {
+    var end = w[endIdx].date, pts = [];
+    for (var j = endIdx; j >= 0 && dayDiff(w[j].date, end) <= 28; j--) pts.unshift(w[j]);
     if (pts.length < 4 || dayDiff(pts[0].date, end) < 10) return null;
     var n = pts.length, sx = 0, sy = 0, sxx = 0, sxy = 0;
     pts.forEach(function (e) { var x = dayDiff(pts[0].date, e.date); sx += x; sy += e.weight; sxx += x * x; sxy += x * e.weight; });
     var den = n * sxx - sx * sx;
     return den ? (n * sxy - sx * sy) / den : null;
   }
+  function recentSlope(w) { return w.length ? slopeUpTo(w, w.length - 1) : null; }
   function ago(ms) {
     var d = Math.floor((Date.now() - ms) / 86400000);
     return d < 1 ? 'Today' : d === 1 ? 'Yesterday' : d + ' days ago';
@@ -1091,6 +1245,7 @@
     weight: { key: 'weight', get label() { return 'Weight (' + WU() + ')'; }, color: '#0ea5a4', dec: 1 },
     bmi: { key: 'bmi', label: 'BMI', color: '#0284c7', dec: 1 },
     sugar: { key: 'sugar', label: 'Fasting glucose (mg/dL)', color: '#f97316', dec: 0 },
+    rate: { key: 'rate', get label() { return 'Loss pace (' + WU() + '/week)'; }, color: '#0284c7', dec: 2 },
     bp: { key: 'bp', label: 'Blood pressure (mmHg)', color: '#e11d48', dec: 0 },
     cal: { key: 'cal', label: 'Calories', color: '#8b5cf6', dec: 0 },
     compare: { key: 'compare', label: 'Combined chart', color: '#475569', dec: 0 }
@@ -1112,11 +1267,17 @@
   function buildChart(mkey, o) {
     o = o || {};
     if (mkey === 'compare') return buildCompare(o);
-    var m = METRICS[mkey], all = sorted();
+    var m = METRICS[mkey], all = sorted(), rateThr = 0;
     if (m.key === 'bmi') {   // derived from weight and the saved height
       var hi_ = settings.heightIn;
       if (!hi_) return null;
       all = all.map(function (e) { return Object.assign({}, e, { bmi: e.weight === null ? null : bmiOf(e.weight, hi_) }); });
+    } else if (m.key === 'rate') {   // rolling 4-week pace, lbs per week (negative = losing), shown in the display unit
+      var wts = all.filter(function (e) { return e.weight !== null; }), rmap = {};
+      rollingRates(wts).forEach(function (r) { rmap[r.date] = r.v; });
+      rateThr = wts.length ? fastThreshold(wts[wts.length - 1].weight) : 0;
+      all = all.map(function (e) { return Object.assign({}, e, { rate: rmap.hasOwnProperty(e.date) ? dw(rmap[e.date]) : null }); });
+      rateThr = dw(rateThr);
     } else if (m.key === 'weight' && isMetric()) {
       all = all.map(function (e) { return Object.assign({}, e, { weight: e.weight === null ? null : e.weight * KG }); });
     }
@@ -1149,10 +1310,11 @@
     var vals = []; pts.forEach(function (p) { vals.push(p.v, p.a); if (bp) vals.push(p.d, p.a2); });
     if (m.key === 'sugar') vals.push(100);   // always show the prediabetes threshold
     if (bp) vals.push(80, 120);              // and the normal limits for both numbers
+    if (m.key === 'rate') vals.push(0, -rateThr);   // zero line and the fast-loss line
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-    var pad = Math.max((hi - lo) * 0.08, m.key === 'weight' ? 1 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 0.5 : (bp ? 6 : 50))));
+    var pad = Math.max((hi - lo) * 0.08, m.key === 'weight' ? 1 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 0.5 : (bp ? 6 : (m.key === 'rate' ? 0.15 : 50)))));
     lo -= pad; hi += pad;
-    var unit = m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 1 : (bp ? 10 : 2)));
+    var unit = m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 1 : (bp ? 10 : (m.key === 'rate' ? 0.5 : 2))));
     lo = Math.floor(lo / unit) * unit;
     hi = lo + Math.ceil((hi - lo) / 4 / unit) * unit * 4;
     function X(d) { return single ? L + (W - L - R) / 2 : L + (dayDiff(t0, d) / span) * (W - L - R); }
@@ -1188,6 +1350,8 @@
       : m.key === 'bmi' ? BMI_STAGES.slice(1).map(function (g) { return { below: g.min, next: { color: g.color, label: g.name } }; })
       : bp ? [{ below: 120, t: 'top 120 elevated', c: BP_ZONES[1].color }, { below: 130, t: 'top 130 stage 1', c: BP_ZONES[2].color }, { below: 140, t: 'top 140 stage 2', c: BP_ZONES[3].color },
               { below: 80, t: 'bottom 80 stage 1', c: BP_ZONES[2].color }, { below: 90, t: 'bottom 90 stage 2', c: BP_ZONES[3].color }].map(function (z) { return { below: z.below, text: z.t, next: { color: z.c, label: '' } }; })
+      : m.key === 'rate' ? [{ below: 0, text: 'no change', next: { color: '#64748b', label: '' } },
+          { below: -rateThr, text: 'faster than ' + FAST_PCT + '% of body weight a week', next: { color: '#f97316', label: '' } }]
       : [];
     thresholds.forEach(function (z) {
       if (z.below <= lo || z.below >= hi) return;
@@ -1220,7 +1384,7 @@
         '<circle' + fade + ' cx="' + x + '" cy="' + Y(p.v).toFixed(1) + '" r="' + rr + '" fill="' + zc + '" opacity="0.95"/>' +
         '<circle' + fade + ' cx="' + x + '" cy="' + Y(p.d).toFixed(1) + '" r="' + rr + '" fill="' + C.panel + '" stroke="' + zc + '" stroke-width="2"/>';
     }); else pts.forEach(function (p) {
-      g += '<circle' + fade + ' cx="' + X(p.e.date).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + (single ? 6 : r) + '" fill="' + (m.key === 'sugar' ? sugarZone(p.v).color : m.key === 'bmi' ? bmiStage(p.v).color : m.color) + '" opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.9' : (pts.length > 45 ? '0.45' : '0.85')) + '"/>';
+      g += '<circle' + fade + ' cx="' + X(p.e.date).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + (single ? 6 : r) + '" fill="' + (m.key === 'sugar' ? sugarZone(p.v).color : m.key === 'bmi' ? bmiStage(p.v).color : m.key === 'rate' ? (p.v <= -rateThr ? '#f97316' : m.color) : m.color) + '" opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.9' : (pts.length > 45 ? '0.45' : '0.85')) + '"/>';
     });
     g += zoneLabels;
     if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="' + (bp ? 2 : 3.2) + '" stroke-linecap="round" stroke-linejoin="round" d="M' + line.join('L') + '"/>';
@@ -1401,6 +1565,7 @@
     }).join('') + lg;
     $('legend').innerHTML = lg + '<span>' + (single ? '' : currentMetric === 'bp'
       ? 'Each bar runs from diastolic (hollow dot) up to systolic (solid dot). Grey lines are 7-day averages (systolic above, diastolic below). Hover or touch the chart for details.'
+      : currentMetric === 'rate' ? 'Each dot is the weight trend over the 4 weeks up to that day (below the zero line = losing). Orange dots are faster than ' + FAST_PCT + '% of body weight a week. Hover or touch the chart for details.'
       : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') + '</span>';
 
     var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), xc = svg.querySelector('#xc'), cur = -1;
@@ -1643,8 +1808,8 @@
     $('ratePanel').hidden = empty;
     $('entriesPanel').hidden = empty;
     renderHero();
-    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderProgress(); }
-    else { $('plateau').hidden = true; $('progress').hidden = true; }
+    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderProgress(); renderInsights(); }
+    else { $('plateau').hidden = true; $('fastNote').hidden = true; $('progress').hidden = true; $('insightsPanel').hidden = true; }
   }
 
   /* ---------- form ---------- */
@@ -2100,6 +2265,30 @@
       boxes.push(['Weight trend', 'Steady', '#64748b', plateauText(pl).replace('Weight has been steady for ', 'About ').replace(/ \(within/, ', within').replace(/\)\.$/, '')]);
       tl.push('- ' + plateauText(pl));
     }
+    // pace, extremes, best week, logging consistency (period-based; the pace as of the end date)
+    var fl = fastLoss(allW), rrs = rollingRates(allW).filter(function (r) { return r.date >= w.from; });
+    if (rrs.length) {
+      var rcur = rrs[rrs.length - 1], rfast = rrs.reduce(function (a, b) { return b.v < a.v ? b : a; });
+      boxes.push(['4-week pace', sgn(dw(rcur.v), 2) + ' ' + WU() + '/wk', fl ? '#ea580c' : '#0284c7', 'fastest ' + sgn(dw(rfast.v), 2) + ' (' + shortDate(rfast.date, true) + ')' + (fl ? '; faster than ' + FAST_PCT + '% of body weight a week' : '')]);
+      tl.push('- 4-week pace: ' + sgn(dw(rcur.v), 2) + ' ' + WU() + '/wk at the end of the period; fastest ' + sgn(dw(rfast.v), 2) + ' on ' + shortDate(rfast.date, true) + (fl ? '. ' + fastText(fl) : ''));
+    }
+    var ex = extremes(wl);
+    if (ex && wl.length > 1) {
+      boxes.push(['Highest / lowest', fw(ex.hi.weight) + ' / ' + fw(ex.lo.weight) + ' ' + WU(), '#64748b', shortDate(ex.hi.date, true) + ' / ' + shortDate(ex.lo.date, true)]);
+      tl.push('- Highest weight ' + fw(ex.hi.weight) + ' ' + WU() + ' (' + shortDate(ex.hi.date, true) + '), lowest ' + fw(ex.lo.weight) + ' ' + WU() + ' (' + shortDate(ex.lo.date, true) + ')');
+    }
+    var weeksP = weeklyAverages(upto).filter(function (b) { return b.to >= w.from; }), bwk = bestWeek(weeksP);
+    if (bwk) {
+      boxes.push(['Best week', sgn(dw(bwk.change), 1) + ' ' + WU(), '#6366f1', 'week ' + bwk.week + ', ' + shortDate(bwk.from, false) + ' to ' + shortDate(bwk.to, false) + ' (average vs the week before)']);
+      tl.push('- Best week: week ' + bwk.week + ' (' + shortDate(bwk.from, true) + '), ' + sgn(dw(bwk.change), 1) + ' ' + WU() + ' on the week before');
+    }
+    var cs = consistency(wl);
+    if (cs && cs.n > 1) {
+      boxes.push(['Weigh-in consistency', cs.n + ' weigh-ins', '#d97706', (cs.avgGap !== null ? 'every ' + cs.avgGap.toFixed(1) + ' days on average' : '') + (cs.longest ? '; longest gap ' + cs.longest.days + ' days' : '')]);
+      tl.push('- Weigh-ins: ' + cs.n + (cs.avgGap !== null ? ', every ' + cs.avgGap.toFixed(1) + ' days on average' : '') + (cs.longest ? '; longest gap ' + cs.longest.days + ' days (' + shortDate(cs.longest.from, true) + ' to ' + shortDate(cs.longest.to, true) + ')' : ''));
+    }
+    var ipat = injectionPattern(allW);
+    if (ipat) tl.push('- ' + injectionText(ipat));
     var gi = goalInfo(allW);
     if (gi) {
       boxes.push(['Goal: ' + parseFloat(fw(gi.goal)) + ' ' + WU(), gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'Reached', '#6366f1',
@@ -2180,12 +2369,12 @@
     if (notes) { h += '<h2>Notes for my doctor</h2><p>' + esc(notes).replace(/\n/g, '<br>') + '</p>'; tl.push('', 'Notes for my doctor: ' + notes); }
 
     var charts = [];
-    [['weight', 'rcWeight'], ['bmi', 'rcBmi'], ['sugar', 'rcSugar'], ['bp', 'rcBp'], ['cal', 'rcCal'], ['compare', 'rcCompare']].forEach(function (pr) {
+    [['weight', 'rcWeight'], ['bmi', 'rcBmi'], ['sugar', 'rcSugar'], ['bp', 'rcBp'], ['cal', 'rcCal'], ['rate', 'rcRate'], ['compare', 'rcCompare']].forEach(function (pr) {
       if (!$(pr[1]).checked || $(pr[1]).disabled) return;
       var res = buildChart(pr[0], { from: w.from, to: w.to, print: true, title: METRICS[pr[0]].label + ', ' + period });
       if (!res) return;
       charts.push({ key: pr[0], svg: res.svg, w: res.W, h: res.H });
-      h += '<section>' + res.svg + '<div class="rep-cap">' + (pr[0] === 'compare' ? 'Each line is scaled between its own lowest and highest value in the period, so it shows the shape of the trend, not the size; see the other charts and tables for real values. Dots are daily values, lines are 7-day averages. Shaded bands show the dose in effect.' : 'Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.') +
+      h += '<section>' + res.svg + '<div class="rep-cap">' + (pr[0] === 'rate' ? 'Each dot is the weight trend over the 4 weeks up to that day (below the zero line = losing). Orange dots are faster than ' + FAST_PCT + '% of body weight a week, a threshold shown for reference only. Shaded bands show the dose in effect.' : pr[0] === 'compare' ? 'Each line is scaled between its own lowest and highest value in the period, so it shows the shape of the trend, not the size; see the other charts and tables for real values. Dots are daily values, lines are 7-day averages. Shaded bands show the dose in effect.' : 'Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.') +
         (pr[0] === 'sugar' ? ' Dot colours show the fasting range: green below 100, amber 100 to 125, red 126 and above.' : '') +
         (pr[0] === 'bp' ? ' Each bar runs from diastolic (hollow dot) to systolic (solid dot), coloured by category: green normal, amber elevated, orange stage 1, red stage 2. Dashed lines mark the category limits for the top and bottom number.' : '') +
         (pr[0] === 'bmi' ? ' Dot colours show the BMI stage; dashed lines mark the stage boundaries. Height ' + esc(fmtHeight(settings.heightIn)) + '.' : '') + '</div></section>';
@@ -2201,6 +2390,13 @@
     if (ranges) h += '<section>' + ranges + '</section>';   // sugar chart not selected
     if (bpRanges) h += '<section>' + bpRanges + '</section>';   // blood pressure chart not selected
 
+    if ($('rcWeekly').checked && weeksP.length) {
+      h += '<h2>Weekly averages' + (weeksP.length > 26 ? ' (last 26 weeks)' : '') + '</h2><table><thead><tr><th>Week</th><th>Dates</th><th class="num">Average (' + WU() + ')</th><th class="num">Change</th><th class="num">Weigh-ins</th></tr></thead><tbody>' +
+        weeksP.slice(-26).map(function (b) {
+          return '<tr><td>' + b.week + '</td><td>' + esc(shortDate(b.from, false) + ' to ' + shortDate(b.to, false)) + '</td><td class="num">' + fw(b.avg) + '</td><td class="num">' +
+            (b.change === null ? '\u2014' : sgn(dw(b.change), 1)) + '</td><td class="num">' + b.n + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
     if ($('rcDose').checked && segs.length) {
       h += '<h2>Dose schedule</h2><table><thead><tr><th>Dose</th><th>From</th><th>To</th><th class="num">Weeks</th><th class="num">Weight change</th><th class="num">Per week</th><th class="num">Avg calories</th><th class="num">Avg glucose</th><th class="num">Avg BP</th></tr></thead><tbody>';
       tl.push('', 'Dose schedule:');
@@ -2303,7 +2499,7 @@
 
   $('openReport').addEventListener('click', openReport);
   $('rClose').addEventListener('click', function () { if (rdlg.open) rdlg.close(); });
-  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcBmi', 'rcSugar', 'rcBp', 'rcCal', 'rcCompare', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
+  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcBmi', 'rcSugar', 'rcBp', 'rcCal', 'rcCompare', 'rcRate', 'rcWeekly', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
     $(id).addEventListener('input', queuePreview);
     $(id).addEventListener('change', queuePreview);
   });
