@@ -73,6 +73,7 @@
   .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 14px;
     max-width: calc(100vw - 32px); padding: 10px 14px; border-radius: 12px; background: #12202e; color: #fff; box-shadow: 0 8px 30px rgba(0,0,0,.3); font-size: 14px; }
   .toast button { background: transparent; color: #7dd3fc; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 4px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+  .notice { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); border-left: 4px solid #64748b; background: var(--panel); font-size: 14px; }
   .backup { margin-top: 2px; }
   .backup.warn { color: #fde68a; font-weight: 600; }
   .hero .backup button.linkish { color: inherit; font-size: inherit; background: none; border: 0; text-decoration: underline; padding: 0; }
@@ -369,6 +370,8 @@
   </section>
 
   <section class="stats" id="stats" aria-label="Summary"></section>
+
+  <div class="notice" id="plateau" role="status" hidden></div>
 
   <section class="plan" id="plan" aria-label="Next dose and BMI"></section>
 
@@ -770,6 +773,29 @@
       else { date = addDays(last.date, days); proj = 'On pace for ' + shortDate(date, true); }
     } else proj = 'Pace is flat, no projected date';
     return { goal: goal, total: total, lost: lost, left: left, pct: pct, proj: proj, date: date };
+  }
+  // Plateau: at least 3 weeks of weigh-ins (4+ readings) with almost no net movement and a narrow spread.
+  // w is sorted weigh-ins; returns { since, days, range } or null.
+  function plateauInfo(w) {
+    if (w.length < 4) return null;
+    var end = w[w.length - 1].date, pts = w.filter(function (e) { return dayDiff(e.date, end) <= 21; });
+    if (pts.length < 4 || dayDiff(pts[0].date, end) < 18) return null;
+    var n = pts.length, sx = 0, sy = 0, sxx = 0, sxy = 0, lo = Infinity, hi = -Infinity;
+    pts.forEach(function (e) {
+      var x = dayDiff(pts[0].date, e.date); sx += x; sy += e.weight; sxx += x * x; sxy += x * e.weight;
+      lo = Math.min(lo, e.weight); hi = Math.max(hi, e.weight);
+    });
+    var den = n * sxx - sx * sx, slope = den ? (n * sxy - sx * sy) / den : 0;
+    if (Math.abs(slope * 21) > 1 || hi - lo > 4) return null;
+    return { since: pts[0].date, days: dayDiff(pts[0].date, end), range: hi - lo };
+  }
+  function plateauText(pl) {
+    return 'Weight has been steady for about ' + Math.max(3, Math.round(pl.days / 7)) + ' weeks (within ' + fw(Math.max(pl.range, 0.1)) + ' ' + WU() + ' since ' + fmtDate(pl.since) + ').';
+  }
+  function renderPlateau() {
+    var pl = plateauInfo(sorted().filter(function (e) { return e.weight !== null; })), el = $('plateau');
+    el.hidden = !pl;
+    if (pl) el.textContent = plateauText(pl);
   }
   function renderStats() {
     var s = sorted(), cards = [];
@@ -1264,7 +1290,8 @@
     $('ratePanel').hidden = empty;
     $('entriesPanel').hidden = empty;
     renderHero();
-    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); }
+    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); }
+    else $('plateau').hidden = true;
   }
 
   /* ---------- form ---------- */
@@ -1690,6 +1717,11 @@
       }
     }
     var allW = sorted().filter(function (e) { return e.weight !== null && e.date <= w.to; });
+    var pl = plateauInfo(allW);
+    if (pl) {
+      boxes.push(['Weight trend', 'Steady', '#64748b', plateauText(pl).replace('Weight has been steady for ', 'About ').replace(/ \(within/, ', within').replace(/\)\.$/, '')]);
+      tl.push('- ' + plateauText(pl));
+    }
     var gi = goalInfo(allW);
     if (gi) {
       boxes.push(['Goal: ' + parseFloat(fw(gi.goal)) + ' ' + WU(), gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'Reached', '#6366f1',

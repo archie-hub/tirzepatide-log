@@ -4,6 +4,7 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 
 ## What it does
 - Logs date, dose (mg), weight (lbs), comments, calories, food notes, glucose (mg/dL), injection site.
+- Plateau notice under the top row (`plateauInfo()`): 4+ weigh-ins over at least 18 days within the last 21, net trend of 1 lb or less over 3 weeks and a spread of 4 lbs or less. Also a "Weight trend" box and summary line in the report.
 - Top row (stats): latest weight, goal (ring + projection from a 28-day least-squares slope; Set a goal / Edit open the settings dialog), change since start, latest fasting glucose. Below it, the plan cards row: next dose (weekday from settings, else last logged site date, else current dose start; also shows current dose and days covered) and BMI. There is no Backup card; the only export button is the header's Export CSV (`lastExport` is still recorded by `markBackedUp()`).
 - "Results by dose" panel: lbs/week per dose segment (also in the doctor report).
 - BMI card (plan cards, next to Next dose): until a height is saved it shows one text field (accepts `5'9"`, `5 9`, `69 in`, `175 cm`; saves on Enter/blur, no button); afterwards BMI is calculated automatically from the latest weigh-in. Height is stored in inches as `settings.heightIn` and edited from the card's Edit link (settings dialog). Shows a color-coded scale and stage list with the weight range per stage. Stages (`BMI_STAGES`): underweight blue, normal green, overweight amber, obesity I orange, II deep orange, III red; the rounded value decides.

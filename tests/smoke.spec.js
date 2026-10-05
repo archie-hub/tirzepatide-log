@@ -41,6 +41,7 @@ test('hovering the chart shows a tooltip', async ({ page }) => {
 
   const chart = page.locator('#chart svg[role="img"]');
   await expect(chart).toBeVisible();
+  await chart.scrollIntoViewIfNeeded();
   const box = await chart.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 10 });
   await expect(page.locator('#tip')).not.toBeEmpty();
@@ -346,6 +347,33 @@ test('metric units: kg and cm everywhere, storage and export stay in lbs', async
   await page.keyboard.press('Escape');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
   expect(await dl.suggestedFilename()).toMatch(/\.csv$/);
+});
+
+test('plateau notice appears for 3 flat weeks and in the report', async ({ page }) => {
+  const rows = ['Date,Weight (lbs)'];
+  const base = new Date(); base.setDate(base.getDate() - 24);
+  for (let i = 0; i <= 24; i += 3) {
+    const d = new Date(base); d.setDate(base.getDate() + i);
+    rows.push(d.toISOString().slice(0, 10) + ',' + (180 + (i % 2 ? 0.4 : -0.3)));
+  }
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill(rows.join('\n'));
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await expect(page.locator('#plateau')).toBeVisible();
+  await expect(page.locator('#plateau')).toContainText('steady for about');
+  await page.locator('#openReport').click();
+  await expect(page.locator('#reportPreview .rep-box', { hasText: 'Weight trend' })).toHaveCount(1);
+
+  // A steady loss is not a plateau
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    const e = JSON.parse(localStorage.getItem('tirzepatide-log-v1')).map((x, i) => Object.assign(x, { weight: 190 - i * 2 }));
+    localStorage.setItem('tirzepatide-log-v1', JSON.stringify(e));
+  });
+  await page.reload();
+  await expect(page.locator('#plateau')).toBeHidden();
 });
 
 test('renders without errors at 390px in dark mode', async ({ page }) => {
