@@ -236,6 +236,15 @@ test('BMI card prompts for height once, then calculates automatically', async ({
   expect(bmi).toBeLessThan(60);
   await expect(card.locator('.bmi-seg')).toHaveCount(6);
   await expect(card.locator('.bmi-seg.cur')).toHaveCount(1);
+  // Real mouse: aim at the middle of the first arc's stroke (the label overlay must not swallow it)
+  const pt = await card.locator('.bmi-seg').first().evaluate((el) => {
+    const p = el.getPointAtLength(el.getTotalLength() / 2), m = el.getScreenCTM();
+    return { x: p.x * m.a + p.y * m.c + m.e, y: p.x * m.b + p.y * m.d + m.f };
+  });
+  await page.mouse.move(pt.x, pt.y);
+  await expect(card.locator('#bmiDetail')).toContainText('Underweight');
+  await page.mouse.move(0, 0);
+  await expect(card.locator('#bmiDetail')).not.toContainText('Underweight');
   await card.locator('.bmi-seg').first().focus();
   await expect(card.locator('#bmiDetail')).toContainText('Underweight');
   await expect(card.locator('#bmiDetail')).toContainText(' lbs');
