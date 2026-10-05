@@ -4,7 +4,6 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 
 ## What it does
 - Logs date, dose (mg), weight (lbs), comments, calories, food notes, glucose (mg/dL), injection site.
-- Injection-day reminder (settings dialog checkbox, `checkReminder()`): a notification shown when the app is opened or returns to the foreground on injection day, once per day, skipped if today's dose is already logged. It cannot fire in the background (static site, no push server). `sw.js` handles `notificationclick`.
 - Plateau notice under the top row (`plateauInfo()`): 4+ weigh-ins over at least 18 days within the last 21, net trend of 1 lb or less over 3 weeks and a spread of 4 lbs or less. Also a "Weight trend" box and summary line in the report.
 - Top row (stats): latest weight, goal (ring + projection from a 28-day least-squares slope; Set a goal / Edit open the settings dialog), change since start, latest fasting glucose. Below it, the plan cards row: next dose (weekday from settings, else last logged site date, else current dose start; also shows current dose and days covered) and BMI. There is no Backup card; the only export button is the header's Export CSV (`lastExport` is still recorded by `markBackedUp()`).
 - "Results by dose" panel: lbs/week per dose segment (also in the doctor report).
@@ -17,7 +16,7 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 - "Doctor report": date-range report with summary boxes, charts, fasting glucose ranges (counts and share per ADA range), dose schedule, comments table, optional full log. Mirrors the dashboard (keep it that way: anything added to the dashboard also goes in the report): boxes for dose, weight, change, goal progress and projection, BMI (first to last, with stage), BMI next stage, latest and average fasting glucose, entries and days covered, next dose; optional BMI chart plus a BMI stage table (the checkbox is always listed but disabled with a hint until a height is saved); all of it also in the text summary. Output via print/PDF, PNG chart images, copied text summary, mailto, Web Share, CSV for the range.
 
 ## Data and privacy rules
-- All data lives in the visitor's browser (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, dose day, height, units, reminder flags and backup timestamps under `tirzepatide-settings`). Never add code that uploads data.
+- All data lives in the visitor's browser (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, dose day, height, units and backup timestamps under `tirzepatide-settings`). Never add code that uploads data.
 - Never commit real health data. `.gitignore` excludes `*.csv` except `sample-data/`. The sample file is fake.
 - Every localStorage call is wrapped in try/catch; the app must render with empty storage.
 

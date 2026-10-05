@@ -376,30 +376,6 @@ test('plateau notice appears for 3 flat weeks and in the report', async ({ page 
   await expect(page.locator('#plateau')).toBeHidden();
 });
 
-test('injection-day reminder notifies once on injection day', async ({ page }) => {
-  await page.addInitScript(() => {
-    window.__notes = [];
-    window.Notification = function (title, o) { window.__notes.push([title, o && o.body]); };
-    window.Notification.permission = 'granted';
-    window.Notification.requestPermission = () => Promise.resolve('granted');
-  });
-  await page.goto(APP_URL);
-  await importSample(page);
-  await page.locator('#plan [data-settings]').first().click();
-  await page.selectOption('#sDay', String(new Date().getDay()));
-  await page.check('#sRemind');
-  await page.locator('#setSave').click();
-  await expect.poll(() => page.evaluate(() => window.__notes.length)).toBe(1);
-  const note = await page.evaluate(() => window.__notes[0]);
-  expect(note[0]).toBe('Injection day');
-  expect(note[1]).toContain('mg');
-
-  // Once per day, even across reloads
-  await page.reload();
-  await page.waitForTimeout(300);
-  expect(await page.evaluate(() => window.__notes.length)).toBe(0);   // fresh page object; lastRemind blocks a repeat
-});
-
 test('renders without errors at 390px in dark mode', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.setViewportSize({ width: 390, height: 844 });

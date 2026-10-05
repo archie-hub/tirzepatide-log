@@ -25,12 +25,3 @@ self.addEventListener('fetch', function (ev) {
     });
   }));
 });
-
-// Tapping the injection-day reminder opens (or focuses) the app
-self.addEventListener('notificationclick', function (ev) {
-  ev.notification.close();
-  ev.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
-    for (var i = 0; i < list.length; i++) if ('focus' in list[i]) return list[i].focus();
-    return self.clients.openWindow('./');
-  }));
-});
