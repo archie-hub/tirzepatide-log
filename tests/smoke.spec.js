@@ -376,6 +376,14 @@ test('plateau notice appears for 3 flat weeks and in the report', async ({ page 
   await expect(page.locator('#plateau')).toBeHidden();
 });
 
+test('weight label stays on one line in the entry form and settings', async ({ page }) => {
+  await importSample(page);
+  const h = (sel) => page.locator(sel).locator('xpath=..').evaluate((el) => el.firstElementChild.getBoundingClientRect().height);
+  expect(await h('#fWeight')).toBeLessThan(24);
+  await page.locator('#plan [data-settings]').first().click();
+  expect(await h('#sGoal')).toBeLessThan(24);
+});
+
 test('renders without errors at 390px in dark mode', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.setViewportSize({ width: 390, height: 844 });

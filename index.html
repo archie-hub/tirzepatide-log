@@ -429,7 +429,7 @@
     <form id="entryForm" autocomplete="off">
       <label>Date<input type="date" id="fDate" required></label>
       <label>Dosage (mg)<input type="number" id="fDose" step="0.25" min="0" inputmode="decimal"></label>
-      <label>Weight (<span class="wu">lbs</span>)<input type="number" id="fWeight" step="0.1" min="0" inputmode="decimal"></label>
+      <label><span>Weight (<span class="wu">lbs</span>)</span><input type="number" id="fWeight" step="0.1" min="0" inputmode="decimal"></label>
       <label>Calories<input type="number" id="fCal" step="1" min="0" inputmode="numeric"></label>
       <label>Fasting glucose (mg/dL)<input type="number" id="fSugar" step="1" min="0" inputmode="numeric"></label>
       <label>Injection site<select id="fSite"></select><span class="note" id="siteHint"></span></label>
@@ -507,7 +507,7 @@
     <button type="button" class="small" id="setClose">Close</button>
   </div>
   <div class="opts" style="margin-top:0">
-    <label>Goal weight (<span class="wu">lbs</span>)<input type="number" id="sGoal" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
+    <label><span>Goal weight (<span class="wu">lbs</span>)</span><input type="number" id="sGoal" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
     <label>Height<input type="text" id="sHeight" placeholder="e.g. 5'9&quot; or 175 cm"></label>
     <label>Units<select id="sUnits"><option value="us">US (lbs, ft/in)</option><option value="metric">Metric (kg, cm)</option></select></label>
     <label>Injection day<select id="sDay"></select></label>
