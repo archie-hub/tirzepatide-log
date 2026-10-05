@@ -213,6 +213,25 @@ test('top row is weight, goal, change, glucose; no backup card; report shows BMI
   await expect(box).toContainText("5'9\"");
 });
 
+test('BMI chart tab appears once height is set', async ({ page }) => {
+  await importSample(page);
+  await expect(page.locator('#tab-bmi')).toBeHidden();
+  await page.fill('#bmiHeight', "5'9\"");
+  await page.press('#bmiHeight', 'Enter');
+  await expect(page.locator('#tab-bmi')).toBeVisible();
+  await page.locator('#tab-bmi').click();
+  await expect(page.locator('#tab-bmi')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#chart svg[role="img"]')).toBeVisible();
+  const box = await page.locator('#chart svg').boundingBox();
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 10 });
+  await expect(page.locator('#tip')).toContainText('BMI');
+  await expect(page.locator('#legend')).toContainText('Obesity III');
+  // Clearing the height (via settings) drops the tab and falls back to weight
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('tirzepatide-settings')); delete s.heightIn; localStorage.setItem('tirzepatide-settings', JSON.stringify(s)); });
+  await page.reload();
+  await expect(page.locator('#tab-bmi')).toBeHidden();
+});
+
 test('renders without errors at 390px in dark mode', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.setViewportSize({ width: 390, height: 844 });

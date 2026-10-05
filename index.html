@@ -361,6 +361,7 @@
     <div class="chart-top">
       <div class="tabs" role="tablist" aria-label="Chart metric">
         <button class="tab" role="tab" id="tab-weight" data-metric="weight" aria-selected="true" aria-controls="chart" tabindex="0">Weight</button>
+        <button class="tab" role="tab" id="tab-bmi" data-metric="bmi" aria-selected="false" aria-controls="chart" tabindex="-1" hidden>BMI</button>
         <button class="tab" role="tab" id="tab-sugar" data-metric="sugar" aria-selected="false" aria-controls="chart" tabindex="-1">Glucose</button>
         <button class="tab" role="tab" id="tab-cal" data-metric="cal" aria-selected="false" aria-controls="chart" tabindex="-1">Calories</button>
       </div>
@@ -874,6 +875,7 @@
   var currentMetric = 'weight', currentRange = 0, chartSeq = 0;
   var METRICS = {
     weight: { key: 'weight', label: 'Weight (lbs)', color: '#0ea5a4', dec: 1 },
+    bmi: { key: 'bmi', label: 'BMI', color: '#0284c7', dec: 1 },
     sugar: { key: 'sugar', label: 'Fasting glucose (mg/dL)', color: '#f97316', dec: 0 },
     cal: { key: 'cal', label: 'Calories', color: '#8b5cf6', dec: 0 }
   };
@@ -881,6 +883,11 @@
   function buildChart(mkey, o) {
     o = o || {};
     var m = METRICS[mkey], all = sorted();
+    if (m.key === 'bmi') {   // derived from weight and the saved height
+      var hi_ = settings.heightIn;
+      if (!hi_) return null;
+      all = all.map(function (e) { return Object.assign({}, e, { bmi: e.weight === null ? null : bmiOf(e.weight, hi_) }); });
+    }
     var series = all.filter(function (e) { return e[m.key] !== null; });
     if (!series.length) return null;
     var avg = series.map(function (e, i) {
@@ -902,13 +909,13 @@
     var W = 900, H = o.print ? 300 : 320, L = 48, R = 16, T = o.title ? 32 : 14, B = 34, gid = 'ag' + (++chartSeq);
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
     // Glucose dots carry the range colours, so its average line stays neutral
-    var lc = m.key === 'sugar' ? '#64748b' : m.color;
+    var lc = (m.key === 'sugar' || m.key === 'bmi') ? '#64748b' : m.color;
     var vals = []; pts.forEach(function (p) { vals.push(p.v, p.a); });
     if (m.key === 'sugar') vals.push(100);   // always show the prediabetes threshold
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-    var pad = Math.max((hi - lo) * 0.08, m.key === 'weight' ? 1 : (m.key === 'sugar' ? 4 : 50));
+    var pad = Math.max((hi - lo) * 0.08, m.key === 'weight' ? 1 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 0.5 : 50)));
     lo -= pad; hi += pad;
-    var unit = m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : 2);
+    var unit = m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 1 : 2));
     lo = Math.floor(lo / unit) * unit;
     hi = lo + Math.ceil((hi - lo) / 4 / unit) * unit * 4;
     function X(d) { return single ? L + (W - L - R) / 2 : L + (dayDiff(t0, d) / span) * (W - L - R); }
@@ -931,7 +938,7 @@
     });
 
     var g = (o.print ? '<style>.psvg text{fill:#5a6b7c;font:11px "Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif}</style>' : '') +
-      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + lc + '" stop-opacity="' + (m.key === 'sugar' ? '0.2' : '0.38') + '"/><stop offset="1" stop-color="' + lc + '" stop-opacity="0.02"/></linearGradient></defs>';
+      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + lc + '" stop-opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.2' : '0.38') + '"/><stop offset="1" stop-color="' + lc + '" stop-opacity="0.02"/></linearGradient></defs>';
     if (o.title) g += '<text x="' + L + '" y="14" style="fill:#12202e;font-weight:700;font-size:13px">' + esc(o.title) + '</text>';
     g += bands;
     for (var i = 0; i <= 4; i++) {
@@ -940,9 +947,11 @@
       g += '<text x="' + (L - 8) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end">' + v.toFixed(m.dec) + '</text>';
     }
     var zoneLabels = '';   // drawn after the dots so they stay readable
-    if (m.key === 'sugar') SUGAR_ZONES.slice(0, 2).forEach(function (z) {
+    var thresholds = m.key === 'sugar' ? SUGAR_ZONES.slice(0, 2).map(function (z) { return { below: z.below, next: sugarZone(z.below) }; })
+      : m.key === 'bmi' ? BMI_STAGES.slice(1).map(function (g) { return { below: g.min, next: { color: g.color, label: g.name } }; }) : [];
+    thresholds.forEach(function (z) {
       if (z.below <= lo || z.below >= hi) return;
-      var zy = Y(z.below).toFixed(1), next = sugarZone(z.below);
+      var zy = Y(z.below).toFixed(1), next = z.next;
       g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + zy + '" y2="' + zy + '" stroke="' + next.color + '" stroke-width="1.5" stroke-dasharray="6 5"/>';
       zoneLabels += '<text x="' + (W - R - 4) + '" y="' + (zy - 5) + '" text-anchor="end" style="fill:' + next.color + ';font-weight:700;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + z.below + ' ' + next.label.toLowerCase() + '</text>';
     });
@@ -966,7 +975,7 @@
     }
     var r = pts.length > 120 ? 2 : (pts.length > 45 ? 2.8 : 4.2);
     pts.forEach(function (p) {
-      g += '<circle' + fade + ' cx="' + X(p.e.date).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + (single ? 6 : r) + '" fill="' + (m.key === 'sugar' ? sugarZone(p.v).color : m.color) + '" opacity="' + (m.key === 'sugar' ? '0.9' : (pts.length > 45 ? '0.45' : '0.85')) + '"/>';
+      g += '<circle' + fade + ' cx="' + X(p.e.date).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + (single ? 6 : r) + '" fill="' + (m.key === 'sugar' ? sugarZone(p.v).color : m.key === 'bmi' ? bmiStage(p.v).color : m.color) + '" opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.9' : (pts.length > 45 ? '0.45' : '0.85')) + '"/>';
     });
     g += zoneLabels;
     if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="M' + line.join('L') + '"/>';
@@ -979,6 +988,8 @@
   }
 
   function renderChart() {
+    $('tab-bmi').hidden = !settings.heightIn;
+    if (currentMetric === 'bmi' && !settings.heightIn) { selectTab($('tab-weight')); return; }
     var m = METRICS[currentMetric], res = buildChart(currentMetric, { days: currentRange });
     if (!res) {
       $('chart').innerHTML = '<div class="empty">No ' + esc(m.label) + ' values to plot yet.</div>';
@@ -994,6 +1005,9 @@
     if (currentMetric === 'sugar') lg = SUGAR_ZONES.map(function (z) {
       return '<span class="chip" style="--c:' + z.color + '">' + z.range + ' ' + z.label.toLowerCase() + '</span>';
     }).join('') + lg;
+    if (currentMetric === 'bmi') lg = BMI_STAGES.map(function (g) {
+      return '<span class="chip" style="--c:' + g.color + '">' + esc(g.name) + ' ' + bmiRange(g) + '</span>';
+    }).join('') + lg;
     $('legend').innerHTML = lg + '<span>' + (single ? '' : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') + '</span>';
 
     var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), xc = svg.querySelector('#xc');
@@ -1005,6 +1019,7 @@
       xc.setAttribute('cx', px); xc.setAttribute('cy', Y(p.v)); xc.style.display = '';
       var h = '<b>' + esc(fmtDate(p.e.date)) + '</b><br>' + esc(m.label) + ': ' + p.v.toFixed(m.dec);
       if (m.key === 'sugar') h += ' (' + sugarZone(p.v).label.toLowerCase() + ')';
+      if (m.key === 'bmi') h += ' (' + bmiStage(p.v).name.toLowerCase() + ')<br>Weight: ' + p.e.weight + ' lbs';
       if (!single) h += '<br>7-day average: ' + p.a.toFixed(m.dec);
       if (p.e.dose !== null) h += '<br>Dose: ' + p.e.dose + ' mg';
       if (p.e.comments) h += '<br><i>' + esc(p.e.comments.length > 80 ? p.e.comments.slice(0, 80) + '\u2026' : p.e.comments) + '</i>';
@@ -1231,10 +1246,11 @@
   tabs.forEach(function (t, i) {
     t.addEventListener('click', function () { selectTab(t); });
     t.addEventListener('keydown', function (ev) {
-      var n = ev.key === 'ArrowRight' ? i + 1 : ev.key === 'ArrowLeft' ? i - 1 : null;
+      var vis = tabs.filter(function (x) { return !x.hidden; }), vi = vis.indexOf(t);
+      var n = ev.key === 'ArrowRight' ? vi + 1 : ev.key === 'ArrowLeft' ? vi - 1 : null;
       if (n === null) return;
       ev.preventDefault();
-      selectTab(tabs[(n + tabs.length) % tabs.length], true);
+      selectTab(vis[(n + vis.length) % vis.length], true);
     });
   });
   tabs.forEach(function (t) { t.style.setProperty('--c', METRICS[t.dataset.metric].color); });
