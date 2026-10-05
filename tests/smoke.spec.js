@@ -167,24 +167,31 @@ test('print report builds print-safe markup without crashing', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
-test('BMI panel asks for height, shows stage and persists it', async ({ page }) => {
+test('BMI card prompts for height once, then calculates automatically', async ({ page }) => {
   await importSample(page);
-  await expect(page.locator('#bmiPanel')).toBeVisible();
-  await expect(page.locator('#bmiOut')).toContainText('Enter your height');
+  const card = page.locator('#plan .card.bmi');
+  await expect(card).toContainText('Not set');
 
-  await page.fill('#bmiFt', '5');
-  await page.fill('#bmiIn', '9');
-  await page.locator('#bmiForm button[type=submit]').click();
-  await expect(page.locator('.bmi-now .v')).toBeVisible();
-  const bmi = parseFloat(await page.locator('.bmi-now .v').innerText());
+  await page.fill('#bmiHeight', "5'9\"");
+  await page.press('#bmiHeight', 'Enter');
+  await expect(page.locator('#bmiHeight')).toHaveCount(0);
+  const bmi = parseFloat(await card.locator('.big').innerText());
   expect(bmi).toBeGreaterThan(15);
   expect(bmi).toBeLessThan(60);
-  await expect(page.locator('.bmi-stage tr')).toHaveCount(7);   // header + 6 stages
-  await expect(page.locator('.bmi-stage tr.cur')).toHaveCount(1);
+  await expect(card.locator('.bmi-stages div')).toHaveCount(6);
+  await expect(card.locator('.bmi-stages div.cur')).toHaveCount(1);
 
   await page.reload();
-  await expect(page.locator('.bmi-now .v')).toBeVisible();
-  await expect(page.locator('#bmiFt')).toHaveValue('5');
+  await expect(page.locator('#plan .card.bmi .big')).toContainText(String(bmi.toFixed(1)));
+  await expect(page.locator('#bmiHeight')).toHaveCount(0);
+});
+
+test('BMI height can be edited from the card', async ({ page }) => {
+  await importSample(page);
+  await page.fill('#bmiHeight', '175 cm');
+  await page.press('#bmiHeight', 'Enter');
+  await page.locator('#plan .card.bmi [data-settings]').click();
+  await expect(page.locator('#sHeight')).toHaveValue("5'8.9\"");
 });
 
 test('renders without errors at 390px in dark mode', async ({ page }) => {

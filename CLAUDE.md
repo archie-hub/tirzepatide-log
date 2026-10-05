@@ -6,7 +6,7 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 - Logs date, dose (mg), weight (lbs), comments, calories, food notes, glucose (mg/dL), injection site.
 - Plan cards: next dose (weekday from settings, else last logged site date, else current dose start); goal ring with projection (28-day least-squares slope); backup status.
 - "Results by dose" panel: lbs/week per dose segment (also in the doctor report).
-- BMI panel: asks for height (ft + in, saved as `settings.heightIn`), shows BMI from the latest weigh-in, a color-coded scale and a stage table with the weight range per stage at that height. Stages (`BMI_STAGES`): underweight blue, normal green, overweight amber, obesity I orange, II deep orange, III red; the rounded value decides.
+- BMI card (plan cards, full width, below Backup): until a height is saved it shows one text field (accepts `5'9"`, `5 9`, `69 in`, `175 cm`; saves on Enter/blur, no button); afterwards BMI is calculated automatically from the latest weigh-in. Height is stored in inches as `settings.heightIn` and edited from the card's Edit link (settings dialog). Shows a color-coded scale and stage list with the weight range per stage. Stages (`BMI_STAGES`): underweight blue, normal green, overweight amber, obesity I orange, II deep orange, III red; the rounded value decides.
 - Stats cards, tabbed charts (weight / glucose / calories) with dose bands, 7-day average line, hover tooltip, range switch (All, 6 mo, 3 mo, 30 d).
 - Entry table with edit/delete and dose-colored rows. Shows the latest 30 entries until "Show all".
 - Import wizard: file, drag and drop, or pasted CSV; auto-matches columns, handles `MM/DD/YYYY` vs `DD/MM/YYYY`, converts kg to lbs, merge or replace by date.

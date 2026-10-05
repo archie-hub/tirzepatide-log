@@ -150,23 +150,23 @@
     .rate .bar { display: none; }
     #ratePanel .best { display: block; margin: 4px 0 0; }
   }
-  /* ---- BMI ---- */
-  .bmi-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; }
-  .bmi-form label { width: 110px; }
-  .bmi-now { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 6px; }
-  .bmi-now .v { font-size: 38px; font-weight: 700; line-height: 1; color: var(--c); }
-  .bmi-now .tag { font-weight: 700; color: var(--c); }
+  /* ---- BMI card ---- */
+  .card.bmi { grid-column: 1 / -1; }
+  .bmi-ask { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .bmi-ask input { width: 170px; font: inherit; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
+  .bmi-err { color: var(--bad); font-size: 13px; margin-top: 6px; min-height: 0; }
+  .bmi .tag { font-size: 15px; font-weight: 700; margin-left: 8px; }
   .bmi-scale { position: relative; display: flex; height: 12px; border-radius: 6px; margin: 22px 0 6px; }
   .bmi-scale i { flex: var(--w); background: var(--c); }
   .bmi-scale i:first-child { border-radius: 6px 0 0 6px; }
   .bmi-scale i:last-child { border-radius: 0 6px 6px 0; }
   .bmi-scale b { position: absolute; top: -7px; width: 4px; height: 26px; margin-left: -2px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--panel); }
-  .bmi-ticks { position: relative; height: 16px; font-size: 11.5px; color: var(--muted); margin-bottom: 10px; }
+  .bmi-ticks { position: relative; height: 16px; font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
   .bmi-ticks span { position: absolute; transform: translateX(-50%); }
-  .bmi-stage td { white-space: nowrap; }
-  @media (max-width: 640px) { .bmi-stage th, .bmi-stage td { padding: 8px 6px; font-size: 13.5px; } .bmi-stage .dot { margin-right: 5px; } }
-  .bmi-stage .dot { display: inline-block; width: 11px; height: 11px; border-radius: 3px; background: var(--c); margin-right: 8px; vertical-align: -1px; }
-  .bmi-stage tr.cur td { background: color-mix(in srgb, var(--c) 16%, transparent); font-weight: 600; }
+  .bmi-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+  .bmi-stages div { --c: var(--accent); border-left: 4px solid var(--c); padding: 4px 8px; border-radius: 4px; font-size: 13px; }
+  .bmi-stages div span { display: block; color: var(--muted); font-size: 12px; }
+  .bmi-stages div.cur { background: color-mix(in srgb, var(--c) 18%, transparent); font-weight: 700; }
   .site-t { font-size: 11.5px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
 
   .foot { text-align: center; color: var(--muted); font-size: 13px; padding: 4px 0 0; }
@@ -379,18 +379,6 @@
     <p class="note" style="margin-bottom:0">Change is measured from the first to the last weigh-in at each dose.</p>
   </section>
 
-  <section class="panel" id="bmiPanel" hidden>
-    <h2>BMI</h2>
-    <form class="bmi-form" id="bmiForm" autocomplete="off">
-      <label>Height (ft)<input id="bmiFt" type="number" inputmode="numeric" min="3" max="8" step="1" placeholder="5"></label>
-      <label>Height (in)<input id="bmiIn" type="number" inputmode="decimal" min="0" max="11.9" step="0.5" placeholder="9"></label>
-      <button type="submit" class="small primary">Calculate</button>
-      <button type="button" class="small" id="bmiClear" hidden>Clear height</button>
-    </form>
-    <div id="bmiOut"></div>
-    <p class="note" style="margin-bottom:0">BMI = weight in lbs &times; 703 &divide; height in inches&sup2;, using your latest weigh-in. Stages follow the standard adult WHO/CDC ranges. BMI is a rough screen, not a diagnosis.</p>
-  </section>
-
   <section class="panel">
     <h2 id="formTitle">Add entry</h2>
     <form id="entryForm" autocomplete="off">
@@ -487,11 +475,12 @@
 
 <dialog id="setDlg" aria-labelledby="setTitle" style="max-width:520px">
   <div class="dlg-head">
-    <h2 id="setTitle">Goal and dose day</h2>
+    <h2 id="setTitle">Goal, height and dose day</h2>
     <button type="button" class="small" id="setClose">Close</button>
   </div>
   <div class="opts" style="margin-top:0">
     <label>Goal weight (lbs)<input type="number" id="sGoal" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
+    <label>Height<input type="text" id="sHeight" placeholder="e.g. 5'9&quot; or 175 cm"></label>
     <label>Injection day<select id="sDay"></select></label>
   </div>
   <p class="note">Leave the goal blank to hide it. "Work it out" uses the day you last logged an injection site, or the day your current dose started.</p>
@@ -857,11 +846,12 @@
       '<div class="l"><span>Backup</span></div><div class="big">' + esc(big) + '</div><div class="sub">' + esc(sub) + '</div>' +
       '<div class="actions"><button type="button" class="small' + (warn ? ' primary' : '') + '" data-export>Export CSV</button></div></div>');
 
+    if (w.length) cards.push(bmiCard(w));
     $('plan').innerHTML = cards.join('');
   }
   $('plan').addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return;
-    if (b.hasAttribute('data-settings')) openSettings();
+    if (b.hasAttribute('data-settings')) openSettings(b.getAttribute('data-settings'));
     else if (b.hasAttribute('data-export')) exportAll();
   });
 
@@ -1095,66 +1085,63 @@
     for (var i = BMI_STAGES.length - 1; i >= 0; i--) if (r >= BMI_STAGES[i].min) return BMI_STAGES[i];
     return BMI_STAGES[0];
   }
-  function bmiRange(s) {
-    return s.min === 0 ? '<18.5' : s.max === null ? '40+' : s.min + ' – ' + (s.max - 0.1).toFixed(1);
+  function bmiRange(g) {
+    return g.min === 0 ? '<18.5' : g.max === null ? '40+' : g.min + ' \u2013 ' + (g.max - 0.1).toFixed(1);
   }
   function lbsAt(bmi, inches) { return Math.round(bmi * inches * inches / 703); }
-  function renderBmi() {
-    var panel = $('bmiPanel');
-    panel.hidden = entries.length === 0;
-    var h = settings.heightIn, ft = $('bmiFt'), inch = $('bmiIn');
-    $('bmiClear').hidden = !h;
-    if (document.activeElement !== ft && document.activeElement !== inch) {
-      ft.value = h ? Math.floor(h / 12) : '';
-      inch.value = h ? Math.round((h % 12) * 10) / 10 : '';
+  // Accepts 5'9", 5 9, 5ft 9in, 69, 69 in, 175 cm. Returns inches (36 to 100) or null.
+  function parseHeight(str) {
+    str = String(str || '').toLowerCase().trim();
+    var m, v = null;
+    if ((m = str.match(/^(\d+(?:\.\d+)?)\s*cm$/))) v = parseFloat(m[1]) / 2.54;
+    else if ((m = str.match(/^(\d)\s*(?:'|\u2019|ft|feet|foot|\s)\s*(?:(\d{1,2}(?:\.\d+)?)\s*(?:"|in|inches)?)?$/))) v = parseInt(m[1], 10) * 12 + (m[2] ? parseFloat(m[2]) : 0);
+    else if ((m = str.match(/^(\d+(?:\.\d+)?)\s*(?:in|inches|")?$/))) v = parseFloat(m[1]);
+    if (v === null || !(v >= 36 && v <= 100)) return null;
+    return Math.round(v * 10) / 10;
+  }
+  function fmtHeight(inches) {
+    var ft = Math.floor(inches / 12), r = Math.round((inches - ft * 12) * 10) / 10;
+    if (r >= 12) { ft++; r = 0; }
+    return ft + "'" + r + '"';
+  }
+  function bmiCard(w) {
+    var h = settings.heightIn;
+    if (!h) {
+      return '<div class="card bmi" style="--c:#0ea5a4"><div class="l"><span>BMI</span></div>' +
+        '<div class="big">Not set</div><div class="sub">Enter your height once and your BMI is worked out from every weigh-in.</div>' +
+        '<form class="bmi-ask" id="bmiAsk" autocomplete="off"><input id="bmiHeight" type="text" inputmode="text" aria-label="Height" placeholder="Height, e.g. 5\'9&quot;"></form>' +
+        '<div class="bmi-err" id="bmiErr" role="alert"></div></div>';
     }
-    var out = $('bmiOut');
-    if (!h) { out.innerHTML = '<p class="note">Enter your height to see your BMI and stage.</p>'; return; }
-    var w = sorted().filter(function (e) { return e.weight !== null; });
-    if (!w.length) { out.innerHTML = '<p class="note">Log a weight to see your BMI.</p>'; return; }
     var last = w[w.length - 1], first = w[0];
     var b = bmiOf(last.weight, h), st = bmiStage(b), b0 = bmiOf(first.weight, h), st0 = bmiStage(b0);
-    var s = '<div class="bmi-now" style="--c:' + st.color + '"><span class="v">' + b.toFixed(1) + '</span>' +
-      '<span class="tag">' + esc(st.name) + '</span>' +
-      '<span class="dim">' + last.weight + ' lbs on ' + esc(fmtDate(last.date)) + '</span></div>';
-    if (w.length > 1) {
-      s += '<div class="sub dim" style="margin-bottom:4px">Started at ' + b0.toFixed(1) + ' (' + esc(st0.name) + ')' +
-        (b0 !== b ? ', ' + (b < b0 ? 'down ' : 'up ') + Math.abs(b0 - b).toFixed(1) : '') + '</div>';
-    }
-    // Scale spans BMI 15 to 45
-    var lo = 15, hi = 45, scale = '', ticks = '';
+    var lo = 15, hi = 45, scale = '', ticks = '', list = '';
     BMI_STAGES.forEach(function (g) {
       var a = Math.max(g.min, lo), z = g.max === null ? hi : g.max;
       scale += '<i style="--c:' + g.color + ';--w:' + (z - a) + '" title="' + esc(g.name) + '"></i>';
+      var wt = g.min === 0 ? '<' + lbsAt(18.5, h) + ' lbs' : g.max === null ? lbsAt(40, h) + '+ lbs' : lbsAt(g.min, h) + ' \u2013 ' + lbsAt(g.max - 0.1, h) + ' lbs';
+      list += '<div' + (g === st ? ' class="cur"' : '') + ' style="--c:' + g.color + '">' + esc(g.name) + ' \u00b7 ' + bmiRange(g) + '<span>' + wt + '</span></div>';
     });
     [18.5, 25, 30, 35, 40].forEach(function (t) {
       ticks += '<span style="left:' + ((t - lo) / (hi - lo) * 100) + '%">' + t + '</span>';
     });
     var pos = Math.min(Math.max((b - lo) / (hi - lo), 0), 1) * 100;
-    s += '<div class="bmi-scale" role="img" aria-label="BMI ' + b.toFixed(1) + ', ' + esc(st.name) + '">' + scale + '<b style="left:' + pos + '%"></b></div>' +
-      '<div class="bmi-ticks" aria-hidden="true">' + ticks + '</div>';
-    s += '<div class="table-wrap"><table class="bmi-stage"><thead><tr><th>Stage</th><th class="num">BMI</th><th class="num">Your height</th></tr></thead><tbody>';
-    BMI_STAGES.forEach(function (g) {
-      var wt = g.min === 0 ? '<' + lbsAt(18.5, h) + ' lbs'
-        : g.max === null ? lbsAt(40, h) + '+ lbs'
-        : lbsAt(g.min, h) + ' – ' + lbsAt(g.max - 0.1, h) + ' lbs';
-      s += '<tr' + (g === st ? ' class="cur"' : '') + ' style="--c:' + g.color + '"><td><span class="dot"></span>' + esc(g.name) +
-        (g === st ? ' (you)' : '') + '</td><td class="num">' + bmiRange(g) + '</td><td class="num">' + wt + '</td></tr>';
-    });
-    out.innerHTML = s + '</tbody></table></div>';
+    return '<div class="card bmi" style="--c:' + st.color + '"><div class="l"><span>BMI at ' + esc(fmtHeight(h)) + '</span>' +
+      '<button type="button" class="linkish" data-settings="height">Edit</button></div>' +
+      '<div class="big">' + b.toFixed(1) + '<span class="tag">' + esc(st.name) + '</span></div>' +
+      '<div class="sub">' + last.weight + ' lbs on ' + esc(fmtDate(last.date)) +
+      (w.length > 1 ? '. Started at ' + b0.toFixed(1) + ' (' + esc(st0.name) + ')' + (Math.abs(b0 - b) >= 0.05 ? ', ' + (b < b0 ? 'down ' : 'up ') + Math.abs(b0 - b).toFixed(1) : '') : '') + '</div>' +
+      '<div class="bmi-scale" role="img" aria-label="BMI ' + b.toFixed(1) + ', ' + esc(st.name) + '">' + scale + '<b style="left:' + pos + '%"></b></div>' +
+      '<div class="bmi-ticks" aria-hidden="true">' + ticks + '</div><div class="bmi-stages">' + list + '</div></div>';
   }
-  $('bmiForm').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var ft = num($('bmiFt').value), inch = num($('bmiIn').value) || 0;
-    var total = (ft || 0) * 12 + inch;
-    if (!ft || total < 36 || total > 100 || inch < 0 || inch >= 12) {
-      say('Enter a height between 3 ft and 8 ft (inches 0 to 11.5).'); return;
-    }
-    settings.heightIn = total; saveSettings(); say(''); renderBmi();
-  });
-  $('bmiClear').addEventListener('click', function () {
-    delete settings.heightIn; saveSettings(); renderBmi();
-  });
+  function saveBmiHeight() {
+    var inp = $('bmiHeight'); if (!inp) return;
+    if (!inp.value.trim()) { $('bmiErr').textContent = ''; return; }
+    var h = parseHeight(inp.value);
+    if (!h) { $('bmiErr').textContent = 'Try a height like 5\'9", 5 9, 69 in or 175 cm.'; return; }
+    settings.heightIn = h; saveSettings(); render();
+  }
+  $('plan').addEventListener('change', function (ev) { if (ev.target.id === 'bmiHeight') saveBmiHeight(); });
+  $('plan').addEventListener('submit', function (ev) { if (ev.target.id === 'bmiAsk') { ev.preventDefault(); saveBmiHeight(); } });
 
   function render() {
     var empty = entries.length === 0;
@@ -1166,8 +1153,7 @@
     $('ratePanel').hidden = empty;
     $('entriesPanel').hidden = empty;
     renderHero();
-    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderBmi(); renderRows(); }
-    else $('bmiPanel').hidden = true;
+    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); }
   }
 
   /* ---------- form ---------- */
@@ -1749,17 +1735,21 @@
   var sdlg = $('setDlg');
   $('sDay').innerHTML = '<option value="auto">Work it out from my log</option>' +
     DAY_NAMES.map(function (d, i) { return '<option value="' + i + '">' + d + '</option>'; }).join('');
-  function openSettings() {
+  function openSettings(focus) {
     $('sGoal').value = settings.goal || '';
+    $('sHeight').value = settings.heightIn ? fmtHeight(settings.heightIn) : '';
     $('sDay').value = hasDoseDay() ? String(settings.doseDay) : 'auto';
     if (!sdlg.open) sdlg.showModal();
-    $('sGoal').focus();
+    (focus === 'height' ? $('sHeight') : $('sGoal')).focus();
   }
   function closeSettings() { if (sdlg.open) sdlg.close(); }
   $('setSave').addEventListener('click', function () {
     var g = num($('sGoal').value), day = $('sDay').value;
     settings.goal = g && g > 0 ? g : null;
     settings.doseDay = day === 'auto' ? null : parseInt(day, 10);
+    var ht = $('sHeight').value.trim();
+    if (ht && !parseHeight(ht)) { say('Height not understood. Try 5\'9", 69 in or 175 cm.'); return; }
+    if (ht || settings.heightIn) settings.heightIn = ht ? parseHeight(ht) : null;
     saveSettings(); closeSettings(); render();
     say('Settings saved.');
   });
