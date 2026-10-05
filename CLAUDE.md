@@ -11,7 +11,7 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 - Entry table with edit/delete and dose-colored rows. Shows the latest 30 entries until "Show all".
 - Import wizard: file, drag and drop, or pasted CSV; auto-matches columns, handles `MM/DD/YYYY` vs `DD/MM/YYYY`, converts kg to lbs, merge or replace by date.
 - Export CSV in the exact 8-column format below.
-- "Doctor report": date-range report with summary boxes, charts, fasting glucose ranges (counts and share per ADA range), dose schedule, comments table, optional full log. Includes a BMI box (first to last weight at the saved height, with stage) once a height is set, also in the text summary. Output via print/PDF, PNG chart images, copied text summary, mailto, Web Share, CSV for the range.
+- "Doctor report": date-range report with summary boxes, charts, fasting glucose ranges (counts and share per ADA range), dose schedule, comments table, optional full log. Mirrors the dashboard (keep it that way: anything added to the dashboard also goes in the report): boxes for dose, weight, change, goal progress and projection, BMI (first to last, with stage), BMI next stage, latest and average fasting glucose, entries and days covered, next dose; optional BMI chart plus a BMI stage table (height set only); all of it also in the text summary. Output via print/PDF, PNG chart images, copied text summary, mailto, Web Share, CSV for the range.
 
 ## Data and privacy rules
 - All data lives in the visitor's browser (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, dose day, height and backup timestamps under `tirzepatide-settings`). Never add code that uploads data.

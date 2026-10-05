@@ -523,6 +523,7 @@
   </div>
   <div class="checks" role="group" aria-label="Include in report">
     <label class="radio"><input type="checkbox" id="rcWeight" checked> <span>Weight chart</span></label>
+    <label class="radio" id="rcBmiWrap"><input type="checkbox" id="rcBmi" checked> <span>BMI chart and stages</span></label>
     <label class="radio"><input type="checkbox" id="rcSugar" checked> <span>Glucose chart</span></label>
     <label class="radio"><input type="checkbox" id="rcCal" checked> <span>Calories chart</span></label>
     <label class="radio"><input type="checkbox" id="rcDose" checked> <span>Dose schedule table</span></label>
@@ -716,28 +717,34 @@
     return '<svg class="spark" viewBox="0 0 96 34" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" points="' +
       pts.join(' ') + '"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="currentColor"/></svg>';
   }
+  // Goal progress and projection text for weights w (sorted, with weight); null when no goal is set
+  function goalInfo(w) {
+    var goal = settings.goal; if (!goal || !w.length) return null;
+    var first = w[0], last = w[w.length - 1], total = first.weight - goal, lost = first.weight - last.weight, left = last.weight - goal;
+    var pct = total > 0 ? Math.min(Math.max(lost / total, 0), 1) : (left <= 0 ? 1 : 0), slope = recentSlope(w), date = null, proj;
+    if (left <= 0) proj = 'Goal reached. Nice work.';
+    else if (slope !== null && slope < -0.01) {
+      var days = Math.round(left / -slope);
+      if (days > 3650) proj = 'At this pace, years away';
+      else { date = addDays(last.date, days); proj = 'On pace for ' + shortDate(date, true); }
+    } else proj = 'Pace is flat, no projected date';
+    return { goal: goal, total: total, lost: lost, left: left, pct: pct, proj: proj, date: date };
+  }
   function renderStats() {
     var s = sorted(), cards = [];
     var w = s.filter(function (e) { return e.weight !== null; });
     var dosed = s.filter(function (e) { return e.dose !== null; });
     var sug = s.filter(function (e) { return e.sugar !== null; });
     if (w.length) {
-      var first = w[0], last = w[w.length - 1], d = last.weight - first.weight, goal = settings.goal;
+      var first = w[0], last = w[w.length - 1], d = last.weight - first.weight, gi = goalInfo(w);
       cards.push({ id: 'wt', label: 'Latest weight (lbs)', val: last.weight, dec: 1, color: '#0ea5a4',
         extra: spark(w.slice(-40).map(function (e) { return e.weight; })) });
-      if (!goal) {
+      if (!gi) {
         cards.push({ id: 'goal', label: 'Goal weight', text: 'Not set', color: '#6366f1',
           extra: '<div class="sub"><button type="button" class="linkish" data-settings>Set a goal</button></div>' });
       } else {
-        var total = first.weight - goal, lost = first.weight - last.weight, left = last.weight - goal;
-        var pct = total > 0 ? Math.min(Math.max(lost / total, 0), 1) : (left <= 0 ? 1 : 0), slope = recentSlope(w), proj;
-        if (left <= 0) proj = 'Goal reached. Nice work.';
-        else if (slope !== null && slope < -0.01) {
-          var days = Math.round(left / -slope);
-          proj = days > 3650 ? 'At this pace, years away' : 'On pace for ' + shortDate(addDays(last.date, days), true);
-        } else proj = 'Pace is flat, no projected date';
-        cards.push({ id: 'goal', label: 'Goal: ' + goal + ' lbs', edit: true, text: left > 0 ? left.toFixed(1) + ' lbs to go' : 'Reached', color: '#6366f1',
-          sub: proj, ring: pct });
+        cards.push({ id: 'goal', label: 'Goal: ' + gi.goal + ' lbs', edit: true, text: gi.left > 0 ? gi.left.toFixed(1) + ' lbs to go' : 'Reached', color: '#6366f1',
+          sub: gi.proj, ring: gi.pct });
       }
       cards.push({ id: 'chg', label: 'Change since ' + fmtDate(first.date), val: d, dec: 1, sign: true,
         color: d > 0 ? 'var(--bad)' : 'var(--good)', arrow: d < 0 ? '\u25BC ' : (d > 0 ? '\u25B2 ' : ''),
@@ -1107,6 +1114,26 @@
     if (r >= 12) { ft++; r = 0; }
     return ft + "'" + r + '"';
   }
+  // Projection for reaching the next BMI stage down (same 28-day slope as the goal).
+  // Returns null when there is none, { normal: true } in the normal range, else { tgt, below, tw, toGo, proj }.
+  function bmiNextInfo(w, h) {
+    var last = w[w.length - 1], st = bmiStage(bmiOf(last.weight, h)), si = BMI_STAGES.indexOf(st);
+    if (si === 1) return { normal: true };
+    if (si < 2) return null;
+    var tw = (st.min - 0.05) * h * h / 703, toGo = last.weight - tw, sl = recentSlope(w), proj;
+    if (sl !== null && sl < -0.01) {
+      var dd = Math.round(toGo / -sl);
+      proj = dd > 3650 ? 'At your recent pace that is years away.'
+        : 'At your recent pace (' + sgn(sl * 7, 1) + ' lbs/wk), around ' + shortDate(addDays(last.date, dd), true) + '.';
+    } else proj = 'Your recent pace is flat, so there is no projected date yet.';
+    return { tgt: BMI_STAGES[si - 1], below: st.min, tw: Math.floor(tw * 10) / 10, toGo: toGo, proj: proj };
+  }
+  function bmiNextText(w, h) {
+    var n = bmiNextInfo(w, h);
+    if (!n) return '';
+    if (n.normal) return 'You are in the normal range.';
+    return 'Next stage: ' + n.tgt.name + ' (below ' + n.below + ') at ' + n.tw.toFixed(1) + ' lbs, ' + n.toGo.toFixed(1) + ' to go. ' + n.proj;
+  }
   function bmiCard(w) {
     var h = settings.heightIn;
     if (!h) {
@@ -1117,18 +1144,7 @@
     }
     var last = w[w.length - 1], first = w[0];
     var b = bmiOf(last.weight, h), st = bmiStage(b), b0 = bmiOf(first.weight, h), st0 = bmiStage(b0);
-    // Next stage down: the rounded BMI must drop below this stage's lower bound
-    var nextTxt = '', si = BMI_STAGES.indexOf(st);
-    if (si === 1) nextTxt = 'You are in the normal range.';
-    else if (si > 1) {
-      var tgt = BMI_STAGES[si - 1], tw = (st.min - 0.05) * h * h / 703, toGo = last.weight - tw, sl = recentSlope(w);
-      nextTxt = 'Next stage: ' + tgt.name + ' (below ' + st.min + ') at ' + (Math.floor(tw * 10) / 10).toFixed(1) + ' lbs, ' + toGo.toFixed(1) + ' to go. ';
-      if (sl !== null && sl < -0.01) {
-        var dd = Math.round(toGo / -sl);
-        nextTxt += dd > 3650 ? 'At your recent pace that is years away.'
-          : 'At your recent pace (' + sgn(sl * 7, 1) + ' lbs/wk), around ' + shortDate(addDays(last.date, dd), true) + '.';
-      } else nextTxt += 'Your recent pace is flat, so there is no projected date yet.';
-    }
+    var nextTxt = bmiNextText(w, h);
     var lo = 15, hi = 45, scale = '', ticks = '', list = '';
     BMI_STAGES.forEach(function (g) {
       var a = Math.max(g.min, lo), z = g.max === null ? hi : g.max;
@@ -1559,10 +1575,23 @@
         if (weeks >= 2) boxes.push(['Average per week', sgn(d / weeks, 2) + ' lbs', '#6366f1', 'over ' + Math.round(weeks) + ' weeks']);
       }
     }
+    var allW = sorted().filter(function (e) { return e.weight !== null && e.date <= w.to; });
+    var gi = goalInfo(allW);
+    if (gi) {
+      boxes.push(['Goal: ' + gi.goal + ' lbs', gi.left > 0 ? gi.left.toFixed(1) + ' lbs to go' : 'Reached', '#6366f1',
+        Math.round(gi.pct * 100) + '% of the way. ' + gi.proj]);
+      tl.push('- Goal: ' + gi.goal + ' lbs, ' + (gi.left > 0 ? gi.left.toFixed(1) + ' lbs to go' : 'reached') + ' (' + Math.round(gi.pct * 100) + '% of the way). ' + gi.proj);
+    }
     if (wl.length && settings.heightIn) {
       var hb = settings.heightIn, b1 = bmiOf(wl[wl.length - 1].weight, hb), s1 = bmiStage(b1), b0r = bmiOf(wl[0].weight, hb), s0r = bmiStage(b0r);
       boxes.push(['BMI', wl.length > 1 ? b0r.toFixed(1) + ' \u2192 ' + b1.toFixed(1) : b1.toFixed(1), s1.color,
         s1.name + (s0r !== s1 && wl.length > 1 ? ' (was ' + s0r.name.toLowerCase() + ')' : '') + ', height ' + fmtHeight(hb)]);
+      var bi = bmiNextInfo(allW, hb);
+      if (bi && bi.normal) tl.push('- BMI: in the normal range');
+      else if (bi) {
+        boxes.push(['BMI next stage', bi.tgt.name, bi.tgt.color, 'below ' + bi.below + ' at ' + bi.tw.toFixed(1) + ' lbs (' + bi.toGo.toFixed(1) + ' to go). ' + bi.proj]);
+        tl.push('- ' + bmiNextText(allW, hb));
+      }
       tl.push('- BMI: ' + (wl.length > 1 ? b0r.toFixed(1) + ' (' + s0r.name.toLowerCase() + ') to ' : '') + b1.toFixed(1) + ' (' + s1.name.toLowerCase() + '), height ' + fmtHeight(hb));
     }
     var cal = statOf(list, 'cal'), sug = statOf(list, 'sugar');
@@ -1570,9 +1599,18 @@
     if (sug) {
       var sz = sugarZone(sug.avg);
       boxes.push(['Average fasting glucose', Math.round(sug.avg) + ' mg/dL', sz.color, sz.label + '; range ' + sug.min + ' to ' + sug.max + ', ' + sug.n + ' readings']);
+      var ls = list.filter(function (e) { return e.sugar !== null; }).pop(), lz = sugarZone(ls.sugar);
+      boxes.push(['Latest fasting glucose', ls.sugar + ' mg/dL', lz.color, lz.label + ', ' + fmtDate(ls.date)]);
       tl.push('- Fasting glucose: average ' + Math.round(sug.avg) + ' mg/dL (' + sz.label.toLowerCase() + '), range ' + sug.min + ' to ' + sug.max + ' (' + sug.n + ' readings)');
     }
-    boxes.push(['Entries logged', String(list.length), '#d97706', 'self-reported']);
+    var dcov = dayDiff(list[0].date, list[list.length - 1].date) + 1;
+    boxes.push(['Entries logged', String(list.length), '#d97706', dcov + ' days covered, self-reported']);
+    tl.push('- Entries: ' + list.length + ' over ' + dcov + ' days');
+    var di = doseInfo();
+    if (di) {
+      boxes.push(['Next dose', DAY_NAMES[di.dow] + (di.diff === 0 ? ' (today)' : ''), doseColor(di.dose), fmtDate(di.next) + ', week ' + di.week + ' at ' + di.dose + ' mg']);
+      tl.push('- Next dose: ' + DAY_NAMES[di.dow] + ' ' + shortDate(di.next, true) + ' (week ' + di.week + ' at ' + di.dose + ' mg)');
+    }
 
     // Fasting glucose readings counted by ADA range
     var ranges = '';
@@ -1596,13 +1634,20 @@
     if (notes) { h += '<h2>Notes for my doctor</h2><p>' + esc(notes).replace(/\n/g, '<br>') + '</p>'; tl.push('', 'Notes for my doctor: ' + notes); }
 
     var charts = [];
-    [['weight', 'rcWeight'], ['sugar', 'rcSugar'], ['cal', 'rcCal']].forEach(function (pr) {
+    [['weight', 'rcWeight'], ['bmi', 'rcBmi'], ['sugar', 'rcSugar'], ['cal', 'rcCal']].forEach(function (pr) {
       if (!$(pr[1]).checked) return;
       var res = buildChart(pr[0], { from: w.from, to: w.to, print: true, title: METRICS[pr[0]].label + ', ' + period });
       if (!res) return;
       charts.push({ key: pr[0], svg: res.svg, w: res.W, h: res.H });
       h += '<section>' + res.svg + '<div class="rep-cap">Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.' +
-        (pr[0] === 'sugar' ? ' Dot colours show the fasting range: green below 100, amber 100 to 125, red 126 and above.' : '') + '</div></section>';
+        (pr[0] === 'sugar' ? ' Dot colours show the fasting range: green below 100, amber 100 to 125, red 126 and above.' : '') +
+        (pr[0] === 'bmi' ? ' Dot colours show the BMI stage; dashed lines mark the stage boundaries. Height ' + esc(fmtHeight(settings.heightIn)) + '.' : '') + '</div></section>';
+      if (pr[0] === 'bmi') h += '<section><h2>BMI stages</h2><table><thead><tr><th>Stage</th><th>BMI</th><th class="num">Weight at ' + esc(fmtHeight(settings.heightIn)) + '</th></tr></thead><tbody>' +
+        BMI_STAGES.map(function (g) {
+          var cur = bmiStage(bmiOf(wl[wl.length - 1].weight, settings.heightIn)) === g, hh = settings.heightIn;
+          return '<tr' + (cur ? ' style="font-weight:700"' : '') + '><td><span class="chip" style="--c:' + g.color + '">' + esc(g.name) + (cur ? ' (current)' : '') + '</span></td><td>' + bmiRange(g) + '</td><td class="num">' +
+            (g.min === 0 ? '<' + lbsAt(18.5, hh) : g.max === null ? lbsAt(40, hh) + '+' : lbsAt(g.min, hh) + ' \u2013 ' + lbsAt(g.max - 0.1, hh)) + ' lbs</td></tr>';
+        }).join('') + '</tbody></table></section>';
       if (pr[0] === 'sugar') { h += '<section>' + ranges + '</section>'; ranges = ''; }
     });
     if (ranges) h += '<section>' + ranges + '</section>';   // sugar chart not selected
@@ -1656,6 +1701,7 @@
     if (!$('rFrom').value) $('rFrom').value = all[0].date;
     if (!$('rTo').value) $('rTo').value = all[all.length - 1].date;
     try { $('rName').value = localStorage.getItem('tirzepatide-report-name') || $('rName').value; } catch (e) {}
+    $('rcBmiWrap').hidden = !settings.heightIn;
     if (!rdlg.open) rdlg.showModal();
     renderReportPreview();
   }
@@ -1705,7 +1751,7 @@
 
   $('openReport').addEventListener('click', openReport);
   $('rClose').addEventListener('click', function () { if (rdlg.open) rdlg.close(); });
-  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcSugar', 'rcCal', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
+  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcBmi', 'rcSugar', 'rcCal', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
     $(id).addEventListener('input', queuePreview);
     $(id).addEventListener('change', queuePreview);
   });

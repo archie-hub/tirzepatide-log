@@ -215,9 +215,17 @@ test('top row is weight, goal, change, glucose; no backup card; report shows BMI
   await page.fill('#bmiHeight', "5'9\"");
   await page.press('#bmiHeight', 'Enter');
   await page.locator('#openReport').click();
-  const box = page.locator('#reportPreview .rep-box', { hasText: 'BMI' });
+  const box = page.locator('#reportPreview .rep-box', { hasText: "height 5'9\"" });
   await expect(box).toHaveCount(1);
-  await expect(box).toContainText("5'9\"");
+  await expect(box).toContainText('BMI');
+
+  // Everything on the dashboard is also in the report
+  const boxLabels = await page.locator('#reportPreview .rep-box .l').allInnerTexts();
+  for (const want of ['Dose', 'Weight', 'Change', 'BMI', 'BMI next stage', 'Next dose', 'Latest fasting glucose', 'Entries logged']) {
+    expect(boxLabels, want).toContain(want);
+  }
+  await expect(page.locator('#reportPreview h2', { hasText: 'BMI stages' })).toHaveCount(1);
+  await expect(page.locator('#reportPreview', { hasText: 'days covered' })).toHaveCount(1);
 });
 
 test('BMI chart tab appears once height is set', async ({ page }) => {
