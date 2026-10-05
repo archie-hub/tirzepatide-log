@@ -59,7 +59,7 @@
 
   .hero {
     position: relative; overflow: hidden; display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
-    justify-content: space-between; padding: 22px 22px; border-radius: var(--card); color: #fff;
+    justify-content: space-between; padding: 16px 22px 18px; border-radius: var(--card); color: #fff;
     background: linear-gradient(115deg, #0d9488 0%, #2563eb 52%, #7c3aed 100%);
     box-shadow: var(--shadow);
   }
@@ -68,6 +68,9 @@
     background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.28), rgba(255,255,255,0) 70%); pointer-events: none;
   }
   .hero > * { position: relative; z-index: 1; }
+  .hero-meta { display: flex; flex-wrap: wrap; column-gap: 8px; }
+  .hero-meta .backup::before { content: "\00b7"; margin-right: 8px; }
+  @media (max-width: 640px) { .hero-meta .backup::before { content: none; } }
   .hero .sub { margin-top: 4px; font-size: 14px; color: rgba(255,255,255,.85); }
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
   .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 14px;
@@ -366,8 +369,7 @@
   <header class="hero">
     <div>
       <h1>Tirzepatide log</h1>
-      <div class="sub" id="subtitle"></div>
-      <div class="sub backup" id="backupNote" hidden></div>
+      <div class="hero-meta"><div class="sub" id="subtitle"></div><div class="sub backup" id="backupNote" hidden></div></div>
     </div>
   </header>
   <div id="msg" role="status"></div>
