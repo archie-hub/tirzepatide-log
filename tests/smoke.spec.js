@@ -172,8 +172,8 @@ test('blood pressure round-trips through the form, CSV export and the report', a
 
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
   const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
-  expect(csv[0]).toBe('Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg)');
-  expect(csv[1]).toBe('2026-10-01,,,,,,,,145,76');
+  expect(csv[0]).toBe('Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg),Waist (in),Body Fat (%),Muscle Mass (lbs)');
+  expect(csv[1]).toBe('2026-10-01,,,,,,,,145,76,,,');
 
   await page.locator('#openReport').click();
   await expect(page.locator('#reportPreview .rep-box', { hasText: 'Latest blood pressure' })).toContainText('126/92');
@@ -765,4 +765,75 @@ test('insights are in the doctor report: pace, extremes, best week, consistency,
   await page.locator('#rcRate').check();
   await expect(page.locator('#reportPreview h2', { hasText: 'Weekly averages' })).toHaveCount(1);
   await expect(page.locator('#reportPreview svg[aria-label^="Loss pace"]')).toHaveCount(1);
+});
+
+const BODY_CSV = 'Date,Dosage (mg),Weight (lbs),Waist (in),Body Fat (%),Muscle Mass (lbs)\n2026-09-01,5,200,40,36.0,98\n2026-09-15,5,196,38.5,35.2,97.5\n2026-10-01,5,190,37,34.1,96';
+
+test('body measures: import, dashboard chips with waist-to-height, table, chart and combined series', async ({ page }) => {
+  await pasteCsv(page, BODY_CSV);
+  await page.fill('#bmiHeight', "5'10\"");          // 70 in
+  await page.press('#bmiHeight', 'Enter');
+  const prog = page.locator('#progress');
+  await expect(prog.locator('.chip', { hasText: 'Waist 40.0' })).toContainText('Waist 40.0 → 37.0 in');
+  await expect(prog.locator('.chip', { hasText: 'Waist-to-height' })).toContainText('0.53');   // 37 / 70
+  await expect(prog.locator('.chip', { hasText: 'Body fat' })).toContainText('Body fat 36 → 34.1%');
+  await expect(prog.locator('.chip', { hasText: 'Muscle' })).toContainText('Muscle 98.0 → 96.0 lbs');
+
+  await expandPanels(page);
+  await expect(page.locator('#rows tr').first().locator('td').nth(9)).toContainText('37.0'.replace('.0', ''));
+  await page.locator('#tab-waist').click();
+  const svg = page.locator('#chart svg[role="img"]');
+  await expect(svg).toBeVisible();
+  await expect(svg.locator('text', { hasText: 'ratio 0.5 (half your height)' })).toHaveCount(1);   // dashed line at 35 in
+  await page.locator('#tab-compare').click();
+  for (const k of ['waist', 'fat', 'muscle']) await expect(page.locator('#cmpPick [data-cmp="' + k + '"]')).toBeVisible();
+});
+
+test('body measures: form round-trip, exact values kept on edit, metric shows cm and kg, CSV stays in inches/lbs', async ({ page }) => {
+  await pasteCsv(page, BODY_CSV);
+  await expandPanels(page);
+  await page.locator('[data-edit="2026-10-01"]').click();
+  await expect(page.locator('#fWaist')).toHaveValue('37');
+  await expect(page.locator('#fFat')).toHaveValue('34.1');
+  await expect(page.locator('#fMuscle')).toHaveValue('96');
+  await page.fill('#fWaist', '36.5');
+  await page.locator('#saveBtn').click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tirzepatide-log-v1')).find((e) => e.date === '2026-10-01').waist)).toBe(36.5);
+
+  // Metric: shown as cm / kg, an untouched edit stores the same inches / lbs
+  const before = await page.evaluate(() => localStorage.getItem('tirzepatide-log-v1'));
+  await page.locator('#stats [data-settings], #plan [data-settings]').first().click();
+  await page.selectOption('#sUnits', 'metric');
+  await page.locator('#setSave').click();
+  await expect(page.locator('#progress')).toContainText('cm');
+  await page.locator('[data-edit="2026-10-01"]').click();
+  await expect(page.locator('#fWaist')).toHaveValue('92.7');       // 36.5 in
+  await page.locator('#saveBtn').click();
+  expect(await page.evaluate(() => localStorage.getItem('tirzepatide-log-v1'))).toBe(before);
+
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
+  const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
+  expect(csv[3].split(',').slice(-3)).toEqual(['36.5', '34.1', '96']);   // inches, %, lbs
+});
+
+test('body measures: doctor report boxes, text and waist chart', async ({ page }) => {
+  await pasteCsv(page, BODY_CSV);
+  await page.fill('#bmiHeight', "5'10\"");
+  await page.press('#bmiHeight', 'Enter');
+  await page.locator('#openReport').click();
+  const boxes = page.locator('#reportPreview .rep-box');
+  await expect(boxes.filter({ hasText: 'Waist' }).first()).toContainText('40.0 → 37.0 in');
+  await expect(boxes.filter({ hasText: 'Waist' }).first()).toContainText('waist-to-height 0.53');
+  await expect(boxes.filter({ hasText: 'Body fat' })).toContainText('36 → 34.1%');
+  await expect(boxes.filter({ hasText: 'Muscle mass' })).toContainText('98.0 → 96.0 lbs');
+  await page.locator('#rcWaist').check();
+  await expect(page.locator('#reportPreview svg[aria-label^="Waist"]')).toHaveCount(1);
+});
+
+test('body measures: files without them still import, and nothing extra shows', async ({ page }) => {
+  await pasteBp(page);
+  await expect(page.locator('#progress .prog-body')).toHaveCount(0);
+  await expect(page.locator('#tab-waist')).toBeVisible();   // tab exists; empty state explains
+  await page.locator('#tab-waist').click();
+  await expect(page.locator('#chart')).toContainText('No Waist');
 });

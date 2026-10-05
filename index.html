@@ -90,6 +90,7 @@
   .progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; }
   .progress .wk { font-weight: 750; margin-right: 4px; }
   .progress .chip.next { border-style: dashed; background: transparent; }
+  .progress .prog-body { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
   .progress .muted { color: var(--muted); font-size: 13px; }
   .ins-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
   .ins { border: 1px solid var(--line); border-left: 4px solid var(--c, var(--accent)); border-radius: 10px; padding: 8px 12px; }
@@ -429,6 +430,7 @@
         <button class="tab" role="tab" id="tab-bmi" data-metric="bmi" aria-selected="false" aria-controls="chart" tabindex="-1" hidden>BMI</button>
         <button class="tab" role="tab" id="tab-sugar" data-metric="sugar" aria-selected="false" aria-controls="chart" tabindex="-1">Glucose</button>
         <button class="tab" role="tab" id="tab-rate" data-metric="rate" aria-selected="false" aria-controls="chart" tabindex="-1">Pace</button>
+        <button class="tab" role="tab" id="tab-waist" data-metric="waist" aria-selected="false" aria-controls="chart" tabindex="-1">Waist</button>
         <button class="tab" role="tab" id="tab-bp" data-metric="bp" aria-selected="false" aria-controls="chart" tabindex="-1">Blood pressure</button>
         <button class="tab" role="tab" id="tab-cal" data-metric="cal" aria-selected="false" aria-controls="chart" tabindex="-1">Calories</button>
         <button class="tab" role="tab" id="tab-compare" data-metric="compare" aria-selected="false" aria-controls="chart" tabindex="-1">Combined</button>
@@ -465,7 +467,7 @@
         <thead>
           <tr>
             <th>Date</th><th class="num">Dose (mg)</th><th class="num">Weight (<span class="wu">lbs</span>)</th><th class="num">Change</th>
-            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th class="num">BP</th><th></th>
+            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th class="num">BP</th><th class="num">Waist (<span class="lu">in</span>)</th><th></th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -484,6 +486,9 @@
       <label>Calories<input type="number" id="fCal" step="1" min="0" inputmode="numeric"></label>
       <label>Fasting glucose (mg/dL)<input type="number" id="fSugar" step="1" min="0" inputmode="numeric"></label>
       <label>Blood pressure (mmHg)<input type="text" id="fBp" placeholder="119/79" inputmode="numeric" maxlength="9"></label>
+      <label><span>Waist (<span class="lu">in</span>)</span><input type="number" id="fWaist" step="0.1" min="0" inputmode="decimal"></label>
+      <label>Body fat (%)<input type="number" id="fFat" step="0.1" min="0" max="100" inputmode="decimal"></label>
+      <label><span>Muscle mass (<span class="wu">lbs</span>)</span><input type="number" id="fMuscle" step="0.1" min="0" inputmode="decimal"></label>
       <label>Injection site<select id="fSite"></select></label>
       <label class="wide">Food notes<input type="text" id="fFood"></label>
       <label class="wide">Comments<textarea id="fComments"></textarea></label>
@@ -602,6 +607,7 @@
   </div>
   <div class="checks" role="group" aria-label="Include in report">
     <label class="radio"><input type="checkbox" id="rcWeight" checked> <span>Weight chart</span></label>
+    <label class="radio"><input type="checkbox" id="rcWaist"> <span>Waist chart</span></label>
     <label class="radio" id="rcBmiWrap"><input type="checkbox" id="rcBmi" checked> <span id="rcBmiText">BMI chart and stages</span></label>
     <label class="radio"><input type="checkbox" id="rcSugar" checked> <span>Glucose chart</span></label>
     <label class="radio"><input type="checkbox" id="rcBp" checked> <span>Blood pressure chart</span></label>
@@ -634,7 +640,7 @@
   var SETTINGS_KEY = 'tirzepatide-settings';
   var SITE_URL = 'https://archie-hub.github.io/tirzepatide-log/';
   // Keep in sync with the value array built in toCSV() below when adding a field.
-  var COLUMNS = ['Date', 'Dosage (mg)', 'Weight (lbs)', 'Comments', 'Calories', 'Food Notes', 'Blood Sugar (mg/dL)', 'Injection Site', 'Systolic (mmHg)', 'Diastolic (mmHg)'];
+  var COLUMNS = ['Date', 'Dosage (mg)', 'Weight (lbs)', 'Comments', 'Calories', 'Food Notes', 'Blood Sugar (mg/dL)', 'Injection Site', 'Systolic (mmHg)', 'Diastolic (mmHg)', 'Waist (in)', 'Body Fat (%)', 'Muscle Mass (lbs)'];
   // Rotation order for the "next site" hint
   var SITES = ['Stomach (left)', 'Stomach (right)', 'Thigh (left)', 'Thigh (right)', 'Arm (left)', 'Arm (right)'];
   var DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -660,16 +666,22 @@
   function WU() { return isMetric() ? 'kg' : 'lbs'; }
   function dw(lbs) { return isMetric() ? lbs * KG : lbs; }
   function fw(lbs, dec) { return dw(lbs).toFixed(dec === undefined ? 1 : dec); }
+  // Waist is stored in inches (shown in cm when metric); muscle mass is stored in lbs like weight
+  function LU() { return isMetric() ? 'cm' : 'in'; }
+  function dl(inches) { return isMetric() ? inches * 2.54 : inches; }
+  function flen(inches) { return dl(inches).toFixed(1); }
+  function fromDl(v) { return isMetric() ? Math.round(v / 2.54 * 100) / 100 : v; }
   function toLbs(x, metric) { return metric ? Math.round(x / KG * 100) / 100 : x; }
   function renderUnits() {
     Array.prototype.forEach.call(document.querySelectorAll('.wu'), function (el) { el.textContent = WU(); });
+    Array.prototype.forEach.call(document.querySelectorAll('.lu'), function (el) { el.textContent = LU(); });
   }
 
   /* ---------- storage ---------- */
   function load() {
     try {
       var raw = localStorage.getItem(STORE_KEY);
-      if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) { p.forEach(function (e) { if (e.sys === undefined) e.sys = null; if (e.dia === undefined) e.dia = null; }); return p; } }
+      if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) { p.forEach(function (e) { if (e.sys === undefined) e.sys = null; if (e.dia === undefined) e.dia = null; if (e.waist === undefined) e.waist = null; if (e.fat === undefined) e.fat = null; if (e.muscle === undefined) e.muscle = null; }); return p; } }
     } catch (e) {}
     return [];
   }
@@ -754,7 +766,7 @@
         e.date,
         e.dose === null ? '' : e.dose.toFixed(2),
         e.weight === null ? '' : e.weight.toFixed(1),
-        e.comments, e.cal, e.food, e.sugar, e.site || '', e.sys, e.dia
+        e.comments, e.cal, e.food, e.sugar, e.site || '', e.sys, e.dia, e.waist, e.fat, e.muscle
       ].map(csvCell).join(','));
     });
     return lines.join('\r\n');
@@ -1050,16 +1062,35 @@
     if (weeks.length) h += '<h3>Weekly averages (last ' + weeks.length + ' weeks)</h3><div class="table-wrap">' + weeklyTable(weeks) + '</div>';
     $('insights').innerHTML = h;
   }
+  // First and latest readings of a body measure, plus waist-to-height ratio
+  function firstLast(list, key) {
+    var v = list.filter(function (e) { return e[key] !== null && e[key] !== undefined; });
+    return v.length ? { first: v[0], last: v[v.length - 1], n: v.length } : null;
+  }
+  function whtr(inches) { return settings.heightIn ? inches / settings.heightIn : null; }
+  function bodyChips(list) {
+    var out = [], wa = firstLast(list, 'waist'), fa = firstLast(list, 'fat'), mu = firstLast(list, 'muscle');
+    function chip(c, t, tip) { out.push('<span class="chip" style="--c:' + c + '"' + (tip ? ' title="' + esc(tip) + '"' : '') + '>' + esc(t) + '</span>'); }
+    if (wa) {
+      chip('#c026d3', 'Waist ' + (wa.n > 1 ? flen(wa.first.waist) + ' \u2192 ' : '') + flen(wa.last.waist) + ' ' + LU(), 'Latest reading ' + fmtDate(wa.last.date));
+      var r = whtr(wa.last.waist); if (r !== null) chip(r < 0.5 ? '#16a34a' : '#d97706', 'Waist-to-height ' + r.toFixed(2), 'Waist divided by height. Under 0.5 is the commonly used reference.');
+    }
+    if (fa) chip('#65a30d', 'Body fat ' + (fa.n > 1 ? fa.first.fat + ' \u2192 ' : '') + fa.last.fat + '%', 'Latest reading ' + fmtDate(fa.last.date));
+    if (mu) chip('#b45309', 'Muscle ' + (mu.n > 1 ? fw(mu.first.muscle) + ' \u2192 ' : '') + fw(mu.last.muscle) + ' ' + WU(), 'Latest reading ' + fmtDate(mu.last.date));
+    return out.join('');
+  }
   function renderProgress() {
     var el = $('progress'), pi = progressInfo(sorted()), w = sorted().filter(function (e) { return e.weight !== null; });
-    el.hidden = !pi || (w.length < 2 && !pi.hasBase);
+    var body = bodyChips(sorted());
+    el.hidden = !pi || (w.length < 2 && !pi.hasBase && !body);
     if (el.hidden) return;
     var firstOpen = true, chips = pi.ms.filter(function (m) { if (m.hit) return true; if (firstOpen) { firstOpen = false; return true; } return false; }).map(function (m) {
       return m.hit ? '<span class="chip" style="--c:#16a34a" title="First weigh-in at or below ' + esc(fw(m.target)) + ' ' + WU() + ' on ' + esc(fmtDate(m.hit.date)) + '">' + m.pct + '% \u00b7 week ' + m.hit.week + '</span>'
         : '<span class="chip next" style="--c:#64748b">' + m.pct + '% \u00b7 ' + esc(fw(m.toGo)) + ' ' + WU() + ' to go</span>';
     }).join('');
-    el.innerHTML = '<span class="wk">Week ' + pi.week + ' on treatment</span>' + chips +
+    var main = (w.length < 2 && !pi.hasBase) ? '' : '<span class="wk">Week ' + pi.week + ' on treatment</span>' + chips +
       (pi.w12 ? '<span class="muted">Lost at week 12: ' + pctText(pi.w12.pct) + '</span>' : '');
+    el.innerHTML = main + (body ? '<div class="prog-body"><span class="muted">Body</span>' + body + '</div>' : '');
   }
   function renderPlateau() {
     var pl = plateauInfo(sorted().filter(function (e) { return e.weight !== null; })), el = $('plateau');
@@ -1245,6 +1276,7 @@
     weight: { key: 'weight', get label() { return 'Weight (' + WU() + ')'; }, color: '#0ea5a4', dec: 1 },
     bmi: { key: 'bmi', label: 'BMI', color: '#0284c7', dec: 1 },
     sugar: { key: 'sugar', label: 'Fasting glucose (mg/dL)', color: '#f97316', dec: 0 },
+    waist: { key: 'waist', get label() { return 'Waist (' + LU() + ')'; }, color: '#c026d3', dec: 1 },
     rate: { key: 'rate', get label() { return 'Loss pace (' + WU() + '/week)'; }, color: '#0284c7', dec: 2 },
     bp: { key: 'bp', label: 'Blood pressure (mmHg)', color: '#e11d48', dec: 0 },
     cal: { key: 'cal', label: 'Calories', color: '#8b5cf6', dec: 0 },
@@ -1257,6 +1289,9 @@
     { k: 'sugar', label: 'Glucose', color: '#f97316', val: function (e) { return e.sugar; }, fmt: function (v) { return Math.round(v) + ' mg/dL'; } },
     { k: 'sys', label: 'Systolic', color: '#e11d48', val: function (e) { return e.sys; }, fmt: function (v) { return Math.round(v) + ' mmHg'; } },
     { k: 'dia', label: 'Diastolic', color: '#ec4899', dash: '6 4', val: function (e) { return e.dia; }, fmt: function (v) { return Math.round(v) + ' mmHg'; } },
+    { k: 'waist', label: 'Waist', color: '#c026d3', val: function (e) { return e.waist; }, fmt: function (v) { return flen(v) + ' ' + LU(); } },
+    { k: 'fat', label: 'Body fat', color: '#65a30d', val: function (e) { return e.fat; }, fmt: function (v) { return v.toFixed(1) + '%'; } },
+    { k: 'muscle', label: 'Muscle', color: '#b45309', val: function (e) { return e.muscle; }, fmt: function (v) { return fw(v) + ' ' + WU(); } },
     { k: 'cal', label: 'Calories', color: '#8b5cf6', val: function (e) { return e.cal; }, fmt: function (v) { return Math.round(v).toLocaleString(); } }
   ];
   function compareChosen() {
@@ -1278,11 +1313,13 @@
       rateThr = wts.length ? fastThreshold(wts[wts.length - 1].weight) : 0;
       all = all.map(function (e) { return Object.assign({}, e, { rate: rmap.hasOwnProperty(e.date) ? dw(rmap[e.date]) : null }); });
       rateThr = dw(rateThr);
+    } else if (m.key === 'waist' && isMetric()) {
+      all = all.map(function (e) { return Object.assign({}, e, { waist: e.waist == null ? null : e.waist * 2.54 }); });
     } else if (m.key === 'weight' && isMetric()) {
       all = all.map(function (e) { return Object.assign({}, e, { weight: e.weight === null ? null : e.weight * KG }); });
     }
     var bp = m.key === 'bp', vk = bp ? 'sys' : m.key;   // blood pressure plots systolic with diastolic beside it
-    var series = all.filter(function (e) { return bp ? hasBp(e) : e[m.key] !== null; });
+    var series = all.filter(function (e) { return bp ? hasBp(e) : (e[m.key] !== null && e[m.key] !== undefined); });
     if (!series.length) return null;
     function trail(key) {
       return series.map(function (e, i) {
@@ -1311,8 +1348,10 @@
     if (m.key === 'sugar') vals.push(100);   // always show the prediabetes threshold
     if (bp) vals.push(80, 120);              // and the normal limits for both numbers
     if (m.key === 'rate') vals.push(0, -rateThr);   // zero line and the fast-loss line
+    var halfHeight = (m.key === 'waist' && settings.heightIn) ? dl(settings.heightIn / 2) : null;   // waist-to-height ratio of 0.5
+    if (halfHeight) vals.push(halfHeight);
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-    var pad = Math.max((hi - lo) * 0.08, m.key === 'weight' ? 1 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 0.5 : (bp ? 6 : (m.key === 'rate' ? 0.15 : 50)))));
+    var pad = Math.max((hi - lo) * 0.08, (m.key === 'weight' || m.key === 'waist') ? 1 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 0.5 : (bp ? 6 : (m.key === 'rate' ? 0.15 : 50)))));
     lo -= pad; hi += pad;
     var unit = m.key === 'cal' ? 100 : (m.key === 'sugar' ? 4 : (m.key === 'bmi' ? 1 : (bp ? 10 : (m.key === 'rate' ? 0.5 : 2))));
     lo = Math.floor(lo / unit) * unit;
@@ -1350,6 +1389,7 @@
       : m.key === 'bmi' ? BMI_STAGES.slice(1).map(function (g) { return { below: g.min, next: { color: g.color, label: g.name } }; })
       : bp ? [{ below: 120, t: 'top 120 elevated', c: BP_ZONES[1].color }, { below: 130, t: 'top 130 stage 1', c: BP_ZONES[2].color }, { below: 140, t: 'top 140 stage 2', c: BP_ZONES[3].color },
               { below: 80, t: 'bottom 80 stage 1', c: BP_ZONES[2].color }, { below: 90, t: 'bottom 90 stage 2', c: BP_ZONES[3].color }].map(function (z) { return { below: z.below, text: z.t, next: { color: z.c, label: '' } }; })
+      : halfHeight ? [{ below: halfHeight, text: 'ratio 0.5 (half your height)', next: { color: '#f97316', label: '' } }]
       : m.key === 'rate' ? [{ below: 0, text: 'no change', next: { color: '#64748b', label: '' } },
           { below: -rateThr, text: 'faster than ' + FAST_PCT + '% of body weight a week', next: { color: '#f97316', label: '' } }]
       : [];
@@ -1660,6 +1700,7 @@
         '<td class="food">' + (e.food ? esc(e.food) : '<span class="dim">\u2014</span>') + '</td>' +
         '<td class="num">' + (e.sugar === null ? c(null) : '<span class="chip" style="--c:' + sugarZone(e.sugar).color + '" title="' + sugarZone(e.sugar).label + '">' + e.sugar + '</span>') + '</td>' +
         '<td class="num">' + (hasBp(e) ? bpChip(e) : c(null)) + '</td>' +
+        '<td class="num">' + (e.waist == null ? c(null) : flen(e.waist)) + ((e.fat != null || e.muscle != null) ? '<div class="site-t">' + [e.fat != null ? 'fat ' + e.fat + '%' : '', e.muscle != null ? 'muscle ' + fw(e.muscle) : ''].filter(Boolean).join(' \u00b7 ') + '</div>' : '') + '</td>' +
         '<td style="white-space:nowrap"><button class="small" data-edit="' + esc(e.date) + '" aria-label="Edit entry for ' + esc(fmtDate(e.date)) + '">Edit</button> ' +
         '<button class="small danger" data-del="' + esc(e.date) + '" aria-label="Delete entry for ' + esc(fmtDate(e.date)) + '">Delete</button></td>' +
         '</tr>';
@@ -1828,13 +1869,21 @@
     return s.length ? s[s.length - 1].dose : '';
   }
   function resetForm() {
-    editingDate = null; weightShown = weightOrig = null;
+    editingDate = null; weightShown = weightOrig = null; convOrig = {};
     $('entryForm').reset();
     $('fDate').value = today();
     $('fDose').value = lastDose();
     $('formTitle').textContent = 'Add entry';
     $('saveBtn').textContent = 'Save entry';
     $('cancelBtn').hidden = true;
+  }
+  // Waist and muscle are typed in the display unit too; an untouched value on an edited entry keeps its stored value exactly.
+  var convOrig = {};
+  function setConv(id, stored, shown) { $(id).value = shown; convOrig[id] = stored === null || stored === undefined ? null : { orig: stored, shown: shown }; }
+  function readConv(id, fromDisplay) {
+    var raw = $(id).value, v = num(raw); if (v === null) return null;
+    var c = convOrig[id];
+    return editingDate && c && raw === c.shown ? c.orig : fromDisplay(v);
   }
   // Weight is typed in the display unit. An untouched weight on an edited entry keeps its stored lbs value exactly.
   var weightShown = null, weightOrig = null;
@@ -1859,7 +1908,10 @@
       sugar: num($('fSugar').value),
       site: $('fSite').value,
       sys: bp ? bp.sys : null,
-      dia: bp ? bp.dia : null
+      dia: bp ? bp.dia : null,
+      waist: readConv('fWaist', fromDl),
+      fat: num($('fFat').value),
+      muscle: readConv('fMuscle', function (v) { return toLbs(v, isMetric()); })
     };
     if (!e.date) return;
     if (editingDate && editingDate !== e.date) {
@@ -1908,6 +1960,9 @@
       $('fCal').value = e.cal === null ? '' : e.cal;
       $('fSugar').value = e.sugar === null ? '' : e.sugar;
       $('fBp').value = hasBp(e) ? bpText(e) : '';
+      setConv('fWaist', e.waist, e.waist == null ? '' : (isMetric() ? flen(e.waist) : String(e.waist)));
+      $('fFat').value = e.fat == null ? '' : e.fat;
+      setConv('fMuscle', e.muscle, e.muscle == null ? '' : (isMetric() ? fw(e.muscle) : String(e.muscle)));
       $('fFood').value = e.food || '';
       $('fComments').value = e.comments || '';
       setSiteValue(e.site || '');
@@ -1975,6 +2030,9 @@
   /* ---------- import wizard ---------- */
   var FIELDS = [
     { k: 'date', label: 'Date', req: true, words: ['date', 'day'] },
+    { k: 'waist', label: 'Waist (in)', words: ['waist'] },
+    { k: 'fat', label: 'Body fat (%)', words: ['body fat', 'bodyfat', 'fat %', 'fat'] },
+    { k: 'muscle', label: 'Muscle mass (lbs)', words: ['muscle', 'lean'] },
     { k: 'dose', label: 'Dosage (mg)', words: ['dos', 'tirz', 'medication'] },
     { k: 'weight', label: 'Weight', words: ['weight', 'wt', 'lbs', 'kg'] },
     { k: 'cal', label: 'Calories', words: ['calor', 'kcal'] },
@@ -1999,7 +2057,7 @@
   }
   function downloadTemplate() {
     download('TirzepatideLog-template.csv',
-      COLUMNS.join(',') + '\r\n2026-01-05,2.50,210.0,"First dose, felt fine",2100,Chicken salad,105,Stomach (left),122,78');
+      COLUMNS.join(',') + '\r\n2026-01-05,2.50,210.0,"First dose, felt fine",2100,Chicken salad,105,Stomach (left),122,78,38.5,34.0,96.0');
   }
 
   function openImport() {
@@ -2066,7 +2124,8 @@
       out.push({
         date: date, dose: num(cell(r, 'dose')), weight: w, comments: cell(r, 'comments'),
         cal: num(cell(r, 'cal')), food: cell(r, 'food'), sugar: num(cell(r, 'sugar')), site: cell(r, 'site').trim(),
-        sys: num(cell(r, 'sys')), dia: num(cell(r, 'dia'))
+        sys: num(cell(r, 'sys')), dia: num(cell(r, 'dia')),
+        waist: num(cell(r, 'waist')), fat: num(cell(r, 'fat')), muscle: num(cell(r, 'muscle'))
       });
       var cb = parseBp(cell(r, 'bp'), 0), last = out[out.length - 1];
       if (cb && last.sys === null && last.dia === null) { last.sys = cb.sys; last.dia = cb.dia; }
@@ -2287,6 +2346,22 @@
       boxes.push(['Weigh-in consistency', cs.n + ' weigh-ins', '#d97706', (cs.avgGap !== null ? 'every ' + cs.avgGap.toFixed(1) + ' days on average' : '') + (cs.longest ? '; longest gap ' + cs.longest.days + ' days' : '')]);
       tl.push('- Weigh-ins: ' + cs.n + (cs.avgGap !== null ? ', every ' + cs.avgGap.toFixed(1) + ' days on average' : '') + (cs.longest ? '; longest gap ' + cs.longest.days + ' days (' + shortDate(cs.longest.from, true) + ' to ' + shortDate(cs.longest.to, true) + ')' : ''));
     }
+    // body measures over the period
+    var rwa = firstLast(list, 'waist'), rfa = firstLast(list, 'fat'), rmu = firstLast(list, 'muscle');
+    if (rwa) {
+      var rr_ = whtr(rwa.last.waist);
+      boxes.push(['Waist', (rwa.n > 1 ? flen(rwa.first.waist) + ' \u2192 ' : '') + flen(rwa.last.waist) + ' ' + LU(), '#c026d3',
+        (rwa.n > 1 ? sgn(dl(rwa.last.waist - rwa.first.waist), 1) + ' ' + LU() + '; ' : '') + (rr_ !== null ? 'waist-to-height ' + rr_.toFixed(2) + ' (0.5 is the usual reference)' : rwa.n + ' readings')]);
+      tl.push('- Waist: ' + (rwa.n > 1 ? flen(rwa.first.waist) + ' to ' : '') + flen(rwa.last.waist) + ' ' + LU() + (rr_ !== null ? ', waist-to-height ' + rr_.toFixed(2) : '') + ' (' + rwa.n + ' readings)');
+    }
+    if (rfa) {
+      boxes.push(['Body fat', (rfa.n > 1 ? rfa.first.fat + ' \u2192 ' : '') + rfa.last.fat + '%', '#65a30d', rfa.n + ' readings, latest ' + shortDate(rfa.last.date, true)]);
+      tl.push('- Body fat: ' + (rfa.n > 1 ? rfa.first.fat + '% to ' : '') + rfa.last.fat + '% (' + rfa.n + ' readings)');
+    }
+    if (rmu) {
+      boxes.push(['Muscle mass', (rmu.n > 1 ? fw(rmu.first.muscle) + ' \u2192 ' : '') + fw(rmu.last.muscle) + ' ' + WU(), '#b45309', (rmu.n > 1 ? sgn(dw(rmu.last.muscle - rmu.first.muscle), 1) + ' ' + WU() + '; ' : '') + rmu.n + ' readings']);
+      tl.push('- Muscle mass: ' + (rmu.n > 1 ? fw(rmu.first.muscle) + ' to ' : '') + fw(rmu.last.muscle) + ' ' + WU() + ' (' + rmu.n + ' readings)');
+    }
     var ipat = injectionPattern(allW);
     if (ipat) tl.push('- ' + injectionText(ipat));
     var gi = goalInfo(allW);
@@ -2369,12 +2444,12 @@
     if (notes) { h += '<h2>Notes for my doctor</h2><p>' + esc(notes).replace(/\n/g, '<br>') + '</p>'; tl.push('', 'Notes for my doctor: ' + notes); }
 
     var charts = [];
-    [['weight', 'rcWeight'], ['bmi', 'rcBmi'], ['sugar', 'rcSugar'], ['bp', 'rcBp'], ['cal', 'rcCal'], ['rate', 'rcRate'], ['compare', 'rcCompare']].forEach(function (pr) {
+    [['weight', 'rcWeight'], ['bmi', 'rcBmi'], ['sugar', 'rcSugar'], ['bp', 'rcBp'], ['cal', 'rcCal'], ['rate', 'rcRate'], ['waist', 'rcWaist'], ['compare', 'rcCompare']].forEach(function (pr) {
       if (!$(pr[1]).checked || $(pr[1]).disabled) return;
       var res = buildChart(pr[0], { from: w.from, to: w.to, print: true, title: METRICS[pr[0]].label + ', ' + period });
       if (!res) return;
       charts.push({ key: pr[0], svg: res.svg, w: res.W, h: res.H });
-      h += '<section>' + res.svg + '<div class="rep-cap">' + (pr[0] === 'rate' ? 'Each dot is the weight trend over the 4 weeks up to that day (below the zero line = losing). Orange dots are faster than ' + FAST_PCT + '% of body weight a week, a threshold shown for reference only. Shaded bands show the dose in effect.' : pr[0] === 'compare' ? 'Each line is scaled between its own lowest and highest value in the period, so it shows the shape of the trend, not the size; see the other charts and tables for real values. Dots are daily values, lines are 7-day averages. Shaded bands show the dose in effect.' : 'Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.') +
+      h += '<section>' + res.svg + '<div class="rep-cap">' + (pr[0] === 'waist' ? 'Dots are daily values. The line is the trailing 7-day average.' + (settings.heightIn ? ' The dashed line is half your height (waist-to-height ratio 0.5), a commonly used reference.' : '') + ' Shaded bands show the dose in effect.' : pr[0] === 'rate' ? 'Each dot is the weight trend over the 4 weeks up to that day (below the zero line = losing). Orange dots are faster than ' + FAST_PCT + '% of body weight a week, a threshold shown for reference only. Shaded bands show the dose in effect.' : pr[0] === 'compare' ? 'Each line is scaled between its own lowest and highest value in the period, so it shows the shape of the trend, not the size; see the other charts and tables for real values. Dots are daily values, lines are 7-day averages. Shaded bands show the dose in effect.' : 'Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.') +
         (pr[0] === 'sugar' ? ' Dot colours show the fasting range: green below 100, amber 100 to 125, red 126 and above.' : '') +
         (pr[0] === 'bp' ? ' Each bar runs from diastolic (hollow dot) to systolic (solid dot), coloured by category: green normal, amber elevated, orange stage 1, red stage 2. Dashed lines mark the category limits for the top and bottom number.' : '') +
         (pr[0] === 'bmi' ? ' Dot colours show the BMI stage; dashed lines mark the stage boundaries. Height ' + esc(fmtHeight(settings.heightIn)) + '.' : '') + '</div></section>';
@@ -2499,7 +2574,7 @@
 
   $('openReport').addEventListener('click', openReport);
   $('rClose').addEventListener('click', function () { if (rdlg.open) rdlg.close(); });
-  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcBmi', 'rcSugar', 'rcBp', 'rcCal', 'rcCompare', 'rcRate', 'rcWeekly', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
+  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcBmi', 'rcSugar', 'rcBp', 'rcCal', 'rcCompare', 'rcRate', 'rcWaist', 'rcWeekly', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
     $(id).addEventListener('input', queuePreview);
     $(id).addEventListener('change', queuePreview);
   });
