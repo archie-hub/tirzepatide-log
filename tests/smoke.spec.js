@@ -156,9 +156,8 @@ test('blood pressure is coloured by AHA category in the table, card and chart', 
 test('blood pressure round-trips through the form, CSV export and the report', async ({ page }) => {
   await pasteBp(page);
   await page.locator('[data-edit="2026-10-01"]').click();
-  await expect(page.locator('#fSys')).toHaveValue('118');
-  await expect(page.locator('#fDia')).toHaveValue('76');
-  await page.locator('#fSys').fill('145');
+  await expect(page.locator('#fBp')).toHaveValue('118/76');
+  await page.locator('#fBp').fill('145 / 76');
   await page.locator('#saveBtn').click();
   await expect(page.locator('#rows tr', { hasText: '145/76' })).toHaveCount(1);
 
@@ -463,4 +462,22 @@ test('renders without errors at 390px in dark mode', async ({ page }) => {
   expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
 
   await page.screenshot({ path: 'test-results/dark-390.png', fullPage: true });
+});
+
+test('blood pressure is one field like 119/79; bad input is rejected; combined CSV column imports', async ({ page }) => {
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill('Date,Blood Pressure\n2026-10-01,119/79\n2026-10-02,"141/91"');
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await expect(page.locator('#rows tr').first().locator('td:nth-child(9) .chip')).toHaveText('141/91');
+
+  await page.locator('#fDate').fill('2026-10-03');
+  await page.locator('#fBp').fill('abc');
+  await page.locator('#saveBtn').click();
+  await expect(page.locator('#rows tr')).toHaveCount(2);
+  expect(await page.locator('#fBp').evaluate((el) => el.validationMessage)).toContain('119/79');
+  await page.locator('#fBp').fill('119/79');
+  await page.locator('#saveBtn').click();
+  await expect(page.locator('#rows tr').first().locator('td:nth-child(9) .chip')).toHaveText('119/79');
 });

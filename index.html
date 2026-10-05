@@ -433,8 +433,7 @@
       <label><span>Weight (<span class="wu">lbs</span>)</span><input type="number" id="fWeight" step="0.1" min="0" inputmode="decimal"></label>
       <label>Calories<input type="number" id="fCal" step="1" min="0" inputmode="numeric"></label>
       <label>Fasting glucose (mg/dL)<input type="number" id="fSugar" step="1" min="0" inputmode="numeric"></label>
-      <label>Systolic (mmHg)<input type="number" id="fSys" step="1" min="0" inputmode="numeric"></label>
-      <label>Diastolic (mmHg)<input type="number" id="fDia" step="1" min="0" inputmode="numeric"></label>
+      <label>Blood pressure (mmHg)<input type="text" id="fBp" placeholder="119/79" inputmode="numeric" maxlength="9"></label>
       <label>Injection site<select id="fSite"></select></label>
       <label class="wide">Food notes<input type="text" id="fFood"></label>
       <label class="wide">Comments<textarea id="fComments"></textarea></label>
@@ -735,6 +734,13 @@
     if (sys >= 130 || dia >= 80) return BP_ZONES[2];
     if (sys >= 120) return BP_ZONES[1];
     return BP_ZONES[0];
+  }
+  // "119/79" (also "119 / 79", "119-79", "119 79") -> { sys, dia }, or null when it isn't two plausible numbers
+  function parseBp(str) {
+    var m = /^\s*(\d{2,3})\s*[\/\-\s]\s*(\d{2,3})\s*$/.exec(String(str || ''));
+    if (!m) return null;
+    var a = +m[1], b = +m[2];
+    return a > b && a <= 300 && b >= 20 ? { sys: a, dia: b } : null;
   }
   function hasBp(e) { return e.sys !== null && e.sys !== undefined && e.dia !== null && e.dia !== undefined; }
   function bpText(e) { return Math.round(e.sys) + '/' + Math.round(e.dia); }
@@ -1376,8 +1382,11 @@
     if (editingDate && weightOrig !== null && raw === weightShown) return weightOrig;
     return toLbs(v, isMetric());
   }
+  $('fBp').addEventListener('input', function () { this.setCustomValidity(''); });
   $('entryForm').addEventListener('submit', function (ev) {
     ev.preventDefault();
+    var bpRaw = $('fBp').value.trim(), bp = parseBp(bpRaw);
+    if (bpRaw && !bp) { $('fBp').setCustomValidity('Enter blood pressure like 119/79 (top number first).'); $('fBp').reportValidity(); return; }
     var e = {
       date: $('fDate').value,
       dose: num($('fDose').value),
@@ -1387,8 +1396,8 @@
       food: $('fFood').value,
       sugar: num($('fSugar').value),
       site: $('fSite').value,
-      sys: num($('fSys').value),
-      dia: num($('fDia').value)
+      sys: bp ? bp.sys : null,
+      dia: bp ? bp.dia : null
     };
     if (!e.date) return;
     if (editingDate && editingDate !== e.date) {
@@ -1436,8 +1445,7 @@
       $('fWeight').value = weightShown;
       $('fCal').value = e.cal === null ? '' : e.cal;
       $('fSugar').value = e.sugar === null ? '' : e.sugar;
-      $('fSys').value = e.sys == null ? '' : e.sys;
-      $('fDia').value = e.dia == null ? '' : e.dia;
+      $('fBp').value = hasBp(e) ? bpText(e) : '';
       $('fFood').value = e.food || '';
       $('fComments').value = e.comments || '';
       setSiteValue(e.site || '');
@@ -1512,6 +1520,7 @@
     { k: 'comments', label: 'Comments', words: ['comment', 'journal', 'note'] },
     { k: 'sys', label: 'Systolic (mmHg)', words: ['systol'] },
     { k: 'dia', label: 'Diastolic (mmHg)', words: ['diastol'] },
+    { k: 'bp', label: 'Blood pressure (e.g. 119/79)', words: ['pressure'] },
     { k: 'sugar', label: 'Glucose (mg/dL)', words: ['blood', 'sugar', 'glucose'] }
   ];
   var pending = null, mapping = {};
@@ -1596,6 +1605,8 @@
         cal: num(cell(r, 'cal')), food: cell(r, 'food'), sugar: num(cell(r, 'sugar')), site: cell(r, 'site').trim(),
         sys: num(cell(r, 'sys')), dia: num(cell(r, 'dia'))
       });
+      var cb = parseBp(cell(r, 'bp'), 0), last = out[out.length - 1];
+      if (cb && last.sys === null && last.dia === null) { last.sys = cb.sys; last.dia = cb.dia; }
     });
     var byDate = {};
     out.forEach(function (e) { byDate[e.date] = e; });   // last row wins for duplicate dates
