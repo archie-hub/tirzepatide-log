@@ -15,9 +15,12 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 - "Doctor report": date-range report with summary boxes, charts, fasting glucose ranges (counts and share per ADA range), dose schedule, comments table, optional full log. Mirrors the dashboard (keep it that way: anything added to the dashboard also goes in the report): boxes for dose, weight, change, goal progress and projection, BMI (first to last, with stage), BMI next stage, latest and average fasting glucose, entries and days covered, next dose; optional BMI chart plus a BMI stage table (the checkbox is always listed but disabled with a hint until a height is saved); all of it also in the text summary. Output via print/PDF, PNG chart images, copied text summary, mailto, Web Share, CSV for the range.
 
 ## Data and privacy rules
-- All data lives in the visitor's browser (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, dose day, height and backup timestamps under `tirzepatide-settings`). Never add code that uploads data.
+- All data lives in the visitor's browser (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, dose day, height, units and backup timestamps under `tirzepatide-settings`). Never add code that uploads data.
 - Never commit real health data. `.gitignore` excludes `*.csv` except `sample-data/`. The sample file is fake.
 - Every localStorage call is wrapped in try/catch; the app must render with empty storage.
+
+## Units
+All data is stored and exported in lbs and inches. `settings.units` (`'us'` default, `'metric'`) only changes display and typing: use `dw()`/`fw()`/`WU()`/`toLbs()` for weights, `fmtHeight()` for height, `.wu` spans for unit labels in static HTML. Metric shows kg and cm everywhere, including the report and charts; CSV export stays in lbs. Never show a raw stored weight.
 
 ## CSV format
 `Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site` (8th column added later; 7-column files still import) with ISO dates, CRLF line endings, quoted fields where needed. Comments can contain newlines and commas. Blank cells are valid.

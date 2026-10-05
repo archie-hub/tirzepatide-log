@@ -305,6 +305,49 @@ test('backup note, undo delete and keyboard chart reading', async ({ page }) => 
   expect(home).not.toBe(last);
 });
 
+test('metric units: kg and cm everywhere, storage and export stay in lbs', async ({ page }) => {
+  await importSample(page);
+  await page.fill('#bmiHeight', "5'9\"");
+  await page.press('#bmiHeight', 'Enter');
+  const lbs = parseFloat((await page.locator('#stats .stat').first().locator('.v').innerText()));
+
+  await page.locator('#plan [data-settings]').first().click();
+  await page.selectOption('#sUnits', 'metric');
+  await page.locator('#setSave').click();
+
+  await expect(page.locator('#stats .stat .l').first()).toContainText('(kg)');
+  await expect(page.locator('#plan .bmi .l')).toContainText('175 cm');
+  await expect(page.locator('#fWeight').locator('xpath=..')).toContainText('(kg)');
+  await expect(page.locator('#plan .bmi-stages')).toContainText('kg');
+  await page.waitForTimeout(1100);   // count-up animation
+  const kg = parseFloat(await page.locator('#stats .stat').first().locator('.v').innerText());
+  expect(Math.abs(kg - lbs * 0.45359237)).toBeLessThan(0.15);
+  await page.locator('#tab-weight').click();
+  await expect(page.locator('#chart svg')).toHaveAttribute('aria-label', /Weight \(kg\)/);
+
+  // Editing an entry without touching the weight must not alter the stored lbs value
+  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('tirzepatide-log-v1')).map((e) => e.weight));
+  const before = await stored();
+  await page.locator('#rows tr').first().locator('[data-edit]').click();
+  await page.locator('#saveBtn').click();
+  expect(await stored()).toEqual(before);
+
+  // A new weight typed in kg is stored as lbs
+  await page.fill('#fDate', '2030-01-01');
+  await page.fill('#fWeight', '80');
+  await page.locator('#saveBtn').click();
+  const after = await stored();
+  expect(after.some((w) => Math.abs(w - 176.37) < 0.02)).toBe(true);
+
+  // Report follows the unit; the CSV export is still lbs
+  await page.locator('#openReport').click();
+  await expect(page.locator('#reportPreview')).toContainText('kg');
+  await expect(page.locator('#reportPreview')).not.toContainText(' lbs');
+  await page.keyboard.press('Escape');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
+  expect(await dl.suggestedFilename()).toMatch(/\.csv$/);
+});
+
 test('renders without errors at 390px in dark mode', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.setViewportSize({ width: 390, height: 844 });
