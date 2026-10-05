@@ -363,13 +363,6 @@
       <div class="sub" id="subtitle"></div>
       <div class="sub backup" id="backupNote" hidden></div>
     </div>
-    <div class="toolbar">
-      <button id="installBtn" hidden>Install app</button>
-      <button id="openImport" class="primary">Import data</button>
-      <button id="openReport">Doctor report</button>
-      <button id="exportBtn">Export CSV</button>
-      <button id="resetBtn" class="danger">Clear all data</button>
-    </div>
   </header>
   <div id="msg" role="status"></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" id="toastUndo">Undo</button></div>
@@ -465,6 +458,14 @@
       </div>
     </form>
   </details>
+
+  <div class="toolbar page-bar" aria-label="Data actions">
+    <button id="installBtn" hidden>Install app</button>
+    <button id="openImport" class="primary">Import data</button>
+    <button id="openReport">Doctor report</button>
+    <button id="exportBtn">Export CSV</button>
+    <button id="resetBtn" class="danger">Clear all data</button>
+  </div>
 
   <footer class="foot" id="foot"></footer>
 </main>
