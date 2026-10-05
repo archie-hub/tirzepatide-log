@@ -4,14 +4,14 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 
 ## What it does
 - Logs date, dose (mg), weight (lbs), comments, calories, food notes, glucose (mg/dL), injection site.
-- Plan cards: next dose (weekday from settings, else last logged site date, else current dose start); goal ring with projection (28-day least-squares slope); backup status.
+- Top row (stats): latest weight, goal (ring + projection from a 28-day least-squares slope; Set a goal / Edit open the settings dialog), change since start, latest fasting glucose. Below it, plan cards: next dose (weekday from settings, else last logged site date, else current dose start) and BMI. There is no Backup card; the only export button is the header's Export CSV (`lastExport` is still recorded by `markBackedUp()`).
 - "Results by dose" panel: lbs/week per dose segment (also in the doctor report).
-- BMI card (plan cards, full width, below Backup): until a height is saved it shows one text field (accepts `5'9"`, `5 9`, `69 in`, `175 cm`; saves on Enter/blur, no button); afterwards BMI is calculated automatically from the latest weigh-in. Height is stored in inches as `settings.heightIn` and edited from the card's Edit link (settings dialog). Shows a color-coded scale and stage list with the weight range per stage. Stages (`BMI_STAGES`): underweight blue, normal green, overweight amber, obesity I orange, II deep orange, III red; the rounded value decides.
+- BMI card (plan cards, next to Next dose): until a height is saved it shows one text field (accepts `5'9"`, `5 9`, `69 in`, `175 cm`; saves on Enter/blur, no button); afterwards BMI is calculated automatically from the latest weigh-in. Height is stored in inches as `settings.heightIn` and edited from the card's Edit link (settings dialog). Shows a color-coded scale and stage list with the weight range per stage. Stages (`BMI_STAGES`): underweight blue, normal green, overweight amber, obesity I orange, II deep orange, III red; the rounded value decides.
 - Stats cards, tabbed charts (weight / glucose / calories) with dose bands, 7-day average line, hover tooltip, range switch (All, 6 mo, 3 mo, 30 d).
 - Entry table with edit/delete and dose-colored rows. Shows the latest 30 entries until "Show all".
 - Import wizard: file, drag and drop, or pasted CSV; auto-matches columns, handles `MM/DD/YYYY` vs `DD/MM/YYYY`, converts kg to lbs, merge or replace by date.
 - Export CSV in the exact 8-column format below.
-- "Doctor report": date-range report with summary boxes, charts, fasting glucose ranges (counts and share per ADA range), dose schedule, comments table, optional full log. Output via print/PDF, PNG chart images, copied text summary, mailto, Web Share, CSV for the range.
+- "Doctor report": date-range report with summary boxes, charts, fasting glucose ranges (counts and share per ADA range), dose schedule, comments table, optional full log. Includes a BMI box (first to last weight at the saved height, with stage) once a height is set, also in the text summary. Output via print/PDF, PNG chart images, copied text summary, mailto, Web Share, CSV for the range.
 
 ## Data and privacy rules
 - All data lives in the visitor's browser (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, dose day, height and backup timestamps under `tirzepatide-settings`). Never add code that uploads data.

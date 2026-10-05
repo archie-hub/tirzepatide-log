@@ -107,9 +107,14 @@
   .stat .l { color: var(--muted); font-size: 13px; }
   .stat .v { font-size: 30px; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 2px; }
   .stat .sub { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+  .stat .stat-ring { position: absolute; right: 10px; bottom: 10px; line-height: 0; }
+  .stat .stat-ring .ring { width: 48px; height: 48px; }
+  .stat .stat-ring .ring-t { font-size: 22px; }
+  .stat .v.txt { font-size: 22px; }
+  .stat.has-ring .sub { padding-right: 54px; }
   .stat svg.spark { position: absolute; right: 12px; bottom: 12px; width: 78px; height: 28px; opacity: .95; }
 
-  /* ---- plan cards: next dose, goal, backup ---- */
+  /* ---- plan cards: next dose, BMI ---- */
   .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
   .card {
     --c: var(--accent); position: relative; overflow: hidden; padding: 15px 17px; border-radius: 14px;
@@ -152,6 +157,7 @@
   }
   /* ---- BMI card ---- */
   .card.bmi { grid-column: 1 / -1; }
+  @media (min-width: 700px) { .card.bmi { grid-column: span 2; } }
   .bmi-ask { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
   .bmi-ask input { width: 170px; font: inherit; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
   .bmi-err { color: var(--bad); font-size: 13px; margin-top: 6px; min-height: 0; }
@@ -344,7 +350,7 @@
     <p class="note">Or add your first entry with the form below.</p>
   </section>
 
-  <section class="plan" id="plan" aria-label="Next dose, goal and backup"></section>
+  <section class="plan" id="plan" aria-label="Next dose and BMI"></section>
 
   <section class="stats" id="stats" aria-label="Summary"></section>
 
@@ -711,21 +717,27 @@
     var dosed = s.filter(function (e) { return e.dose !== null; });
     var sug = s.filter(function (e) { return e.sugar !== null; });
     if (w.length) {
-      var first = w[0], last = w[w.length - 1], d = last.weight - first.weight;
+      var first = w[0], last = w[w.length - 1], d = last.weight - first.weight, goal = settings.goal;
       cards.push({ id: 'wt', label: 'Latest weight (lbs)', val: last.weight, dec: 1, color: '#0ea5a4',
         extra: spark(w.slice(-40).map(function (e) { return e.weight; })) });
+      if (!goal) {
+        cards.push({ id: 'goal', label: 'Goal weight', text: 'Not set', color: '#6366f1',
+          extra: '<div class="sub"><button type="button" class="linkish" data-settings>Set a goal</button></div>' });
+      } else {
+        var total = first.weight - goal, lost = first.weight - last.weight, left = last.weight - goal;
+        var pct = total > 0 ? Math.min(Math.max(lost / total, 0), 1) : (left <= 0 ? 1 : 0), slope = recentSlope(w), proj;
+        if (left <= 0) proj = 'Goal reached. Nice work.';
+        else if (slope !== null && slope < -0.01) {
+          var days = Math.round(left / -slope);
+          proj = days > 3650 ? 'At this pace, years away' : 'On pace for ' + shortDate(addDays(last.date, days), true);
+        } else proj = 'Pace is flat, no projected date';
+        cards.push({ id: 'goal', label: 'Goal: ' + goal + ' lbs', edit: true, text: left > 0 ? left.toFixed(1) + ' lbs to go' : 'Reached', color: '#6366f1',
+          sub: proj, ring: pct });
+      }
       cards.push({ id: 'chg', label: 'Change since ' + fmtDate(first.date), val: d, dec: 1, sign: true,
         color: d > 0 ? 'var(--bad)' : 'var(--good)', arrow: d < 0 ? '\u25BC ' : (d > 0 ? '\u25B2 ' : ''),
         sub: (d / first.weight * 100).toFixed(1) + '% of starting weight' });
-      var weeks = dayDiff(first.date, last.date) / 7;
-      if (weeks >= 2) cards.push({ id: 'pw', label: 'Average per week (lbs)', val: d / weeks, dec: 2, sign: true, color: '#6366f1' });
     }
-    if (dosed.length) {
-      var cur = dosed[dosed.length - 1].dose, since = dosed[dosed.length - 1].date;
-      for (var i = dosed.length - 1; i >= 0 && dosed[i].dose === cur; i--) since = dosed[i].date;
-      cards.push({ id: 'dose', label: 'Current dose', text: cur + ' mg', color: doseColor(cur), sub: 'since ' + fmtDate(since) });
-    }
-    if (s.length) cards.push({ id: 'days', label: 'Days covered', val: dayDiff(s[0].date, s[s.length - 1].date) + 1, dec: 0, color: '#d97706', sub: s.length + ' entries logged' });
     if (sug.length) {
       var lastSug = sug[sug.length - 1].sugar, z = sugarZone(lastSug);
       cards.push({ id: 'bs', label: 'Latest fasting glucose', val: lastSug, dec: 0, color: z.color, sub: 'mg/dL, ' + z.label.toLowerCase(),
@@ -735,8 +747,8 @@
     $('stats').innerHTML = cards.length ? cards.map(function (c) {
       var body = c.text !== undefined ? esc(c.text)
         : '<span data-id="' + c.id + '" data-val="' + c.val + '" data-dec="' + c.dec + '" data-sign="' + (c.sign ? 1 : 0) + '">' + fmtVal(c.val, c.dec, c.sign) + '</span>';
-      return '<div class="stat" style="--c:' + c.color + '">' + (c.extra || '') + '<div class="l">' + esc(c.label) + '</div>' +
-        '<div class="v">' + (c.arrow || '') + body + '</div>' + (c.sub ? '<div class="sub">' + esc(c.sub) + '</div>' : '') + '</div>';
+      return '<div class="stat' + (c.ring !== undefined ? ' has-ring' : '') + '" style="--c:' + c.color + '">' + (c.ring !== undefined ? '<span class="stat-ring">' + ring(c.ring) + '</span>' : '') + (c.extra && c.id !== 'goal' ? c.extra : '') + '<div class="l">' + esc(c.label) + (c.edit ? ' <button type="button" class="linkish" data-settings>Edit</button>' : '') + '</div>' +
+        '<div class="v' + (c.text !== undefined ? ' txt' : '') + '">' + (c.arrow || '') + body + '</div>' + (c.sub ? '<div class="sub">' + esc(c.sub) + '</div>' : '') + (c.id === 'goal' && c.extra ? c.extra : '') + '</div>';
     }).join('') : '<div class="empty" style="grid-column:1/-1">No data yet.</div>';
 
     Array.prototype.forEach.call($('stats').querySelectorAll('span[data-id]'), function (el) {
@@ -754,7 +766,11 @@
     });
   }
 
-  /* ---------- plan: next dose, goal, backup ---------- */
+  $('stats').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button'); if (b && b.hasAttribute('data-settings')) openSettings();
+  });
+
+  /* ---------- plan: next dose, BMI ---------- */
   function weekday(iso) { var p = iso.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]).getDay(); }
   function lastSite() {
     var s = sorted().filter(function (e) { return e.site; });
@@ -812,47 +828,13 @@
         '</div>');
     }
 
-    var w = sorted().filter(function (e) { return e.weight !== null; }), goal = settings.goal;
-    if (!w.length) { /* no goal card without weights */ }
-    else if (!goal) {
-      cards.push('<div class="card" style="--c:#6366f1"><div class="l"><span>Goal weight</span></div>' +
-        '<div class="big">Not set</div><div class="sub">Set a target to see your progress and a projected date.</div>' +
-        '<div class="actions"><button type="button" class="small primary" data-settings>Set a goal</button></div></div>');
-    } else {
-      var start = w[0].weight, cur = w[w.length - 1].weight, total = start - goal, lost = start - cur;
-      var pct = total > 0 ? Math.min(Math.max(lost / total, 0), 1) : (cur <= goal ? 1 : 0);
-      var left = cur - goal, slope = recentSlope(w), proj;
-      if (left <= 0) proj = 'Goal reached. Nice work.';
-      else if (slope !== null && slope < -0.01) {
-        var days = Math.round(left / -slope);
-        proj = days > 3650 ? 'At your recent pace this is years away.'
-          : 'At your recent pace (' + sgn(slope * 7, 1) + ' lbs/wk), around ' + shortDate(addDays(w[w.length - 1].date, days), true) + '.';
-      } else proj = 'Your recent pace is flat, so there is no projected date yet.';
-      cards.push('<div class="card" style="--c:#6366f1"><div class="l"><span>Goal: ' + goal + ' lbs</span>' +
-        '<button type="button" class="linkish" data-settings>Edit</button></div>' +
-        '<div class="row">' + ring(pct) + '<div>' +
-        '<div class="big">' + (left > 0 ? left.toFixed(1) + ' lbs to go' : 'Reached') + '</div>' +
-        '<div class="sub">' + (total > 0 ? Math.max(lost, 0).toFixed(1) + ' of ' + total.toFixed(1) + ' lbs lost' : 'Started at ' + start.toFixed(1) + ' lbs') + '</div>' +
-        '<div class="sub">' + esc(proj) + '</div></div></div></div>');
-    }
-
-    var le = settings.lastExport, lc = settings.lastChange, dirty = !le || !lc || lc > le, warn, big, sub;
-    if (!le) { warn = true; big = 'Not backed up'; sub = 'Your log lives only in this browser. Export a CSV and keep it somewhere safe.'; }
-    else if (dirty) {
-      warn = Date.now() - le > 14 * 86400000;
-      big = ago(le); sub = 'Last backup. You have changes since then.';
-    } else { warn = false; big = ago(le); sub = 'Last backup. No changes since then.'; }
-    cards.push('<div class="card' + (warn ? ' warn' : '') + '" style="--c:' + (warn ? 'var(--warn)' : 'var(--good)') + '">' +
-      '<div class="l"><span>Backup</span></div><div class="big">' + esc(big) + '</div><div class="sub">' + esc(sub) + '</div>' +
-      '<div class="actions"><button type="button" class="small' + (warn ? ' primary' : '') + '" data-export>Export CSV</button></div></div>');
-
+    var w = sorted().filter(function (e) { return e.weight !== null; });
     if (w.length) cards.push(bmiCard(w));
     $('plan').innerHTML = cards.join('');
   }
   $('plan').addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-settings')) openSettings(b.getAttribute('data-settings'));
-    else if (b.hasAttribute('data-export')) exportAll();
   });
 
   function renderRates() {
@@ -1541,6 +1523,12 @@
         tl.push('- Weight: ' + f.weight.toFixed(1) + ' to ' + l.weight.toFixed(1) + ' lbs (' + sgn(d, 1) + ' lbs, ' + sgn(d / f.weight * 100, 1) + '%)' + (weeks >= 2 ? ', about ' + sgn(d / weeks, 2) + ' lbs per week' : ''));
         if (weeks >= 2) boxes.push(['Average per week', sgn(d / weeks, 2) + ' lbs', '#6366f1', 'over ' + Math.round(weeks) + ' weeks']);
       }
+    }
+    if (wl.length && settings.heightIn) {
+      var hb = settings.heightIn, b1 = bmiOf(wl[wl.length - 1].weight, hb), s1 = bmiStage(b1), b0r = bmiOf(wl[0].weight, hb), s0r = bmiStage(b0r);
+      boxes.push(['BMI', wl.length > 1 ? b0r.toFixed(1) + ' \u2192 ' + b1.toFixed(1) : b1.toFixed(1), s1.color,
+        s1.name + (s0r !== s1 && wl.length > 1 ? ' (was ' + s0r.name.toLowerCase() + ')' : '') + ', height ' + fmtHeight(hb)]);
+      tl.push('- BMI: ' + (wl.length > 1 ? b0r.toFixed(1) + ' (' + s0r.name.toLowerCase() + ') to ' : '') + b1.toFixed(1) + ' (' + s1.name.toLowerCase() + '), height ' + fmtHeight(hb));
     }
     var cal = statOf(list, 'cal'), sug = statOf(list, 'sugar');
     if (cal) { boxes.push(['Average calories', nf(cal.avg), '#8b5cf6', 'across ' + cal.n + ' logged days']); tl.push('- Calories: average ' + nf(cal.avg) + ' per logged day (' + cal.n + ' days logged)'); }

@@ -194,6 +194,25 @@ test('BMI height can be edited from the card', async ({ page }) => {
   await expect(page.locator('#sHeight')).toHaveValue("5'8.9\"");
 });
 
+test('top row is weight, goal, change, glucose; no backup card; report shows BMI', async ({ page }) => {
+  await importSample(page);
+  const labels = await page.locator('#stats .stat .l').allInnerTexts();
+  expect(labels.map((l) => l.split(/[:(]|Since|since/)[0].trim().replace(/\s*Edit$/, ''))).toEqual(
+    ['Latest weight', 'Goal weight', 'Change', 'Latest fasting glucose']);
+  await expect(page.locator('#plan')).not.toContainText('Backup');
+  await expect(page.locator('[data-export]')).toHaveCount(0);
+
+  await page.locator('#openReport').click();
+  await expect(page.locator('#reportPreview .rep-box', { hasText: 'BMI' })).toHaveCount(0);   // no height yet
+  await page.keyboard.press('Escape');
+  await page.fill('#bmiHeight', "5'9\"");
+  await page.press('#bmiHeight', 'Enter');
+  await page.locator('#openReport').click();
+  const box = page.locator('#reportPreview .rep-box', { hasText: 'BMI' });
+  await expect(box).toHaveCount(1);
+  await expect(box).toContainText("5'9\"");
+});
+
 test('renders without errors at 390px in dark mode', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.setViewportSize({ width: 390, height: 844 });
