@@ -137,6 +137,12 @@
   .plan .stat .l { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .plan .stat { container-type: inline-size; }
   .plan .stat .l { white-space: nowrap; }
+  .stack { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; min-width: 0; }
+  .stat.mini { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 14px; min-height: 0; }
+  .stat.mini .l { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .stat.mini .v { font-size: 21px; margin: 0; }
+  .stat.mini .note-i { color: var(--muted); font-size: 12.5px; }
+  @container (max-width: 200px) { .stat.mini .note-i { display: none; } }
   .plan .stat .v { white-space: nowrap; }
   .plan .stat .v.day { font-size: clamp(18px, calc((100cqi - 34px) / 5.4), 30px); }
   .linkish { background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
@@ -947,7 +953,11 @@
   }
 
   function renderPlan() {
-    var cards = [], d = doseInfo(), allE = sorted();
+    var cards = [], d = doseInfo(), allE = sorted(), days = '', bpMini = '';
+    // Half-height panel: label (with a short note when there is room) on the left, value on the right
+    function mini(c, label, note, val, tip) {
+      return '<div class="stat mini" style="--c:' + c + '"' + (tip ? ' title="' + esc(tip) + '"' : '') + '><div class="l"><span>' + esc(label) + '</span><span class="note-i"> \u00b7 ' + esc(note) + '</span></div><div class="v">' + esc(val) + '</div></div>';
+    }
     function card(c, label, link, val, sub, extra) {
       return '<div class="stat" style="--c:' + c + '"><div class="l"><span>' + esc(label) + '</span>' + (link || '') + '</div>' +
         '<div class="v' + (label === 'Next dose' ? ' day' : '') + '">' + esc(val) + '</div>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + (extra || '') + '</div>';
@@ -962,8 +972,15 @@
       cards.push(card(dc, 'Next dose', '<button type="button" class="linkish" data-settings aria-label="Change injection day">Change</button>', when,
         stale ? 'Last entry ' + fmtDate(d.lastEntry) + '. Add today\'s.' : (d.diff > 1 ? 'In ' + d.diff + ' days · ' : '') + fmtDate(d.next),
         stale ? '' : '<div class="strip" role="img" aria-label="' + (d.diff === 0 ? 'Dose day is today' : d.diff + ' days until the next dose') + '">' + strip + '</div>'));
-      cards.push(card('#64748b', 'Days covered', '', String(dayDiff(allE[0].date, d.lastEntry) + 1), allE.length + ' entries logged'));
+      days = mini('#64748b', 'Days covered', allE.length + ' entries', String(dayDiff(allE[0].date, d.lastEntry) + 1));
     }
+    var bpAll = allE.filter(hasBp), lb = bpAll[bpAll.length - 1];
+    if (lb) {
+      var bz = bpZone(lb.sys, lb.dia);
+      bpMini = mini(bz.color, 'Latest BP', bz.short || bz.label, bpText(lb), shortDate(lb.date, false) + ', ' + bz.label);
+    }
+    if (days && bpMini) cards.push('<div class="stack">' + days + bpMini + '</div>');   // two half-height panels share one slot
+    else if (days || bpMini) cards.push(days || bpMini);
 
     var w = sorted().filter(function (e) { return e.weight !== null; });
     if (w.length) cards.push(bmiCard(w));

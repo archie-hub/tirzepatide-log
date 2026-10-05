@@ -578,3 +578,29 @@ test('Entries and Add entry panels start minimised and expand on click', async (
   await expect(page.locator('#formPanel')).toHaveAttribute('open', '');
   await expect(page.locator('#fDate')).toBeVisible();
 });
+
+test('plan row: Days covered and Latest BP share one slot as half-height panels', async ({ page }) => {
+  await importSample(page);
+  const stack = page.locator('#plan .stack');
+  await expect(stack.locator('.stat.mini')).toHaveCount(2);
+  await expect(stack.locator('.stat.mini').nth(0)).toContainText('Days covered');
+  await expect(stack.locator('.stat.mini').nth(1)).toContainText('Latest BP');
+  await expect(stack.locator('.stat.mini').nth(1).locator('.v')).toHaveText(/^\d+\/\d+$/);
+  const [stat, mini, plan] = await Promise.all([
+    page.locator('#stats .stat').first().boundingBox(),
+    stack.locator('.stat.mini').first().boundingBox(),
+    page.locator('#plan .stat').first().boundingBox(),
+  ]);
+  expect(Math.round(plan.height)).toBe(Math.round(stat.height));   // row is as tall as the stats row
+  expect(mini.height).toBeLessThan(stat.height / 2);
+});
+
+test('plan row: without any BP readings Days covered keeps its full panel', async ({ page }) => {
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill('Date,Dosage (mg),Weight (lbs)\n2026-10-01,2.5,200\n2026-10-03,2.5,199');
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await expect(page.locator('#plan .stack')).toHaveCount(0);
+  await expect(page.locator('#plan .stat.mini')).toHaveCount(1);
+});
