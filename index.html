@@ -164,6 +164,7 @@
   .bmi-ask { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
   .bmi-ask input { width: 170px; font: inherit; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
   .bmi-err { color: var(--bad); font-size: 13px; margin-top: 6px; min-height: 0; }
+  .bmi-next { color: var(--ink); font-weight: 600; }
   .bmi .tag { font-size: 15px; font-weight: 700; margin-left: 8px; }
   .bmi-scale { position: relative; display: flex; height: 12px; border-radius: 6px; margin: 22px 0 6px; }
   .bmi-scale i { flex: var(--w); background: var(--c); }
@@ -1116,6 +1117,18 @@
     }
     var last = w[w.length - 1], first = w[0];
     var b = bmiOf(last.weight, h), st = bmiStage(b), b0 = bmiOf(first.weight, h), st0 = bmiStage(b0);
+    // Next stage down: the rounded BMI must drop below this stage's lower bound
+    var nextTxt = '', si = BMI_STAGES.indexOf(st);
+    if (si === 1) nextTxt = 'You are in the normal range.';
+    else if (si > 1) {
+      var tgt = BMI_STAGES[si - 1], tw = (st.min - 0.05) * h * h / 703, toGo = last.weight - tw, sl = recentSlope(w);
+      nextTxt = 'Next stage: ' + tgt.name + ' (below ' + st.min + ') at ' + (Math.floor(tw * 10) / 10).toFixed(1) + ' lbs, ' + toGo.toFixed(1) + ' to go. ';
+      if (sl !== null && sl < -0.01) {
+        var dd = Math.round(toGo / -sl);
+        nextTxt += dd > 3650 ? 'At your recent pace that is years away.'
+          : 'At your recent pace (' + sgn(sl * 7, 1) + ' lbs/wk), around ' + shortDate(addDays(last.date, dd), true) + '.';
+      } else nextTxt += 'Your recent pace is flat, so there is no projected date yet.';
+    }
     var lo = 15, hi = 45, scale = '', ticks = '', list = '';
     BMI_STAGES.forEach(function (g) {
       var a = Math.max(g.min, lo), z = g.max === null ? hi : g.max;
@@ -1132,6 +1145,7 @@
       '<div class="big">' + b.toFixed(1) + '<span class="tag">' + esc(st.name) + '</span></div>' +
       '<div class="sub">' + last.weight + ' lbs on ' + esc(fmtDate(last.date)) +
       (w.length > 1 ? '. Started at ' + b0.toFixed(1) + ' (' + esc(st0.name) + ')' + (Math.abs(b0 - b) >= 0.05 ? ', ' + (b < b0 ? 'down ' : 'up ') + Math.abs(b0 - b).toFixed(1) : '') : '') + '</div>' +
+      (nextTxt ? '<div class="sub bmi-next">' + esc(nextTxt) + '</div>' : '') +
       '<div class="bmi-scale" role="img" aria-label="BMI ' + b.toFixed(1) + ', ' + esc(st.name) + '">' + scale + '<b style="left:' + pos + '%"></b></div>' +
       '<div class="bmi-ticks" aria-hidden="true">' + ticks + '</div><div class="bmi-stages">' + list + '</div></div>';
   }

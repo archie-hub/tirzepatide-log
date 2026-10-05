@@ -186,6 +186,13 @@ test('BMI card prompts for height once, then calculates automatically', async ({
   await expect(page.locator('#bmiHeight')).toHaveCount(0);
 });
 
+test('BMI card predicts the next stage down', async ({ page }) => {
+  await importSample(page);
+  await page.fill('#bmiHeight', "5'9\"");
+  await page.press('#bmiHeight', 'Enter');
+  await expect(page.locator('#plan .bmi-next')).toContainText('Next stage: Normal (below 25)');
+});
+
 test('BMI height can be edited from the card', async ({ page }) => {
   await importSample(page);
   await page.fill('#bmiHeight', '175 cm');
