@@ -121,36 +121,18 @@
   .stat.has-ring .sub { padding-right: 54px; }
   .stat svg.spark { position: absolute; right: 12px; bottom: 12px; width: 78px; height: 28px; opacity: .95; }
 
-  /* ---- plan cards: next dose, BMI ---- */
-  .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
-  .card {
-    --c: var(--accent); position: relative; overflow: hidden; padding: 11px 15px; border-radius: 14px;
-    border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow);
-  }
-  @supports (background: color-mix(in srgb, red 10%, blue)) {
-    .card {
-      border-color: color-mix(in srgb, var(--c) 34%, var(--line));
-      background: linear-gradient(145deg, color-mix(in srgb, var(--c) 15%, var(--panel)) 0%, var(--panel) 70%);
-    }
-  }
-  .card.warn { --c: var(--warn); }
-  .card .l { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-  .card .big { font-size: 24px; font-weight: 750; letter-spacing: -0.02em; line-height: 1.2; margin-top: 2px; color: var(--c); }
-  .card .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
-  .card .row { display: flex; gap: 14px; align-items: center; }
-  .card .row > div { min-width: 0; }
-  .card .actions { margin-top: 10px; }
+  /* ---- plan row: current dose, next dose, days covered, BMI (same cards as the stats row) ---- */
+  .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .plan .stat .l { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .plan .stat { container-type: inline-size; }
+  .plan .stat .l { white-space: nowrap; }
+  .plan .stat .v { white-space: nowrap; }
+  .plan .stat .v.day { font-size: clamp(18px, calc((100cqi - 34px) / 5.4), 30px); }
   .linkish { background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
   .linkish:hover { border: 0; color: var(--ink); }
-  .strip { display: flex; gap: 4px; margin-top: 8px; }
-  .strip span { flex: 1; height: 7px; border-radius: 4px; background: var(--line); }
+  .strip { position: absolute; left: 16px; right: 16px; bottom: 6px; display: flex; gap: 3px; }
+  .strip span { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
   .strip span.on { background: var(--c); }
-  .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
-  .mini > div { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 7px; }
-  .mini span { flex-basis: 100%; color: var(--muted); font-size: 12px; }
-  .mini i { color: var(--muted); font-size: 12px; font-style: normal; }
-  .mini b { font-size: 18px; font-weight: 750; letter-spacing: -0.02em; line-height: 1.25; font-variant-numeric: tabular-nums; }
-  .strip-l { display: flex; justify-content: space-between; color: var(--muted); font-size: 11.5px; margin-top: 4px; }
   .ring { width: 86px; height: 86px; flex: none; }
   .ring .ring-t { fill: var(--ink); font-size: 19px; font-weight: 750; }
   .ring .ring-arc { animation: ring 1.1s ease-out both; }
@@ -168,20 +150,16 @@
     #ratePanel .best { display: block; margin: 4px 0 0; }
   }
   /* ---- BMI card ---- */
-  .card.bmi:not(:only-child) { grid-column: auto; }
-  .card.bmi:only-child { grid-column: 1 / -1; }
-  .bmi-ask { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
-  .bmi-ask input { width: 170px; font: inherit; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
-  .bmi-err { color: var(--bad); font-size: 13px; margin-top: 6px; min-height: 0; }
-  .bmi-next { color: var(--ink); font-weight: 600; }
-  .bmi-body { display: flex; justify-content: center; margin-top: 4px; }
-  .bmi-ring { position: relative; width: 124px; height: 124px; }
+  .stat.bmi { overflow: visible; }
+  .bmi-ask input { width: 100%; font: inherit; font-size: 14px; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 8px; margin-top: 3px; }
+  .bmi-err { color: var(--bad); font-size: 12px; margin-top: 2px; }
+  .bmi-ring { position: absolute; right: 9px; bottom: 9px; width: 66px; height: 66px; }
   .bmi-ring svg { display: block; width: 100%; height: 100%; }
-  .bmi-c { position: absolute; inset: 20px; border-radius: 50%; cursor: help; outline: none; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding-bottom: 4px; }
+  .bmi-c { cursor: help; outline: none; display: inline-block; border-radius: 6px; }
   .bmi-c:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
-  .bmi-c .big { font-size: 26px; margin: 0; line-height: 1.1; }
-  .bmi-c .tag { font-size: 11.5px; font-weight: 700; color: var(--c); max-width: 76px; line-height: 1.2; }
-  .card.bmi { overflow: visible; }
+  .bmi-seg { cursor: pointer; transition: stroke-width .12s; outline: none; }
+  .bmi-seg:hover, .bmi-seg:focus-visible { stroke-width: 15; }
+  .bmi-seg:not(.cur) { opacity: .85; }
   .bmi-bubble {
     position: absolute; left: 50%; bottom: calc(100% - 6px); z-index: 5; width: max-content; max-width: 250px; pointer-events: none;
     background: var(--ink); color: var(--panel); padding: 6px 10px; border-radius: 10px; font-size: 12.5px; line-height: 1.4;
@@ -194,8 +172,6 @@
   .bmi-bubble dt { opacity: .65; }
   .bmi-bubble dd { margin: 0; }
   .bmi-bubble .k dd { font-weight: 700; }
-  .plan:has(.card.bmi-ring-card) { grid-template-columns: 1fr 232px; }
-  @media (max-width: 600px) { .plan:has(.card.bmi-ring-card) { grid-template-columns: 1fr; } }
   .bmi-bubble > b, .bmi-bubble > span { display: block; }
   .bmi-bubble::after { content: ""; position: absolute; top: 100%; left: calc(50% + var(--dx, 0px) - var(--sx, 0px)); margin-left: -6px; border: 6px solid transparent; border-top-color: var(--ink); }
   .bmi-seg { cursor: pointer; transition: stroke-width .12s; outline: none; }
@@ -950,21 +926,21 @@
 
   function renderPlan() {
     var cards = [], d = doseInfo(), allE = sorted();
+    function card(c, label, link, val, sub, extra) {
+      return '<div class="stat" style="--c:' + c + '"><div class="l"><span>' + esc(label) + '</span>' + (link || '') + '</div>' +
+        '<div class="v' + (label === 'Next dose' ? ' day' : '') + '">' + esc(val) + '</div>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + (extra || '') + '</div>';
+    }
     if (d) {
       var when = d.diff === 0 ? 'Today' : d.diff === 1 ? 'Tomorrow' : DAY_NAMES[d.dow];
       var filled = d.diff === 0 ? 7 : 7 - d.diff, strip = '';
       for (var i = 0; i < 7; i++) strip += '<span' + (i < filled ? ' class="on"' : '') + '></span>';
-      var stale = dayDiff(d.lastEntry, today()) > 14;
-      cards.push('<div class="card" style="--c:' + doseColor(d.dose) + '">' +
-        '<div class="l"><span>Next dose</span><button type="button" class="linkish" data-settings>Change day</button></div>' +
-        '<div class="big">' + esc(when) + '</div>' +
-        '<div class="sub">' + (d.diff > 1 ? 'In ' + d.diff + ' days, ' : '') + esc(fmtDate(d.next)) + ' \u00b7 week ' + d.week + ' at ' + d.dose + ' mg</div>' +
-        '<div class="strip" aria-hidden="true">' + strip + '</div>' +
-        '<div class="strip-l"><span>Last dose</span><span>Next</span></div>' +
-        '<div class="mini"><div><span>Current dose</span><b style="color:' + doseColor(d.dose) + '">' + d.dose + ' mg</b><i>since ' + esc(fmtDate(d.since)) + '</i></div>' +
-        '<div><span>Days covered</span><b>' + (dayDiff(allE[0].date, d.lastEntry) + 1) + '</b><i>' + allE.length + ' entries logged</i></div></div>' +
-        (stale ? '<div class="sub">Last entry ' + esc(fmtDate(d.lastEntry)) + '. Add today\'s entry to keep this current.</div>' : '') +
-        '</div>');
+      var stale = dayDiff(d.lastEntry, today()) > 14, dc = doseColor(d.dose);
+      var sameYr = d.since.slice(0, 4) === today().slice(0, 4);
+      cards.push(card(dc, 'Current dose', '', d.dose + ' mg', 'Week ' + d.week + ' since ' + (sameYr ? shortDate(d.since, false) : fmtDate(d.since))));
+      cards.push(card(dc, 'Next dose', '<button type="button" class="linkish" data-settings aria-label="Change injection day">Change</button>', when,
+        stale ? 'Last entry ' + fmtDate(d.lastEntry) + '. Add today\'s.' : (d.diff > 1 ? 'In ' + d.diff + ' days · ' : '') + fmtDate(d.next),
+        stale ? '' : '<div class="strip" role="img" aria-label="' + (d.diff === 0 ? 'Dose day is today' : d.diff + ' days until the next dose') + '">' + strip + '</div>'));
+      cards.push(card('#64748b', 'Days covered', '', String(dayDiff(allE[0].date, d.lastEntry) + 1), allE.length + ' entries logged'));
     }
 
     var w = sorted().filter(function (e) { return e.weight !== null; });
@@ -1486,12 +1462,15 @@
         tip.innerHTML = '<b style="color:' + seg.dataset.c + '">' + esc(seg.dataset.name) + '</b><span>' + esc(seg.dataset.desc) + '</span>';
         var sr = seg.getBoundingClientRect();
         tip.style.setProperty('--dx', Math.round(sr.left + sr.width / 2 - (r.left + r.width / 2)) + 'px');
-      } else { tip.innerHTML = mid.dataset.facts; tip.style.setProperty('--dx', '0px'); }
+      } else {
+        tip.innerHTML = mid.dataset.facts;
+        var mr = mid.getBoundingClientRect();
+        tip.style.setProperty('--dx', Math.round(mr.left + mr.width / 2 - (r.left + r.width / 2)) + 'px');
+      }
       tip.classList.toggle('wide', !!mid);
       // Keep the bubble inside the window; the pointer keeps aiming at the same spot
-      tip.style.setProperty('--sx', '0px');
-      var tr = tip.getBoundingClientRect(), vw = document.documentElement.clientWidth, sx = 0;
-      if (tr.right > vw - 8) sx = vw - 8 - tr.right; else if (tr.left < 8) sx = 8 - tr.left;
+      var vw = document.documentElement.clientWidth, sx = 0, half = tip.offsetWidth / 2, mid0 = r.left + r.width / 2;   // from the layout, not the animating transform
+      if (mid0 + half > vw - 8) sx = vw - 8 - (mid0 + half); else if (mid0 - half < 8) sx = 8 - (mid0 - half);
       tip.style.setProperty('--sx', Math.round(sx) + 'px');
     }
     tip.classList.toggle('on', on);
@@ -1501,10 +1480,9 @@
   function bmiCard(w) {
     var h = settings.heightIn;
     if (!h) {
-      return '<div class="card bmi" style="--c:#0ea5a4"><div class="l"><span>BMI</span></div>' +
-        '<div class="big">Not set</div><div class="sub">Enter your height once and your BMI is worked out from every weigh-in.</div>' +
+      return '<div class="stat bmi" style="--c:#0ea5a4"><div class="l"><span>BMI</span></div>' +
         '<form class="bmi-ask" id="bmiAsk" autocomplete="off"><input id="bmiHeight" type="text" inputmode="text" aria-label="Height" placeholder="Height, e.g. 5\'9&quot;"></form>' +
-        '<div class="bmi-err" id="bmiErr" role="alert"></div></div>';
+        '<div class="sub">Not set. Enter your height once.</div><div class="bmi-err" id="bmiErr" role="alert"></div></div>';
     }
     var last = w[w.length - 1], first = w[0];
     var b = bmiOf(last.weight, h), st = bmiStage(b), b0 = bmiOf(first.weight, h), st0 = bmiStage(b0);
@@ -1531,10 +1509,11 @@
     }
     var facts = '<dl>' + rows.map(function (r) { return '<div' + (r[2] ? ' class="k"' : '') + '><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl>';
     var speak = 'BMI ' + b.toFixed(1) + ', ' + st.name + '. ' + rows.map(function (r) { return r[0] + ': ' + r[1]; }).join('. ');
-    return '<div class="card bmi bmi-ring-card" style="--c:' + st.color + '"><div class="l"><span>BMI at ' + esc(fmtHeight(h)) + '</span>' +
+    return '<div class="stat bmi" style="--c:' + st.color + '"><div class="l"><span>BMI at ' + esc(fmtHeight(h)) + '</span>' +
       '<button type="button" class="linkish" data-settings="height">Edit</button></div>' +
-      '<div class="bmi-body"><div class="bmi-ring">' + ring + '<div class="bmi-bubble" id="bmiBubble" aria-hidden="true"></div>' +
-      '<div class="bmi-c" tabindex="0" role="img" aria-label="' + esc(speak) + '" data-facts="' + esc(facts) + '"><div class="big">' + b.toFixed(1) + '</div><div class="tag">' + esc(st.name) + '</div></div></div></div></div>';
+      '<div class="v"><span class="bmi-c" tabindex="0" role="img" aria-label="' + esc(speak) + '" data-facts="' + esc(facts) + '">' + b.toFixed(1) + '</span></div>' +
+      '<div class="sub">' + esc(st.name) + '</div>' +
+      '<div class="bmi-ring">' + ring + '<div class="bmi-bubble" id="bmiBubble" aria-hidden="true"></div></div></div>';
   }
   function saveBmiHeight() {
     var inp = $('bmiHeight'); if (!inp) return;

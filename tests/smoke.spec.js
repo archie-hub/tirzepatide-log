@@ -225,13 +225,13 @@ test('print report builds print-safe markup without crashing', async ({ page }) 
 
 test('BMI card prompts for height once, then calculates automatically', async ({ page }) => {
   await importSample(page);
-  const card = page.locator('#plan .card.bmi');
+  const card = page.locator('#plan .stat.bmi');
   await expect(card).toContainText('Not set');
 
   await page.fill('#bmiHeight', "5'9\"");
   await page.press('#bmiHeight', 'Enter');
   await expect(page.locator('#bmiHeight')).toHaveCount(0);
-  const bmi = parseFloat(await card.locator('.big').innerText());
+  const bmi = parseFloat(await card.locator('.v').innerText());
   expect(bmi).toBeGreaterThan(15);
   expect(bmi).toBeLessThan(60);
   await expect(card.locator('.bmi-seg')).toHaveCount(6);
@@ -254,7 +254,7 @@ test('BMI card prompts for height once, then calculates automatically', async ({
   await expect(card.locator('#bmiBubble')).not.toHaveClass(/on/);
 
   await page.reload();
-  await expect(page.locator('#plan .card.bmi .big')).toContainText(String(bmi.toFixed(1)));
+  await expect(page.locator('#plan .stat.bmi .v')).toContainText(String(bmi.toFixed(1)));
   await expect(page.locator('#bmiHeight')).toHaveCount(0);
 });
 
@@ -274,7 +274,7 @@ test('BMI height can be edited from the card', async ({ page }) => {
   await importSample(page);
   await page.fill('#bmiHeight', '175 cm');
   await page.press('#bmiHeight', 'Enter');
-  await page.locator('#plan .card.bmi [data-settings]').click();
+  await page.locator('#plan .stat.bmi [data-settings]').click();
   await expect(page.locator('#sHeight')).toHaveValue("5'8.9\"");
 });
 
