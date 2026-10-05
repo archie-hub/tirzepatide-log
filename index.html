@@ -140,16 +140,22 @@
   .plan .stat .l { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .plan .stat { container-type: inline-size; }
   .plan .stat .l { white-space: nowrap; }
-  .stack { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; min-width: 0; }
+  .linkish { background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+  .linkish:hover { border: 0; color: var(--ink); }
+  .stack-box { container-type: inline-size; min-width: 0; }
+  .plan .stat.mini { container-type: normal; }   /* the tiles answer to the slot's width, not their own */
+  .stack { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; height: 100%; }
   .stat.mini { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 14px; min-height: 0; }
   .stat.mini .l { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .stat.mini .v { font-size: 21px; margin: 0; }
-  .stat.mini .note-i { color: var(--muted); font-size: 12.5px; }
-  @container (max-width: 200px) { .stat.mini .note-i { display: none; } }
-  .plan .stat .v { white-space: nowrap; }
-  .plan .stat .v.day { font-size: clamp(18px, calc((100cqi - 34px) / 5.4), 30px); }
-  .linkish { background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
-  .linkish:hover { border: 0; color: var(--ink); }
+  .stat.mini .sub { display: none; }
+  /* room for two near-square tiles side by side */
+  @container (min-width: 220px) {
+    .stack { grid-template-rows: none; grid-template-columns: 1fr 1fr; }
+    .stat.mini { display: block; padding: 14px 14px 13px; }
+    .stat.mini .v { font-size: 24px; margin-top: 2px; }
+    .stat.mini .sub { display: block; }
+  }
   .strip { position: absolute; left: 16px; right: 16px; bottom: 6px; display: flex; gap: 3px; }
   .strip span { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
   .strip span.on { background: var(--c); }
@@ -956,9 +962,9 @@
 
   function renderPlan() {
     var cards = [], d = doseInfo(), allE = sorted(), days = '', bpMini = '';
-    // Half-height panel: label (with a short note when there is room) on the left, value on the right
+    // Small panel: a compact strip in narrow cells, a near-square tile (label, value, note) when there is room
     function mini(c, label, note, val, tip) {
-      return '<div class="stat mini" style="--c:' + c + '"' + (tip ? ' title="' + esc(tip) + '"' : '') + '><div class="l"><span>' + esc(label) + '</span><span class="note-i"> \u00b7 ' + esc(note) + '</span></div><div class="v">' + esc(val) + '</div></div>';
+      return '<div class="stat mini" style="--c:' + c + '"' + (tip ? ' title="' + esc(tip) + '"' : '') + '><div class="l"><span>' + esc(label) + '</span></div><div class="v">' + esc(val) + '</div><div class="sub">' + esc(note) + '</div></div>';
     }
     function card(c, label, link, val, sub, extra) {
       return '<div class="stat" style="--c:' + c + '"><div class="l"><span>' + esc(label) + '</span>' + (link || '') + '</div>' +
@@ -981,7 +987,7 @@
       var bz = bpZone(lb.sys, lb.dia);
       bpMini = mini(bz.color, 'Latest BP', bz.short || bz.label, bpText(lb), shortDate(lb.date, false) + ', ' + bz.label);
     }
-    if (days && bpMini) cards.push('<div class="stack">' + days + bpMini + '</div>');   // two half-height panels share one slot
+    if (days && bpMini) cards.push('<div class="stack-box"><div class="stack">' + days + bpMini + '</div></div>');   // two small panels share one slot
     else if (days || bpMini) cards.push(days || bpMini);
 
     var w = sorted().filter(function (e) { return e.weight !== null; });

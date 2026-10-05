@@ -579,20 +579,27 @@ test('Entries and Add entry panels start minimised and expand on click', async (
   await expect(page.locator('#fDate')).toBeVisible();
 });
 
-test('plan row: Days covered and Latest BP share one slot as half-height panels', async ({ page }) => {
+test('plan row: Days covered and Latest BP are near-square tiles side by side, compact strips on a phone', async ({ page }) => {
   await importSample(page);
   const stack = page.locator('#plan .stack');
-  await expect(stack.locator('.stat.mini')).toHaveCount(2);
-  await expect(stack.locator('.stat.mini').nth(0)).toContainText('Days covered');
-  await expect(stack.locator('.stat.mini').nth(1)).toContainText('Latest BP');
-  await expect(stack.locator('.stat.mini').nth(1).locator('.v')).toHaveText(/^\d+\/\d+$/);
-  const [stat, mini, plan] = await Promise.all([
-    page.locator('#stats .stat').first().boundingBox(),
-    stack.locator('.stat.mini').first().boundingBox(),
-    page.locator('#plan .stat').first().boundingBox(),
-  ]);
-  expect(Math.round(plan.height)).toBe(Math.round(stat.height));   // row is as tall as the stats row
-  expect(mini.height).toBeLessThan(stat.height / 2);
+  const minis = stack.locator('.stat.mini');
+  await expect(minis).toHaveCount(2);
+  await expect(minis.nth(0)).toContainText('Days covered');
+  await expect(minis.nth(1)).toContainText('Latest BP');
+  await expect(minis.nth(1).locator('.v')).toHaveText(/^\d+\/\d+$/);
+  await expect(minis.nth(1).locator('.sub')).toBeVisible();
+
+  const [stat, a, b] = await Promise.all([page.locator('#stats .stat').first().boundingBox(), minis.nth(0).boundingBox(), minis.nth(1).boundingBox()]);
+  expect(Math.round(a.height)).toBe(Math.round(stat.height));   // as tall as the stats row
+  expect(Math.abs(a.y - b.y)).toBeLessThan(1);                  // side by side
+  expect(a.width / a.height).toBeGreaterThan(0.9);
+  expect(a.width / a.height).toBeLessThan(1.4);
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  const [c, d] = await Promise.all([minis.nth(0).boundingBox(), minis.nth(1).boundingBox()]);
+  expect(d.y).toBeGreaterThan(c.y + c.height - 1);              // stacked
+  expect(c.height).toBeLessThan(stat.height / 2);
+  await expect(minis.nth(1).locator('.sub')).toBeHidden();
 });
 
 test('plan row: without any BP readings Days covered keeps its full panel', async ({ page }) => {
