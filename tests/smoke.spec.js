@@ -242,14 +242,16 @@ test('BMI card prompts for height once, then calculates automatically', async ({
     return { x: p.x * m.a + p.y * m.c + m.e, y: p.x * m.b + p.y * m.d + m.f };
   });
   await page.mouse.move(pt.x, pt.y);
-  await expect(card.locator('#bmiDetail')).toContainText('Underweight');
+  await expect(card.locator('#bmiBubble')).toHaveClass(/on/);
+  await expect(card.locator('#bmiBubble')).toContainText('Underweight');
   await page.mouse.move(0, 0);
-  await expect(card.locator('#bmiDetail')).not.toContainText('Underweight');
+  await expect(card.locator('#bmiBubble')).not.toHaveClass(/on/);
   await card.locator('.bmi-seg').first().focus();
-  await expect(card.locator('#bmiDetail')).toContainText('Underweight');
-  await expect(card.locator('#bmiDetail')).toContainText(' lbs');
+  await expect(card.locator('#bmiBubble')).toHaveClass(/on/);
+  await expect(card.locator('#bmiBubble')).toContainText('Underweight');
+  await expect(card.locator('#bmiBubble')).toContainText(' lbs');
   await card.locator('.bmi-seg').first().blur();
-  await expect(card.locator('#bmiDetail')).not.toContainText('Underweight');
+  await expect(card.locator('#bmiBubble')).not.toHaveClass(/on/);
 
   await page.reload();
   await expect(page.locator('#plan .card.bmi .big')).toContainText(String(bmi.toFixed(1)));
@@ -388,7 +390,7 @@ test('metric units: kg and cm everywhere, storage and export stay in lbs', async
   await expect(page.locator('#stats .stat .l').first()).toContainText('(kg)');
   await expect(page.locator('#plan .bmi .l')).toContainText('175 cm');
   await expect(page.locator('#fWeight').locator('xpath=..')).toContainText('(kg)');
-  await expect(page.locator('#plan #bmiDetail')).toContainText('kg');
+  await expect(page.locator('#plan .bmi-seg').first()).toHaveAttribute('aria-label', /kg/);
   await page.waitForTimeout(1100);   // count-up animation
   const kg = parseFloat(await page.locator('#stats .stat').first().locator('.v').innerText());
   expect(Math.abs(kg - lbs * 0.45359237)).toBeLessThan(0.15);
