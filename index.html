@@ -87,11 +87,6 @@
   .hero button.primary:hover { background: #eef6ff; }
   .hero button.danger { color: #fff; }
 
-  .progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; }
-  .progress .wk { font-weight: 750; margin-right: 4px; }
-  .progress .chip.next { border-style: dashed; background: transparent; }
-  .progress .prog-body { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-  .progress .muted { color: var(--muted); font-size: 13px; }
   .ins-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
   .ins { border: 1px solid var(--line); border-left: 4px solid var(--c, var(--accent)); border-radius: 10px; padding: 8px 12px; }
   .ins .l { color: var(--muted); font-size: 12.5px; }
@@ -388,7 +383,7 @@
 <main>
   <header class="hero">
     <div>
-      <h1>Tirzepatide log</h1>
+      <h1>Tirzepatide log - work in progress</h1>
       <div class="hero-meta"><div class="sub" id="subtitle"></div><div class="sub backup" id="backupNote" hidden></div></div>
     </div>
   </header>
@@ -439,8 +434,6 @@
     <div id="chart" role="tabpanel" aria-labelledby="tab-weight"></div>
     <div class="legend" id="legend"></div>
   </section>
-
-  <section class="panel progress" id="progress" aria-label="Progress milestones" hidden></section>
 
   <details class="panel fold" id="insightsPanel" hidden>
     <summary><h2>More insights</h2><span class="fold-hint"></span></summary>
@@ -1107,30 +1100,6 @@
     return v.length ? { first: v[0], last: v[v.length - 1], n: v.length } : null;
   }
   function whtr(inches) { return settings.heightIn ? inches / settings.heightIn : null; }
-  function bodyChips(list) {
-    var out = [], wa = firstLast(list, 'waist'), fa = firstLast(list, 'fat'), mu = firstLast(list, 'muscle');
-    function chip(c, t, tip) { out.push('<span class="chip" style="--c:' + c + '"' + (tip ? ' title="' + esc(tip) + '"' : '') + '>' + esc(t) + '</span>'); }
-    if (wa) {
-      chip('#c026d3', 'Waist ' + (wa.n > 1 ? flen(wa.first.waist) + ' \u2192 ' : '') + flen(wa.last.waist) + ' ' + LU(), 'Latest reading ' + fmtDate(wa.last.date));
-      var r = whtr(wa.last.waist); if (r !== null) chip(r < 0.5 ? '#16a34a' : '#d97706', 'Waist-to-height ' + r.toFixed(2), 'Waist divided by height. Under 0.5 is the commonly used reference.');
-    }
-    if (fa) chip('#65a30d', 'Body fat ' + (fa.n > 1 ? fa.first.fat + ' \u2192 ' : '') + fa.last.fat + '%', 'Latest reading ' + fmtDate(fa.last.date));
-    if (mu) chip('#b45309', 'Muscle ' + (mu.n > 1 ? fw(mu.first.muscle) + ' \u2192 ' : '') + fw(mu.last.muscle) + ' ' + WU(), 'Latest reading ' + fmtDate(mu.last.date));
-    return out.join('');
-  }
-  function renderProgress() {
-    var el = $('progress'), pi = progressInfo(sorted()), w = sorted().filter(function (e) { return e.weight !== null; });
-    var body = bodyChips(sorted());
-    el.hidden = !pi || (w.length < 2 && !pi.hasBase && !body);
-    if (el.hidden) return;
-    var firstOpen = true, chips = pi.ms.filter(function (m) { if (m.hit) return true; if (firstOpen) { firstOpen = false; return true; } return false; }).map(function (m) {
-      return m.hit ? '<span class="chip" style="--c:#16a34a" title="First weigh-in at or below ' + esc(fwu(m.target)) + ' on ' + esc(fmtDate(m.hit.date)) + '">' + m.pct + '% \u00b7 week ' + m.hit.week + '</span>'
-        : '<span class="chip next" style="--c:#64748b">' + m.pct + '% \u00b7 ' + esc(fw(m.toGo)) + ' ' + WU() + ' to go</span>';
-    }).join('');
-    var main = (w.length < 2 && !pi.hasBase) ? '' : '<span class="wk">Week ' + pi.week + ' on treatment</span>' + chips +
-      (pi.w12 ? '<span class="muted">Lost at week 12: ' + pctText(pi.w12.pct) + '</span>' : '');
-    el.innerHTML = main + (body ? '<div class="prog-body"><span class="muted">Body</span>' + body + '</div>' : '');
-  }
   function renderPlateau() {
     var pl = plateauInfo(sorted().filter(function (e) { return e.weight !== null; })), el = $('plateau');
     el.hidden = !pl;
@@ -1893,8 +1862,8 @@
     $('ratePanel').hidden = empty;
     $('entriesPanel').hidden = empty;
     renderHero();
-    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderProgress(); renderInsights(); }
-    else { $('plateau').hidden = true; $('fastNote').hidden = true; $('progress').hidden = true; $('insightsPanel').hidden = true; }
+    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderInsights(); }
+    else { $('plateau').hidden = true; $('fastNote').hidden = true; $('insightsPanel').hidden = true; }
   }
 
   /* ---------- form ---------- */

@@ -625,18 +625,12 @@ async function pasteProgress(page) {
   await expect(page.locator('#importDlg')).toBeHidden();
 }
 
-test('progress: percent lost, week on treatment and milestones on the dashboard', async ({ page }) => {
+test('progress: percent lost and the week on treatment on the Change card', async ({ page }) => {
   await pasteProgress(page);
   const card = page.locator('#stats .stat', { hasText: 'Change since' });
   await expect(card).toContainText('12.5% lost');            // 200 -> 175
   await expect(card).toContainText('week 14');               // day 92 -> week 14
-
-  const panel = page.locator('#progress');
-  await expect(panel).toBeVisible();
-  await expect(panel).toContainText('Week 14 on treatment');
-  const chips = await panel.locator('.chip').allInnerTexts();
-  expect(chips).toEqual(['5% · week 5', '10% · week 9', '15% · 5.0 lbs to go']);   // 15% target is 170 lbs
-  await expect(panel).toContainText('Lost at week 12: 11.0%');
+  await expect(page.locator('#progress')).toHaveCount(0);    // there is no separate progress panel
 });
 
 test('progress: a start weight before treatment changes the percentages and milestones', async ({ page }) => {
@@ -645,9 +639,13 @@ test('progress: a start weight before treatment changes the percentages and mile
   await page.fill('#sBaseline', '210');
   await page.locator('#setSave').click();
   await expect(page.locator('#stats .stat', { hasText: 'Change since' })).toContainText('16.7% lost from start');   // 210 -> 175
-  const chips = await page.locator('#progress .chip').allInnerTexts();
+  await page.locator('#openReport').click();
   // 5% <= 199.5 first on 07-15 (day 14, week 3); 10% <= 189 on 09-01 (day 62, week 9); 15% <= 178.5 on 09-22 (day 83, week 12); next is 20%
-  expect(chips).toEqual(['5% · week 3', '10% · week 9', '15% · week 12', '20% · 7.0 lbs to go']);
+  const ms = page.locator('#reportPreview .rep-box', { hasText: 'Milestones' });
+  await expect(ms).toContainText('5% in week 3');
+  await expect(ms).toContainText('10% in week 9');
+  await expect(ms).toContainText('15% in week 12');
+  await expect(ms).toContainText('next, 20%: 7.0 lbs to go');
 });
 
 test('progress: the doctor report carries percent lost, weeks, milestones and the week 12 value', async ({ page }) => {
@@ -657,16 +655,8 @@ test('progress: the doctor report carries percent lost, weeks, milestones and th
   await expect(boxes.filter({ hasText: 'Weight lost' })).toContainText('12.5%');
   await expect(boxes.filter({ hasText: 'Weeks on treatment' })).toContainText('Week 14');
   await expect(boxes.filter({ hasText: 'Milestones' })).toContainText('5% in week 5');
+  await expect(boxes.filter({ hasText: 'Milestones' })).toContainText('next, 15%: 5.0 lbs to go');   // 15% target is 170 lbs
   await expect(boxes.filter({ hasText: 'Lost at week 12' })).toContainText('11.0%');
-});
-
-test('progress: panel is hidden until there are two weigh-ins', async ({ page }) => {
-  await page.locator('#emptyImport').click();
-  await page.locator('#importDlg summary').click();
-  await page.locator('#pasteBox').fill('Date,Weight (lbs)\n2026-10-01,200');
-  await page.locator('#pasteBtn').click();
-  await page.locator('#doImport').click();
-  await expect(page.locator('#progress')).toBeHidden();
 });
 
 // 57 daily weigh-ins from 2026-08-01, losing exactly 0.5 lb/day (3.5 lb/week) from 200 lbs: 200.0 -> 172.0.
@@ -769,16 +759,10 @@ test('insights are in the doctor report: pace, extremes, best week, consistency,
 
 const BODY_CSV = 'Date,Dosage (mg),Weight (lbs),Waist (in),Body Fat (%),Muscle Mass (lbs)\n2026-09-01,5,200,40,36.0,98\n2026-09-15,5,196,38.5,35.2,97.5\n2026-10-01,5,190,37,34.1,96';
 
-test('body measures: import, dashboard chips with waist-to-height, table, chart and combined series', async ({ page }) => {
+test('body measures: import, table, waist chart with the half-height line and combined series', async ({ page }) => {
   await pasteCsv(page, BODY_CSV);
   await page.fill('#bmiHeight', "5'10\"");          // 70 in
   await page.press('#bmiHeight', 'Enter');
-  const prog = page.locator('#progress');
-  await expect(prog.locator('.chip', { hasText: 'Waist 40.0' })).toContainText('Waist 40.0 → 37.0 in');
-  await expect(prog.locator('.chip', { hasText: 'Waist-to-height' })).toContainText('0.53');   // 37 / 70
-  await expect(prog.locator('.chip', { hasText: 'Body fat' })).toContainText('Body fat 36 → 34.1%');
-  await expect(prog.locator('.chip', { hasText: 'Muscle' })).toContainText('Muscle 98.0 → 96.0 lbs');
-
   await expandPanels(page);
   await expect(page.locator('#rows tr').first().locator('td').nth(9)).toContainText('37.0'.replace('.0', ''));
   await page.locator('#tab-waist').click();
@@ -805,7 +789,7 @@ test('body measures: form round-trip, exact values kept on edit, metric shows cm
   await page.locator('#stats [data-settings], #plan [data-settings]').first().click();
   await page.selectOption('#sUnits', 'metric');
   await page.locator('#setSave').click();
-  await expect(page.locator('#progress')).toContainText('cm');
+  await expect(page.locator('#rows tr').first()).toContainText('92.7');   // waist now shown in cm
   await page.locator('[data-edit="2026-10-01"]').click();
   await expect(page.locator('#fWaist')).toHaveValue('92.7');       // 36.5 in
   await page.locator('#saveBtn').click();
@@ -832,7 +816,6 @@ test('body measures: doctor report boxes, text and waist chart', async ({ page }
 
 test('body measures: files without them still import, and nothing extra shows', async ({ page }) => {
   await pasteBp(page);
-  await expect(page.locator('#progress .prog-body')).toHaveCount(0);
   await expect(page.locator('#tab-waist')).toBeVisible();   // tab exists; empty state explains
   await page.locator('#tab-waist').click();
   await expect(page.locator('#chart')).toContainText('No Waist');
