@@ -234,8 +234,13 @@ test('BMI card prompts for height once, then calculates automatically', async ({
   const bmi = parseFloat(await card.locator('.big').innerText());
   expect(bmi).toBeGreaterThan(15);
   expect(bmi).toBeLessThan(60);
-  await expect(card.locator('.bmi-stages div')).toHaveCount(6);
-  await expect(card.locator('.bmi-stages div.cur')).toHaveCount(1);
+  await expect(card.locator('.bmi-seg')).toHaveCount(6);
+  await expect(card.locator('.bmi-seg.cur')).toHaveCount(1);
+  await card.locator('.bmi-seg').first().focus();
+  await expect(card.locator('#bmiDetail')).toContainText('Underweight');
+  await expect(card.locator('#bmiDetail')).toContainText(' lbs');
+  await card.locator('.bmi-seg').first().blur();
+  await expect(card.locator('#bmiDetail')).not.toContainText('Underweight');
 
   await page.reload();
   await expect(page.locator('#plan .card.bmi .big')).toContainText(String(bmi.toFixed(1)));
@@ -374,7 +379,7 @@ test('metric units: kg and cm everywhere, storage and export stay in lbs', async
   await expect(page.locator('#stats .stat .l').first()).toContainText('(kg)');
   await expect(page.locator('#plan .bmi .l')).toContainText('175 cm');
   await expect(page.locator('#fWeight').locator('xpath=..')).toContainText('(kg)');
-  await expect(page.locator('#plan .bmi-stages')).toContainText('kg');
+  await expect(page.locator('#plan #bmiDetail')).toContainText('kg');
   await page.waitForTimeout(1100);   // count-up animation
   const kg = parseFloat(await page.locator('#stats .stat').first().locator('.v').innerText());
   expect(Math.abs(kg - lbs * 0.45359237)).toBeLessThan(0.15);

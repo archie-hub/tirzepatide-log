@@ -182,7 +182,10 @@
   .bmi-c .tag { font-size: 11.5px; font-weight: 700; color: var(--c); max-width: 76px; line-height: 1.2; }
   .bmi-info { display: contents; }
   .bmi-txt .sub:first-child { margin-top: 0; }
-  .bmi-info .bmi-stages { margin-top: 4px; align-self: start; }
+  .bmi-info .bmi-stages { margin-top: 4px; align-self: start; display: block; min-height: 40px; }
+  .bmi-seg { cursor: pointer; transition: stroke-width .12s; outline: none; }
+  .bmi-seg:hover, .bmi-seg:focus-visible { stroke-width: 15; }
+  .bmi-seg:not(.cur) { opacity: .85; }
   @media (max-width: 560px) {
     .bmi-body { gap: 4px 12px; }
     .bmi-ring { width: 96px; height: 96px; grid-row: auto; }
@@ -1467,6 +1470,15 @@
     if (n.normal) return 'You are in the normal range.';
     return 'Next stage: ' + n.tgt.name + ' (below ' + n.below + ') at ' + (isMetric() ? Math.floor(dw(n.tw) * 10) / 10 : n.tw).toFixed(1) + ' ' + WU() + ', ' + fw(n.toGo) + ' to go. ' + n.proj;
   }
+  function detailHtml(name, desc, color) { return '<div class="cur" style="--c:' + color + '">' + esc(name) + '<span>' + esc(desc) + '</span></div>'; }
+  // Hovering, focusing or tapping a colour on the ring describes that stage; leaving it goes back to the current one
+  function bmiDetail(ev, on) {
+    var seg = ev.target.closest && ev.target.closest('.bmi-seg'), box = $('bmiDetail');
+    if (!box || !seg) return;
+    box.innerHTML = on ? detailHtml(seg.dataset.name, seg.dataset.desc, seg.dataset.c) : box.dataset.cur;
+  }
+  ['mouseover', 'focusin', 'click'].forEach(function (t) { $('plan').addEventListener(t, function (ev) { bmiDetail(ev, true); }); });
+  ['mouseout', 'focusout'].forEach(function (t) { $('plan').addEventListener(t, function (ev) { bmiDetail(ev, false); }); });
   function bmiCard(w) {
     var h = settings.heightIn;
     if (!h) {
@@ -1483,9 +1495,11 @@
     function ang(v) { return A0 + (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo) * SWEEP; }
     BMI_STAGES.forEach(function (g) {
       var a0 = ang(g.min) + (g.min > lo ? 0.8 : 0), a1 = ang(g.max === null ? hi : g.max) - (g.max === null ? 0 : 0.8);
-      arcs += '<path d="M' + pt(a0, RR) + 'A' + RR + ' ' + RR + ' 0 ' + (a1 - a0 > 180 ? 1 : 0) + ' 1 ' + pt(a1, RR) + '" fill="none" stroke="' + g.color + '" stroke-width="11" stroke-linecap="butt"><title>' + esc(g.name) + '</title></path>';
       var wt = g.min === 0 ? '<' + lbsAt(18.5, h) + ' ' + WU() : g.max === null ? lbsAt(40, h) + '+ ' + WU() : lbsAt(g.min, h) + ' – ' + lbsAt(g.max - 0.1, h) + ' ' + WU();
-      list += '<div' + (g === st ? ' class="cur"' : '') + ' style="--c:' + g.color + '">' + esc(g.name) + '<span>' + bmiRange(g) + ' · ' + wt + '</span></div>';
+      var desc = 'BMI ' + bmiRange(g) + ' · ' + wt;
+      arcs += '<path class="bmi-seg' + (g === st ? ' cur' : '') + '" tabindex="0" role="img" aria-label="' + esc(g.name + ', ' + desc) + '" data-name="' + esc(g.name) + '" data-desc="' + esc(desc) + '" data-c="' + g.color +
+        '" d="M' + pt(a0, RR) + 'A' + RR + ' ' + RR + ' 0 ' + (a1 - a0 > 180 ? 1 : 0) + ' 1 ' + pt(a1, RR) + '" fill="none" stroke="' + g.color + '" stroke-width="11" stroke-linecap="butt"/>';
+      if (g === st) list = detailHtml(g.name, desc, g.color);
     });
     var mk = pt(ang(b), RR).split(' ');
     var ring = '<svg viewBox="0 0 124 124" aria-hidden="true">' + arcs +
@@ -1497,7 +1511,7 @@
       '<div class="bmi-info"><div class="bmi-txt"><div class="sub">' + parseFloat(fw(last.weight)) + ' ' + WU() + ' on ' + esc(fmtDate(last.date)) +
       (w.length > 1 ? '. Started at ' + b0.toFixed(1) + ' (' + esc(st0.name) + ')' + (Math.abs(b0 - b) >= 0.05 ? ', ' + (b < b0 ? 'down ' : 'up ') + Math.abs(b0 - b).toFixed(1) : '') : '') + '</div>' +
       (nextTxt ? '<div class="sub bmi-next">' + esc(nextTxt) + '</div>' : '') + '</div>' +
-      '<div class="bmi-stages">' + list + '</div></div></div></div>';
+      '<div class="bmi-stages" id="bmiDetail" data-cur="' + esc(list) + '" aria-live="polite">' + list + '</div></div></div></div>';
   }
   function saveBmiHeight() {
     var inp = $('bmiHeight'); if (!inp) return;
