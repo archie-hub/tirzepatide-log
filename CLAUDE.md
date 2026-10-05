@@ -8,6 +8,7 @@ Single-file web app (`index.html`): HTML, CSS and vanilla JS in one file. Live a
 - "Results by dose" panel: lbs/week per dose segment (also in the doctor report).
 - BMI card (plan cards, next to Next dose): until a height is saved it shows one text field (accepts `5'9"`, `5 9`, `69 in`, `175 cm`; saves on Enter/blur, no button); afterwards BMI is calculated automatically from the latest weigh-in. Height is stored in inches as `settings.heightIn` and edited from the card's Edit link (settings dialog). Shows a color-coded scale and stage list with the weight range per stage. Stages (`BMI_STAGES`): underweight blue, normal green, overweight amber, obesity I orange, II deep orange, III red; the rounded value decides.
 - Stats cards, tabbed charts (weight / BMI / glucose / calories; the BMI tab only shows once a height is saved, dots coloured by BMI stage with dashed stage threshold lines) with dose bands, 7-day average line, hover tooltip, range switch (All, 6 mo, 3 mo, 30 d).
+- Header backup line (`renderBackup()`): last export age, amber when never exported or older than 14 days with changes since; links to Export CSV. Delete has no confirm; a toast offers Undo for 8 s (`showUndo()`).
 - Entry table with edit/delete and dose-colored rows. Paged, 5 per page, newest first (Previous / numbered pages / Next).
 - Import wizard: file, drag and drop, or pasted CSV; auto-matches columns, handles `MM/DD/YYYY` vs `DD/MM/YYYY`, converts kg to lbs, merge or replace by date.
 - Export CSV in the exact 8-column format below.
@@ -38,6 +39,6 @@ Manual: headless Chromium screenshots for anything the spec doesn't cover yet (v
 ## Next steps
 1. Done: repo is public at github.com/archie-hub/tirzepatide-log, Pages serves `main` / root.
 2. Done: MIT license (`LICENSE`), automated smoke test (`tests/smoke.spec.js`, run via `npm test`).
-3. Partial: ARIA/keyboard review. Dialogs, tabs and range controls already use native `<dialog>`/roving tabindex/`aria-selected`/`aria-pressed`; per-row Edit/Delete buttons now have date-specific `aria-label`s. Not yet reviewed: keyboard access to chart tooltip data (currently pointer-only; the entry table is the accessible fallback).
+3. Partial: ARIA/keyboard review. Dialogs, tabs and range controls already use native `<dialog>`/roving tabindex/`aria-selected`/`aria-pressed`; per-row Edit/Delete buttons now have date-specific `aria-label`s. Chart is keyboard readable: focus the chart, Left/Right step through points, Home/End jump, Esc hides; the tooltip is an aria-live region.
 
 This is a personal tracking tool, not medical advice.

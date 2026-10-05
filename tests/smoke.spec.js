@@ -241,6 +241,7 @@ test('BMI chart tab appears once height is set', async ({ page }) => {
   await page.locator('#tab-bmi').click();
   await expect(page.locator('#tab-bmi')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#chart svg[role="img"]')).toBeVisible();
+  await page.locator('#chart svg').scrollIntoViewIfNeeded();
   const box = await page.locator('#chart svg').boundingBox();
   await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 10 });
   await expect(page.locator('#tip')).toContainText('BMI');
@@ -264,6 +265,44 @@ test('entries table shows 5 per page with a pager', async ({ page }) => {
   await page.locator('#pager button[aria-label^="Page "]').last().click();
   await expect(page.locator('#pager button', { hasText: 'Next' })).toBeDisabled();
   expect(await page.locator('#rows tr').count()).toBeLessThanOrEqual(5);
+});
+
+test('backup note, undo delete and keyboard chart reading', async ({ page }) => {
+  await importSample(page);
+  // Import counts as backed up; changing data makes the note say so
+  await expect(page.locator('#backupNote')).toContainText('Backed up');
+  const first = await page.locator('#rows tr').first().locator('td').first().innerText();
+  await page.locator('#rows tr').first().locator('[data-del]').click();   // no confirm dialog
+  await expect(page.locator('#toast')).toBeVisible();
+  await expect(page.locator('#toastText')).toContainText(first);
+  await expect(page.locator('#backupNote')).toContainText('changes since');
+  await expect(page.locator('#rows tr').first().locator('td').first()).not.toHaveText(first);
+  await page.locator('#toastUndo').click();
+  await expect(page.locator('#rows tr').first().locator('td').first()).toHaveText(first);
+  await expect(page.locator('#toast')).toBeHidden();
+
+  // Old backups turn amber
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('tirzepatide-settings'));
+    s.lastExport = Date.now() - 20 * 86400000; s.lastChange = Date.now();
+    localStorage.setItem('tirzepatide-settings', JSON.stringify(s));
+  });
+  await page.reload();
+  await expect(page.locator('#backupNote')).toHaveClass(/warn/);
+  await page.locator('#backupExport').click().catch(() => {});
+
+  // Arrow keys step through chart points and read them out in the tooltip
+  const svg = page.locator('#chart svg[role="img"]');
+  await svg.focus();
+  await expect(page.locator('#tip')).not.toBeEmpty();
+  const last = await page.locator('#tip').innerText();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#tip')).not.toHaveText(last);
+  await page.keyboard.press('Home');
+  const home = await page.locator('#tip').innerText();
+  await page.keyboard.press('End');
+  expect(await page.locator('#tip').innerText()).toBe(last);
+  expect(home).not.toBe(last);
 });
 
 test('renders without errors at 390px in dark mode', async ({ page }) => {
