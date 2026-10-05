@@ -240,7 +240,7 @@ test('BMI card prompts for height once, then calculates automatically', async ({
   await page.fill('#bmiHeight', "5'9\"");
   await page.press('#bmiHeight', 'Enter');
   await expect(page.locator('#bmiHeight')).toHaveCount(0);
-  const bmi = parseFloat(await card.locator('.v').innerText());
+  const bmi = parseFloat(await card.locator('.bmi-c').innerText());
   expect(bmi).toBeGreaterThan(15);
   expect(bmi).toBeLessThan(60);
   await expect(card.locator('.bmi-seg')).toHaveCount(6);
@@ -263,7 +263,7 @@ test('BMI card prompts for height once, then calculates automatically', async ({
   await expect(card.locator('#bmiBubble')).not.toHaveClass(/on/);
 
   await page.reload();
-  await expect(page.locator('#plan .stat.bmi .v')).toContainText(String(bmi.toFixed(1)));
+  await expect(page.locator('#plan .stat.bmi .bmi-c')).toContainText(String(bmi.toFixed(1)));
   await expect(page.locator('#bmiHeight')).toHaveCount(0);
 });
 
