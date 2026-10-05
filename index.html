@@ -432,7 +432,7 @@
       <label><span>Weight (<span class="wu">lbs</span>)</span><input type="number" id="fWeight" step="0.1" min="0" inputmode="decimal"></label>
       <label>Calories<input type="number" id="fCal" step="1" min="0" inputmode="numeric"></label>
       <label>Fasting glucose (mg/dL)<input type="number" id="fSugar" step="1" min="0" inputmode="numeric"></label>
-      <label>Injection site<select id="fSite"></select><span class="note" id="siteHint"></span></label>
+      <label>Injection site<select id="fSite"></select></label>
       <label class="wide">Food notes<input type="text" id="fFood"></label>
       <label class="wide">Comments<textarea id="fComments"></textarea></label>
       <div class="actions wide">
@@ -1314,7 +1314,6 @@
     $('entryForm').reset();
     $('fDate').value = today();
     $('fDose').value = lastDose();
-    $('siteHint').textContent = 'Only on injection days.';
     $('formTitle').textContent = 'Add entry';
     $('saveBtn').textContent = 'Save entry';
     $('cancelBtn').hidden = true;
