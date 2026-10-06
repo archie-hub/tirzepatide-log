@@ -140,7 +140,7 @@ async function pasteBp(page) {
   await expect(page.locator('#importDlg')).toBeHidden();
 }
 
-test('blood pressure is coloured by AHA category in the table, card and chart', async ({ page }) => {
+test('blood pressure is coloured by AHA category in the table, plan-row panel and chart', async ({ page }) => {
   const GREEN = '#16a34a', AMBER = '#d4a106', ORANGE = '#f97316', RED = '#dc2626';
   await pasteBp(page);
 
@@ -149,7 +149,7 @@ test('blood pressure is coloured by AHA category in the table, card and chart', 
     trs.map((r) => { const c = r.querySelector('.bp-cell .chip, td:nth-child(9) .chip'); return [c.textContent, c.style.getPropertyValue('--c')]; }));
   expect(rows).toEqual([['126/92', RED], ['134/79', ORANGE], ['128/84', ORANGE], ['125/78', AMBER], ['118/76', GREEN]]);
 
-  const card = page.locator('#stats .stat', { hasText: 'blood pressure' });
+  const card = page.locator('#plan .stat.mini', { hasText: 'Latest BP' });
   await expect(card).toContainText('126/92');
   await expect(card).toHaveAttribute('style', new RegExp(RED));
 
@@ -287,11 +287,12 @@ test('BMI height can be edited from the card', async ({ page }) => {
   await expect(page.locator('#sHeight')).toHaveValue("5'8.9\"");
 });
 
-test('top row is weight, goal, change, glucose; no backup card; report shows BMI', async ({ page }) => {
+test('top row is weight, goal, change, glucose (BP is in the plan row); no backup card; report shows BMI', async ({ page }) => {
   await importSample(page);
   const labels = await page.locator('#stats .stat .l').allInnerTexts();
   expect(labels.map((l) => l.split(/[:(]|Since|since/)[0].trim().replace(/\s*Edit$/, ''))).toEqual(
-    ['Latest weight', 'Goal weight', 'Change', 'Latest fasting glucose', 'Latest blood pressure']);
+    ['Latest weight', 'Goal weight', 'Change', 'Latest fasting glucose']);
+  await expect(page.locator('#plan .stat.mini', { hasText: 'Latest BP' })).toHaveCount(1);   // blood pressure lives in the plan row only
   await expect(page.locator('#plan')).not.toContainText('Backup');
   await expect(page.locator('[data-export]')).toHaveCount(0);
 

@@ -1151,12 +1151,6 @@
         extra: '<span style="position:absolute;right:12px;bottom:12px;line-height:0">' + sugarFace(z, 30) + '</span>' });
     }
 
-    var bpl = s.filter(hasBp);
-    if (bpl.length) {
-      var lb = bpl[bpl.length - 1], bz = bpZone(lb.sys, lb.dia);
-      cards.push({ id: 'bp', label: 'Latest blood pressure', text: bpText(lb), color: bz.color, sub: 'mmHg, ' + bz.label.toLowerCase() });
-    }
-
     $('stats').innerHTML = cards.length ? cards.map(function (c) {
       var body = c.text !== undefined ? esc(c.text)
         : '<span data-id="' + c.id + '" data-val="' + c.val + '" data-dec="' + c.dec + '" data-sign="' + (c.sign ? 1 : 0) + '">' + fmtVal(c.val, c.dec, c.sign) + '</span>';
