@@ -253,3 +253,12 @@ test('a log pre-loaded from the site data file is not uploaded unless the visito
   expect(b.entries.size).toBe(0);
   expect((await storedEntries(page)).length).toBe(0);
 });
+
+test('adding #cloud to a tab that is already open reveals the section without a reload', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await page.goto(APP);
+  await openSettings(page);
+  await expect(page.locator('#cloudBox')).toBeHidden();
+  await page.evaluate(() => { location.hash = '#cloud'; });
+  await expect(page.locator('#cloudBox')).toBeVisible();
+});

@@ -3013,8 +3013,9 @@
   $('cloudSyncBtn').addEventListener('click', function () { syncNow(); });
   $('cloudOut').addEventListener('click', function () { cloudSignOut(); });
   function cloudInit() {
-    if (location.hash === '#cloud' && !settings.cloudUi) { settings.cloudUi = true; saveSettings(); }
-    renderCloudBox();
+    function reveal() { if (location.hash === '#cloud' && !settings.cloudUi) { settings.cloudUi = true; saveSettings(); } renderCloudBox(); }
+    window.addEventListener('hashchange', reveal);   // adding #cloud to a tab that is already open does not reload it
+    reveal();
     cloudHandleReturn().then(function (ok) {
       renderCloudBox(); renderFooter(); renderBackup();
       if (cloudSignedIn()) syncNow();
