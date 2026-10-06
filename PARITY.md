@@ -28,7 +28,7 @@ Legend: yes, no, partial.
 | Waist, body fat, muscle mass | yes | yes | iOS stores inches/%/lbs like the web; shows cm with the kg setting. Waist chart has the dashed half-height line and waist-to-height ratio on both |
 | Weight chart with 7-day average line | yes | yes | iOS replaced its regression trend line with the web 7-day average |
 | Chart tabs (weight, BMI, glucose, pace, waist, BP, calories, combined) | yes | yes | iOS lists them as stacked cards on Trends, and also has body fat and muscle charts. Maths mirrored and tested (`ExtraChartsView`): trailing 7-day average, rolling 4-week pace, ADA zones, BMI stages |
-| Chart range switch (All / 6 mo / 3 mo / 30 d) and shaded dose bands | yes | yes | iOS: one range picker above the charts (`ChartRange`, `ChartWindow`); window is measured back from the latest entry, averages use the full history. Keyboard chart reading on the web = native VoiceOver/Audio Graphs on iOS |
+| Chart range (1 wk, 1 mo, 3 mo default, 6 mo, 1 yr, 18 mo, 2 yr, 3 yr) and shaded dose bands | yes (`RANGE_DAYS`, remembered per device in `tirzepatide-chart-range`) | yes (`ChartRange`, `chartRangeDays`) | Counted back from the latest entry, not from today; no "All" (3 yr is the longest), an old stored All becomes 3 mo; the choice is per device and never synced. Phones show the eight choices in two rows of four. Tests: web smoke `chart range`, iOS `ChartRangeTests` |
 | Goal weight and projection | yes | yes | |
 | 30/90-day forecast | yes | yes | Web: two boxes in More insights; iOS: Weight Forecast card. Both use the 28-day pace |
 | BMI with stage, scale, next stage and projection | yes | yes | Web: gauge ring with hover details; iOS: scale bar with the same next-stage sentence (`BMICategory.next`, web `bmiNextInfo`) |

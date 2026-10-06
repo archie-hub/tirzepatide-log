@@ -191,7 +191,8 @@ test('dose bands are a plain tint: no strip or dose text in the chart', async ({
   expect(strips).toBe(0);
   const labels = await page.locator('#chart svg[role="img"] text').allTextContents();
   expect(labels.filter((t) => / mg$/.test(t))).toEqual([]);
-  // The dose key under the chart stays.
+  // The dose key under the chart stays (it lists the doses in view, so widen the range to the whole sample year first).
+  await page.locator('#range button[data-days="1095"]').click();
   await expect(page.locator('#legend .chip', { hasText: /^2\.5 mg$/ })).toHaveCount(1);
 
   // Doctor report charts show neither dose text nor a dose key.
@@ -1006,4 +1007,40 @@ test('the weight line is coloured by trend: green when falling, blue-violet when
   // the legend explains it, and other charts keep their own colours
   await expect(page.locator('#legend')).toContainText('coloured by trend');
   await page.getByRole('tab', { name: 'Glucose' }).click().catch(() => {});
+});
+
+test('chart range: eight choices from 1 week to 3 years, 3 months by default, remembered on this device', async ({ page }) => {
+  await importSample(page);                                              // a year of entries ending 2026-09-30
+  const labels = await page.locator('#range button').allTextContents();
+  expect(labels).toEqual(['1 wk', '1 mo', '3 mo', '6 mo', '1 yr', '18 mo', '2 yr', '3 yr']);
+  await expect(page.locator('#range button[aria-pressed="true"]')).toHaveText('3 mo');
+  const dots = () => page.locator('#chart svg[role="img"] circle.fade').count();
+  // weigh-ins in view for a range, counted back from the latest entry (the same rule the chart uses)
+  const expected = (days) => page.evaluate((n) => {
+    const w = JSON.parse(localStorage.getItem('tirzepatide-log-v1')).filter((e) => e.weight !== null).map((e) => e.date).sort();
+    const last = new Date(w[w.length - 1] + 'T00:00:00Z').getTime();
+    return w.filter((d) => (last - new Date(d + 'T00:00:00Z').getTime()) / 86400000 <= n).length;
+  }, days);
+  expect(await dots()).toBe(await expected(90));
+  const counts = {};
+  for (const [days, label] of [[7, '1 wk'], [30, '1 mo'], [90, '3 mo'], [180, '6 mo'], [365, '1 yr'], [548, '18 mo'], [730, '2 yr'], [1095, '3 yr']]) {
+    await page.locator(`#range button[data-days="${days}"]`).click();
+    await expect(page.locator('#range button[aria-pressed="true"]')).toHaveText(label);
+    counts[days] = await dots();
+    expect(counts[days], label).toBe(await expected(days));
+  }
+  expect(counts[7]).toBeLessThan(counts[30]); expect(counts[30]).toBeLessThan(counts[90]); expect(counts[90]).toBeLessThan(counts[180]);
+  expect(counts[365]).toBeGreaterThan(counts[180]);
+  expect(counts[1095]).toBe(counts[730]);                                // the sample is only a year long, so the longer ranges show all of it
+  // the choice survives a reload; an unknown stored value (the old "All") falls back to 3 months
+  await page.locator('#range button[data-days="180"]').click();
+  await page.reload();
+  await expect(page.locator('#range button[aria-pressed="true"]')).toHaveText('6 mo');
+  await page.evaluate(() => localStorage.setItem('tirzepatide-chart-range', '0'));
+  await page.reload();
+  await expect(page.locator('#range button[aria-pressed="true"]')).toHaveText('3 mo');
+  // the combined chart follows the same range
+  await page.getByRole('tab', { name: 'Combined' }).click();
+  await page.locator('#range button[data-days="7"]').click();
+  await expect(page.locator('#range button[aria-pressed="true"]')).toHaveText('1 wk');
 });

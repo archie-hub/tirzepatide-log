@@ -253,6 +253,14 @@
   .seg button { border: 0; border-radius: 0; padding: 5px 12px; font-size: 13px; color: var(--muted); background: transparent; }
   .seg button + button { border-left: 1px solid var(--line); }
   .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); font-weight: 600; }
+  .seg button { white-space: nowrap; }
+  /* eight range choices: two rows of four on a phone instead of a pill that runs off the screen */
+  @media (max-width: 640px) {
+    #range { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; border-radius: 14px; }
+    #range button { padding: 7px 4px; text-align: center; }
+    #range button:nth-child(n+5) { border-top: 1px solid var(--line); }
+    #range button:nth-child(4n+1) { border-left: 0; }
+  }
 
   #chart { position: relative; }
   svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
@@ -512,10 +520,14 @@
         <button class="tab" role="tab" id="tab-compare" data-metric="compare" aria-selected="false" aria-controls="chart" tabindex="-1">Combined</button>
       </div>
       <div class="seg" id="range" role="group" aria-label="Date range">
-        <button type="button" data-days="0" aria-pressed="true">All</button>
+        <button type="button" data-days="7" aria-pressed="false">1 wk</button>
+        <button type="button" data-days="30" aria-pressed="false">1 mo</button>
+        <button type="button" data-days="90" aria-pressed="true">3 mo</button>
         <button type="button" data-days="180" aria-pressed="false">6 mo</button>
-        <button type="button" data-days="90" aria-pressed="false">3 mo</button>
-        <button type="button" data-days="30" aria-pressed="false">30 d</button>
+        <button type="button" data-days="365" aria-pressed="false">1 yr</button>
+        <button type="button" data-days="548" aria-pressed="false">18 mo</button>
+        <button type="button" data-days="730" aria-pressed="false">2 yr</button>
+        <button type="button" data-days="1095" aria-pressed="false">3 yr</button>
       </div>
     </div>
     <div class="legend cmp-pick" id="cmpPick" role="group" aria-label="Values to show on the combined chart" hidden></div>
@@ -1414,7 +1426,15 @@
   }
 
   /* ---------- chart ---------- */
-  var currentMetric = 'weight', currentRange = 0, chartSeq = 0;
+  // How much history the charts show, counted back from the latest entry. Three months unless the person chose otherwise
+  // (the choice is remembered on this device only). Mirrored by ChartRange in the iPhone app.
+  var RANGE_DAYS = [7, 30, 90, 180, 365, 548, 730, 1095], DEFAULT_RANGE = 90, RANGE_KEY = 'tirzepatide-chart-range';
+  function loadRange() {
+    if (SHARE_TOKEN) return DEFAULT_RANGE;
+    try { var v = parseInt(localStorage.getItem(RANGE_KEY), 10); if (RANGE_DAYS.indexOf(v) >= 0) return v; } catch (e) {}
+    return DEFAULT_RANGE;
+  }
+  var currentMetric = 'weight', currentRange = loadRange(), chartSeq = 0;
   var METRICS = {
     weight: { key: 'weight', get label() { return 'Weight (' + WUC() + ')'; }, color: '#0ea5a4', dec: 1 },
     bmi: { key: 'bmi', label: 'BMI', color: '#0284c7', dec: 1 },
@@ -2208,9 +2228,11 @@
     });
   });
   tabs.forEach(function (t) { t.style.setProperty('--c', METRICS[t.dataset.metric].color); });
+  Array.prototype.forEach.call($('range').querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', parseInt(x.dataset.days, 10) === currentRange ? 'true' : 'false'); });
   Array.prototype.forEach.call($('range').querySelectorAll('button'), function (b) {
     b.addEventListener('click', function () {
       currentRange = parseInt(b.dataset.days, 10);
+      if (!SHARE_TOKEN) { try { localStorage.setItem(RANGE_KEY, String(currentRange)); } catch (e) {} }
       Array.prototype.forEach.call($('range').querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
       renderChart();
     });
