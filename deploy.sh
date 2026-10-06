@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Push main, wait for the GitHub Pages build, then invalidate the phoe.be CloudFront cache
-# so https://www.phoe.be/tirzepatide-log.html picks up the new version straight away.
+# Push main, publish the served files to S3 (phoe.be's primary origin for /tirzepatide-log/*), invalidate the
+# phoe.be CloudFront cache, then wait for the GitHub Pages build (the fallback origin and the github.io address).
 # Needs: gh (authenticated) and the AWS profile `kathyterraform`.
 set -euo pipefail
 
@@ -20,19 +20,22 @@ git push origin main
 sha=$(git rev-parse HEAD)
 echo "Pushed ${sha:0:7}; waiting for Pages build..."
 
-# Invalidating before the build finishes would just re-cache the old files.
-start=$(date +%s)
-while :; do
-  read -r status commit < <(gh api "repos/$REPO/pages/builds/latest" --jq '"\(.status) \(.commit)"')
-  if [ "$commit" = "$sha" ] && [ "$status" = "built" ]; then break; fi
-  if [ "$commit" = "$sha" ] && [ "$status" = "errored" ]; then echo "Pages build errored" >&2; exit 1; fi
-  if [ $(( $(date +%s) - start )) -gt "$TIMEOUT" ]; then echo "Timed out waiting for Pages build (last: $status ${commit:0:7})" >&2; exit 1; fi
-  sleep 5
-done
-echo "Pages build complete."
-
+# phoe.be serves /tirzepatide-log/* from S3 first (GitHub Pages is the automatic fallback), so publish there at once
+# and invalidate; GitHub being slow or down no longer holds up what visitors see.
+./publish-s3.sh
 aws cloudfront create-invalidation --distribution-id "$DIST_ID" \
   --paths "/tirzepatide-log/*" "/tirzepatide-log.html" \
   --profile "$AWS_PROFILE_NAME" \
   --query 'Invalidation.{Id:Id,Status:Status}' --output text
-echo "Done. phoe.be should show ${sha:0:7} within a minute or two."
+echo "phoe.be should show ${sha:0:7} within a minute or two."
+
+# Keep the fallback copy fresh too: wait for the GitHub Pages build (only informational for phoe.be now).
+start=$(date +%s)
+while :; do
+  read -r status commit < <(gh api "repos/$REPO/pages/builds/latest" --jq '"\(.status) \(.commit)"')
+  if [ "$commit" = "$sha" ] && [ "$status" = "built" ]; then break; fi
+  if [ "$commit" = "$sha" ] && [ "$status" = "errored" ]; then echo "Pages build errored (phoe.be is unaffected; the fallback copy is stale)" >&2; exit 1; fi
+  if [ $(( $(date +%s) - start )) -gt "$TIMEOUT" ]; then echo "Timed out waiting for Pages build (last: $status ${commit:0:7}); phoe.be is unaffected" >&2; exit 1; fi
+  sleep 5
+done
+echo "Pages build complete (fallback copy is current)."
