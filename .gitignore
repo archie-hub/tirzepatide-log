@@ -11,3 +11,6 @@
 node_modules/
 test-results/
 playwright-report/
+
+# Personal Claude Code settings (absolute paths)
+.claude/settings.local.json
