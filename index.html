@@ -373,7 +373,7 @@
   @media (max-width: 640px) { .lp-hero { padding: 22px 18px 24px; } .lp-hero h1 { font-size: 32px; } }
   /* a doctor opening a patient's link: read-only, so every editing control is gone */
   body.share #formPanel, body.share #openImport, body.share #resetBtn, body.share #cloudOpen, body.share #installBtn, body.share #backupNote,
-  body.share #emptyPanel, body.share [data-settings], body.share [data-edit], body.share [data-del] { display: none !important; }
+  body.share #emptyPanel, body.share #heroOut, body.share [data-settings], body.share [data-edit], body.share [data-del] { display: none !important; }
   .share-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
   .share-list li { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line, #d7dee6); border-radius: 10px; }
   .share-list code { font-size: 12px; word-break: break-all; flex: 1 1 100%; }
@@ -473,6 +473,7 @@
       <h1>Tirzepatide log - work in progress</h1>
       <div class="hero-meta"><div class="sub" id="subtitle"></div><div class="sub backup" id="backupNote" hidden></div></div>
     </div>
+    <button type="button" id="heroOut" hidden>Sign out</button>
   </header>
   <div id="msg" role="status"></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" id="toastUndo">Undo</button></div>
@@ -3158,6 +3159,7 @@
     if (!box) return;
     var inn = cloudSignedIn();
     box.hidden = !(cloudAvailable() && inn);
+    $('heroOut').hidden = !inn;   // sign out is one click away at the top of the page
     $('cloudOpen').hidden = box.hidden;   // a way in from an empty log too, where the goal card (and so Settings) is not shown
     $('cloudIn').hidden = inn; $('cloudSyncBtn').hidden = !inn; $('cloudOut').hidden = !inn;
     $('cloudSyncBtn').disabled = syncing;
@@ -3169,6 +3171,7 @@
   $('cloudIn').addEventListener('click', cloudSignIn);
   $('cloudSyncBtn').addEventListener('click', function () { syncNow(); });
   $('cloudOut').addEventListener('click', function () { cloudSignOut(); });
+  $('heroOut').addEventListener('click', function () { cloudSignOut(); });
   function cloudInit() {
     if (SHARE_TOKEN) return;
     applyGate();

@@ -456,3 +456,27 @@ test('auto sync: a saved entry reaches the server by itself, and leaving the tab
   await page.reload();
   await expect.poll(async () => (await storedEntries(page)).some((e) => e.date === '2026-03-22'), { timeout: 5000 }).toBe(true);
 });
+
+test('a Sign out button sits at the top of the page when signed in, and it signs out', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200)]);
+  await page.goto(APP);
+  await expect(page.locator('#heroOut')).toBeHidden();                   // landing page: nothing to sign out of
+  await signIn(page);
+  await expect(page.locator('#heroOut')).toBeVisible();
+  await expect(page.locator('#heroOut')).toHaveText('Sign out');
+  await page.locator('#heroOut').click();
+  await expect(page.locator('#landing')).toBeVisible();
+  await expect(page.locator('#heroOut')).toBeHidden();
+  expect((await storedEntries(page)).length).toBe(1);                    // the log stays on this device
+  expect(await page.evaluate(() => localStorage.getItem('tirzepatide-sync'))).toBeNull();
+});
+
+test('doctor view has no Sign out button', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  sampleLog(b);
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: false });
+  await page.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(page.locator('#subtitle')).toContainText('2 entries');
+  await expect(page.locator('#heroOut')).toBeHidden();
+});
