@@ -480,3 +480,20 @@ test('doctor view has no Sign out button', async ({ page }) => {
   await expect(page.locator('#subtitle')).toContainText('2 entries');
   await expect(page.locator('#heroOut')).toBeHidden();
 });
+
+test('the not-synced note names the day as a button that opens it for editing, and fixing it syncs it', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200), row('2026-03-08', 199, { waist: 555 }), row('2026-03-15', 198)]);
+  await page.goto(APP);
+  await signIn(page);
+  const fix = page.locator('#backupNote button[data-fix]');
+  await expect(fix).toHaveText('2026-03-08');
+  await expect(page.locator('#backupNote')).toContainText('Click the date to fix it');
+  await fix.click();
+  await expect(page.locator('#fDate')).toHaveValue('2026-03-08');
+  await expect(page.locator('#fWaist')).toHaveValue('555');
+  await page.locator('#fWaist').fill('40');
+  await page.locator('#saveBtn').click();
+  await expect.poll(() => b.entries.has('2026-03-08'), { timeout: 8000 }).toBe(true);
+  await expect(page.locator('#backupNote button[data-fix]')).toHaveCount(0);
+});

@@ -979,14 +979,27 @@
     el.hidden = entries.length === 0;
     if (el.hidden) return;
     var dirty = !le || !lc || lc > le, warn, txt;
-    if (cloudSignedIn()) { warn = !!syncErr || !!rejectedNote(); txt = syncErr || ((sync.last ? 'Synced to your account ' + new Date(sync.last).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.' : 'Signed in to cloud sync, not synced yet.') + ' ' + rejectedNote()).trim(); }
+    if (cloudSignedIn()) { warn = !!syncErr || !!rejectedNote(); txt = syncErr || (sync.last ? 'Synced to your account ' + new Date(sync.last).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.' : 'Signed in to cloud sync, not synced yet.'); }
     else if (!le) { warn = true; txt = 'Not backed up yet. Your log lives only in this browser.'; }
     else if (!dirty) { warn = false; txt = 'Backed up ' + ago(le).toLowerCase() + ', no changes since.'; }
     else { warn = Date.now() - le > 14 * 86400000; txt = 'Last backup ' + ago(le).toLowerCase() + ', with changes since.'; }
     el.className = 'sub backup' + (warn ? ' warn' : '');
-    el.innerHTML = esc(txt) + ' <button type="button" class="linkish" id="backupExport">Export CSV</button>';
+    el.innerHTML = esc(txt) + (cloudSignedIn() && rejectedHtml() ? ' ' + rejectedHtml() : '') + ' <button type="button" class="linkish" id="backupExport">Export CSV</button>';
   }
-  $('backupNote').addEventListener('click', function (ev) { if (ev.target.id === 'backupExport') exportAll(); });
+  // Open one day's entry in the form (used by the dates in the "not synced" note)
+  function openEntryForEdit(date) {
+    var desc = sorted().reverse(), idx = desc.findIndex(function (e) { return e.date === date; });
+    if (idx < 0) return;
+    page = Math.floor(idx / PAGE) + 1; renderRows();
+    $('entriesPanel').open = true;
+    var b = document.querySelector('#rows [data-edit="' + date + '"]'); if (b) b.click();
+    $('formPanel').open = true;
+    $('formPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  $('backupNote').addEventListener('click', function (ev) {
+    if (ev.target.id === 'backupExport') exportAll();
+    else if (ev.target.getAttribute && ev.target.getAttribute('data-fix')) openEntryForEdit(ev.target.getAttribute('data-fix'));
+  });
   function renderHero() {
     renderBackup();
     var s = sorted();
@@ -1429,6 +1442,22 @@
     return COMPARE_SERIES.filter(function (x) { return c.indexOf(x.k) >= 0 && (x.k !== 'bmi' || settings.heightIn); });
   }
   // o: { days } trailing window, or { from, to } explicit window; print:true builds a standalone light SVG
+  // A line is not drawn across a long silence: more than LINE_GAP_DAYS between two readings ends the line and starts a new one
+  // (the dots stay). Mirrored by ChartGaps in the iPhone app.
+  var LINE_GAP_DAYS = 30;
+  function runs(pts) {
+    var out = [], cur = [];
+    pts.forEach(function (p, i) {
+      if (i && dayDiff(pts[i - 1].e.date, p.e.date) > LINE_GAP_DAYS) { out.push(cur); cur = []; }
+      cur.push(p);
+    });
+    if (cur.length) out.push(cur);
+    return out;
+  }
+  // SVG path data for the runs of two or more points; f(p) gives the "x,y" of a point
+  function runsPath(pts, f) {
+    return runs(pts).filter(function (r) { return r.length > 1; }).map(function (r) { return 'M' + r.map(f).join('L'); }).join('');
+  }
   function buildChart(mkey, o) {
     o = o || {};
     if (mkey === 'compare') return buildCompare(o);
@@ -1546,9 +1575,11 @@
       });
     }
     var fade = o.print ? '' : ' class="fade"', draw = o.print ? '' : ' class="draw"';
-    var line = pts.map(function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a).toFixed(1); });
+    var avgXY = function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a).toFixed(1); };
     if (!single && !bp) {
-      g += '<path' + fade + ' fill="url(#' + gid + ')" d="M' + line.join('L') + 'L' + X(tN).toFixed(1) + ',' + (H - B) + 'L' + X(t0).toFixed(1) + ',' + (H - B) + 'Z"/>';
+      runs(pts).filter(function (r) { return r.length > 1; }).forEach(function (r) {
+        g += '<path' + fade + ' fill="url(#' + gid + ')" d="M' + r.map(avgXY).join('L') + 'L' + X(r[r.length - 1].e.date).toFixed(1) + ',' + (H - B) + 'L' + X(r[0].e.date).toFixed(1) + ',' + (H - B) + 'Z"/>';
+      });
     }
     var r = pts.length > 120 ? 2 : (pts.length > 45 ? 2.8 : 4.2);
     if (bp) pts.forEach(function (p) {
@@ -1560,9 +1591,9 @@
       g += '<circle' + fade + ' cx="' + X(p.e.date).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + (single ? 6 : r) + '" fill="' + (m.key === 'sugar' ? sugarZone(p.v).color : m.key === 'bmi' ? bmiStage(p.v).color : m.key === 'rate' ? (p.v <= -rateThr ? '#f97316' : m.color) : m.color) + '" opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.9' : (pts.length > 45 ? '0.45' : '0.85')) + '"/>';
     });
     g += zoneLabels;
-    if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="' + (bp ? 2 : 3.2) + '" stroke-linecap="round" stroke-linejoin="round" d="M' + line.join('L') + '"/>';
-    if (bp && !single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="2" stroke-opacity="0.55" stroke-linecap="round" stroke-linejoin="round" d="M' +
-      pts.map(function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a2).toFixed(1); }).join('L') + '"/>';
+    if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="' + (bp ? 2 : 3.2) + '" stroke-linecap="round" stroke-linejoin="round" d="' + runsPath(pts, avgXY) + '"/>';
+    if (bp && !single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="2" stroke-opacity="0.55" stroke-linecap="round" stroke-linejoin="round" d="' +
+      runsPath(pts, function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a2).toFixed(1); }) + '"/>';
     if (!o.print) g += '<line id="xh" y1="' + T + '" y2="' + (H - B) + '" stroke="' + C.muted + '" stroke-dasharray="3 4" style="display:none"/>' +
          '<circle id="xc" r="6.5" fill="' + C.panel + '" stroke="' + lc + '" stroke-width="3" style="display:none"/>';
 
@@ -1639,8 +1670,8 @@
       l.pts.forEach(function (p) {
         g += '<circle cx="' + X(p.e.date).toFixed(1) + '" cy="' + Y(l, p.v).toFixed(1) + '" r="' + r + '" fill="' + sr.color + '" opacity="0.3"/>';
       });
-      if (!single) g += '<path fill="none" stroke="' + sr.color + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"' + (sr.dash ? ' stroke-dasharray="' + sr.dash + '"' : '') + ' d="M' +
-        l.pts.map(function (p) { return X(p.e.date).toFixed(1) + ',' + Y(l, p.a).toFixed(1); }).join('L') + '"/>';
+      if (!single) g += '<path fill="none" stroke="' + sr.color + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"' + (sr.dash ? ' stroke-dasharray="' + sr.dash + '"' : '') + ' d="' +
+        runsPath(l.pts, function (p) { return X(p.e.date).toFixed(1) + ',' + Y(l, p.a).toFixed(1); }) + '"/>';
     });
     if (!o.print) g += '<line id="xh" y1="' + T + '" y2="' + (H - B) + '" stroke="' + C.muted + '" stroke-dasharray="3 4" style="display:none"/>' +
       lines.map(function (l) { return '<circle class="xcs" data-k="' + l.s.k + '" r="5.5" fill="' + C.panel + '" stroke="' + l.s.color + '" stroke-width="3" style="display:none"/>'; }).join('');
@@ -3153,6 +3184,14 @@
   function rejectedNote() {
     var d = Object.keys(sync.rejected || {}).sort();
     return d.length ? d.length + (d.length === 1 ? ' day was' : ' days were') + ' not synced because a value looks out of range: ' + d.slice(0, 5).join(', ') + (d.length > 5 ? ' and more' : '') + '. Edit ' + (d.length === 1 ? 'it' : 'them') + ' to try again.' : '';
+  }
+  // The same note with each date a button that opens that day for editing
+  function rejectedHtml() {
+    var d = Object.keys(sync.rejected || {}).sort();
+    if (!d.length) return '';
+    return esc(d.length + (d.length === 1 ? ' day was' : ' days were') + ' not synced because a value looks out of range:') + ' ' +
+      d.slice(0, 5).map(function (x) { return '<button type="button" class="linkish" data-fix="' + esc(x) + '">' + esc(x) + '</button>'; }).join(', ') +
+      (d.length > 5 ? ' and more' : '') + '. Click ' + (d.length === 1 ? 'the date' : 'a date') + ' to fix ' + (d.length === 1 ? 'it' : 'it') + '.';
   }
   function renderCloudBox() {
     var box = $('cloudBox');

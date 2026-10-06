@@ -950,3 +950,29 @@ test('UK units: doctor report and BMI weights use stones and pounds', async ({ p
   await seg.focus();
   await expect(page.locator('#bmiBubble')).toContainText(' st ');
 });
+
+test('chart lines stop at a gap of more than a month and the dots stay', async ({ page }) => {
+  const mk = (date, weight) => ({ date, dose: 2.5, weight, comments: '', cal: null, food: '', sugar: null, site: '', sys: null, dia: null, waist: null, fat: null, muscle: null });
+  const daily = (start, n, w0) => Array.from({ length: n }, (_, i) => {
+    const d = new Date(Date.UTC(2026, +start.slice(5, 7) - 1, +start.slice(8, 10) + i));
+    return mk(d.toISOString().slice(0, 10), w0 - i * 0.2);
+  });
+  async function lineSubpaths(entries) {
+    await page.evaluate((e) => { localStorage.setItem('tirzepatide-log-v1', JSON.stringify(e)); }, entries);
+    await page.reload();
+    return page.evaluate(() => {
+      const line = document.querySelector('#chartBox svg path[stroke-width="3.2"], #chart svg path[stroke-width="3.2"]');
+      const dots = document.querySelectorAll('#chartBox svg circle.fade, #chart svg circle.fade').length;
+      return { subpaths: (line.getAttribute('d').match(/M/g) || []).length, areas: document.querySelectorAll('svg path[fill^="url("]').length, dots };
+    });
+  }
+  // two clusters 50 days apart: two line pieces, two filled areas, every reading still a dot
+  const split = await lineSubpaths([...daily('2026-01-01', 10, 210), ...daily('2026-03-01', 5, 205)]);
+  expect(split.subpaths).toBe(2);
+  expect(split.dots).toBeGreaterThanOrEqual(15);
+  // 30 days between readings is still joined, 31 is not
+  const joined = await lineSubpaths([mk('2026-01-01', 210), mk('2026-01-02', 209.8), mk('2026-02-01', 209), mk('2026-02-02', 208.9)]);
+  expect(joined.subpaths).toBe(1);
+  const cut = await lineSubpaths([mk('2026-01-01', 210), mk('2026-01-02', 209.8), mk('2026-02-02', 209), mk('2026-02-03', 208.9)]);
+  expect(cut.subpaths).toBe(2);
+});
