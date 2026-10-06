@@ -711,6 +711,27 @@ test('insights: fast-loss notice, pace, extremes, best week, streak and weekly a
   expect(rows).toBe(9);                                                  // 57 days = 9 week buckets (8 full + 1 day)
 });
 
+test('insights: weight forecast at the 4-week pace', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await page.locator('#insightsPanel > summary').click();
+  const box = (label) => page.locator('#insights .ins', { hasText: label });
+  await expect(box('Weight in 30 days')).toContainText('lbs');
+  await expect(box('Weight in 30 days')).toContainText('at your recent pace');
+  await expect(box('Weight in 90 days')).toContainText('−');   // still losing at 3.5 lb/week
+});
+
+test('settings: weekly dose reminder downloads a calendar file', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await page.locator('#stats [data-settings], #plan [data-settings]').first().click();
+  await page.selectOption('#sDay', '1');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#sIcs').click()]);
+  const ics = require('fs').readFileSync(await dl.path(), 'utf8');
+  expect(dl.suggestedFilename()).toBe('TirzepatideDose.ics');
+  expect(ics).toContain('RRULE:FREQ=WEEKLY');
+  expect(ics).toContain('SUMMARY:Tirzepatide dose');
+  expect(ics).toMatch(/DTSTART:\d{8}T090000/);
+});
+
 test('insights: no fast-loss notice for a gentle pace; gaps are reported', async ({ page }) => {
   // 0.1 lb/day = 0.7 lb/week, well under 1%. Skip days 20-27 to make an 8-day gap in the log.
   const rows = ['Date,Dosage (mg),Weight (lbs)'], t0 = Date.UTC(2026, 7, 1);

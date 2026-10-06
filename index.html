@@ -571,6 +571,7 @@
     <label>Height<input type="text" id="sHeight" placeholder="e.g. 5'9&quot; or 175 cm"></label>
     <label>Units<select id="sUnits"><option value="us">US (lbs, ft/in)</option><option value="metric">Metric (kg, cm)</option><option value="uk">UK (stones and lbs, ft/in)</option></select></label>
     <label>Injection day<select id="sDay"></select></label>
+    <button type="button" id="sIcs">Add weekly dose reminder to calendar (.ics)</button>
   </div>
   <p class="note">Units only change what is shown and typed; CSV exports always use lbs. Leave the goal blank to hide it. The starting weight is only needed when your first logged weight is not where you began treatment; progress percentages are measured from it. "Work it out" uses the day you last logged an injection site, or the day your current dose started.</p>
   <div class="actions">
@@ -1065,6 +1066,14 @@
       out.push(insBox('#d97706', 'Logging streak', cs.streak + (cs.streak === 1 ? ' day' : ' days'), 'weighed in on ' + cs.p30 + '% of the last 30 days, ' + cs.p90 + '% of the last 90'));
       out.push(insBox('#64748b', 'Weigh-ins', String(cs.n), (cs.avgGap !== null ? 'every ' + cs.avgGap.toFixed(1) + ' days on average' : '') +
         (cs.longest ? '. Longest gap ' + cs.longest.days + ' days (' + shortDate(cs.longest.from, false) + ' to ' + shortDate(cs.longest.to, false) + ')' : '')));
+    }
+    var sl = recentSlope(w);
+    if (sl !== null) {
+      var lastW = w[w.length - 1], gap = dayDiff(lastW.date, today());
+      [30, 90].forEach(function (n) {
+        var delta = sl * (gap + n);
+        out.push(insBox('#0ea5a4', 'Weight in ' + n + ' days', fwu(lastW.weight + delta), sgn(dw(delta), 1) + ' ' + WU() + ' from your latest, at your recent pace. Actual results vary.'));
+      });
     }
     var pi = progressInfo(all);
     if (pi) {
@@ -2665,6 +2674,18 @@
     (focus === 'height' ? $('sHeight') : $('sGoal')).focus();
   }
   function closeSettings() { if (sdlg.open) sdlg.close(); }
+  // Weekly calendar event on the injection day (9:00, with an alert), the web counterpart of the iOS dose reminder
+  $('sIcs').addEventListener('click', function () {
+    var di = doseInfo();
+    if (!di) { say('Log a dose first so the reminder knows your injection day.'); return; }
+    var day = $('sDay').value === 'auto' ? di.next : addDays(today(), (parseInt($('sDay').value, 10) - weekday(today()) + 7) % 7);
+    var stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+    download('TirzepatideDose.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Tirzepatide Log//EN', 'BEGIN:VEVENT',
+      'UID:tirzepatide-dose-' + day + '@tirzepatide-log', 'DTSTAMP:' + stamp, 'DTSTART:' + day.replace(/-/g, '') + 'T090000', 'DURATION:PT15M',
+      'RRULE:FREQ=WEEKLY', 'SUMMARY:Tirzepatide dose', 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Tirzepatide dose', 'TRIGGER:PT0M', 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n'), 'text/calendar;charset=utf-8');
+    say('Saved TirzepatideDose.ics. Open it to add a weekly reminder to your calendar.');
+  });
   $('setSave').addEventListener('click', function () {
     var ht = $('sHeight').value.trim();
     if (ht && ht !== heightShown && !parseHeight(ht)) { say('Height not understood. Try 5\'9", 69 in or 175 cm.'); return; }
