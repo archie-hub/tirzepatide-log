@@ -39,7 +39,7 @@ Phase 2 of `docs/aws-sync-plan.md`; the backend is the private `tirzepatide-clou
 - Per-day last-write-wins on a client `updatedAt`; edits are found by diffing each day against what the server last had (`syncDetect()`), so edit code needs no sync calls. Deletes are tombstones. Synced settings: goal, baseline, heightIn, units, doseDay, compare (never the report name). Fields sent: the 13 CSV fields in lbs/inches, in the API's names (`toCloud()`/`fromCloud()`; add a field in both, in the Lambda whitelist, and in the iOS app).
 - First sync on a device keeps the pre-sync log under `tirzepatide-log-v1-before-sync`; a log pre-loaded from `AJC_DATA.csv` asks before it is uploaded (`settings.hostedLoaded`). The server refuses a single out-of-range day without blocking the rest (shown as "N days were not synced").
 - Tests: `tests/cloud.spec.js` serves the page at `http://localhost:8080/` and fakes Cognito and the API in memory. A live check against the real stack was run by creating a throwaway user (see the cloud repo's `scripts/smoke_test.py`).
-- iOS has no cloud sync yet (Phase 3 in the plan).
+- iOS has the same sync (Phase 3, `Support/Cloud/` in the iOS repo). Keep the two engines and their tests in step; the iOS redirect URI `tirztrack://auth` is in the Cognito callback list.
 
 ## Data and privacy rules
 - All data lives in the visitor's browser (and, only for an invited signed-in account, in that account's cloud copy) (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, baseline weight, dose day, height, units, combined-chart choice and backup timestamps under `tirzepatide-settings`). Never add code that uploads data except through the cloud sync above.
