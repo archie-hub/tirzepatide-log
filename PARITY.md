@@ -42,7 +42,7 @@ Legend: yes, no, partial.
 | Doctor link (read-only, never expires, revocable) | yes: create, copy, revoke, and the doctor view itself (`#share=<token>`) | partly: create, share, revoke; the doctor view is the web app | Same server routes (`POST/GET /shares`, `DELETE /shares/{token}`, public `GET /share/{token}`). Notes (comments, food notes) travel only if ticked when creating the link. iOS has no doctor view of its own on purpose: a link opens in any browser. Phase 4 of `docs/aws-sync-plan.md` |
 | CSV import | yes (wizard) | yes | iOS: Settings > Import from CSV. Same column words, date detection, kg conversion, merge/replace by date; `CSVImportTests`. Rows with no dose import as 0 mg (hidden, exported blank) because iOS dose is not optional |
 | JSON backup/restore (with photos) | n/a | yes | Exists for photos; CSV is the shared backup format on both |
-| Doctor report (PDF, summary, charts) | yes | preview only (no sharing) | iOS `ReportBuilder` mirrors `buildReport()` (same boxes, order, text summary, range tables, dose schedule, comments, full log; `ReportTests`). Share as PDF, text, CSV for the period, chart images. Web: print/PDF, PNG, copy, mailto, share |
+| Doctor report (PDF, summary, charts) | yes | preview only (no sharing) | iOS `ReportBuilder` mirrors `buildReport()` (same boxes, order, text summary, range tables, dose schedule, comments, full log; `ReportTests`). The iOS report is on-screen only: its PDF, text, period-CSV and chart-image sharing was removed on purpose (2026-10-06). |
 | Progress photos and gallery | no | yes | |
 | App lock (Face ID) | no | yes | |
 | Light/dark | yes | yes | |
