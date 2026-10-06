@@ -2780,9 +2780,11 @@
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function (h) {
       try { sessionStorage.setItem('tirz-pkce', JSON.stringify({ v: verifier, s: state })); }
       catch (e) { say('Could not start sign-in (browser storage is blocked).'); return; }
-      location.href = CLOUD.domain + '/oauth2/authorize?response_type=code&client_id=' + CLOUD.clientId +
+      var target = CLOUD.domain + '/oauth2/authorize?response_type=code&client_id=' + CLOUD.clientId +
         '&redirect_uri=' + encodeURIComponent(redirectUri()) + '&scope=' + encodeURIComponent('openid email') +
         '&state=' + state + '&code_challenge=' + b64url(h) + '&code_challenge_method=S256';
+      // the hosted login refuses to be framed (the phoe.be page can embed this app), so leave the frame
+      try { (window.top || window).location.href = target; } catch (e) { location.href = target; }
     });
   }
   function tokenRequest(params) {
