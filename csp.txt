@@ -1,0 +1,1 @@
+default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://53bw70yjmk.execute-api.us-east-1.amazonaws.com https://tirzlog-sxsz5z.auth.us-east-1.amazoncognito.com; manifest-src 'self'; worker-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'

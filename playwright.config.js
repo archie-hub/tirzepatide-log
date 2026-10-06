@@ -3,6 +3,7 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests',
+  globalSetup: './tests/global-setup.js',
   fullyParallel: true,
   reporter: 'list',
   use: {

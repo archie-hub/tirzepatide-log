@@ -5,7 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tirzepatide Log</title>
 <meta name="description" content="Track tirzepatide dose, weight, food and glucose with charts, goal tracking and a doctor-ready report. Private beta, invite only.">
-<script>/* hosted and signed out: show the landing page, never the log (see applyGate) */
+<script>/* The app lives at https://tirzepatide.phoe.be/ (its own browser origin, so no other site can read its data). The old
+   addresses forward there, after dropping any sign-in kept at the old origin; then, hosted and signed out, show the landing
+   page and never the log (see applyGate). */
+(function () { try {
+  if (/^(www\.phoe\.be|archie-hub\.github\.io)$/.test(location.hostname)) {
+    var old = JSON.parse(localStorage.getItem('tirzepatide-sync') || 'null');
+    if (old && old.auth && old.auth.refresh && navigator.sendBeacon) navigator.sendBeacon('https://tirzlog-sxsz5z.auth.us-east-1.amazoncognito.com/oauth2/revoke', new URLSearchParams({ token: old.auth.refresh, client_id: '7bhnc1e4on4g01h0topme3tipl' }));
+    localStorage.removeItem('tirzepatide-sync');
+    location.replace('https://tirzepatide.phoe.be/' + location.hash);
+    return;
+  }
+} catch (e) {} })();
 (function () { try {
   var h = location.hash; try { if (window.top !== window) h = window.top.location.hash; } catch (e) {}
   if (/^https?:$/.test(location.protocol) && !/^#share=[A-Za-z0-9_-]{43}$/.test(h)) {
@@ -14,17 +25,17 @@
   }
 } catch (e) { if (/^https?:$/.test(location.protocol)) document.documentElement.classList.add('landing'); } })();</script>
 <meta name="theme-color" content="#0d9488">
-<link rel="canonical" href="https://archie-hub.github.io/tirzepatide-log/">
+<link rel="canonical" href="https://tirzepatide.phoe.be/">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230d9488'/%3E%3Cstop offset='.52' stop-color='%232563eb'/%3E%3Cstop offset='1' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpolyline points='12,20 24,30 33,26 52,44' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='52' cy='44' r='5.5' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Tirz Log">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://archie-hub.github.io/tirzepatide-log/">
+<meta property="og:url" content="https://tirzepatide.phoe.be/">
 <meta property="og:title" content="Tirzepatide Log">
 <meta property="og:description" content="Track dose, weight, food and glucose. Charts, goal tracking and a doctor-ready report. Private beta, invite only.">
-<meta property="og:image" content="https://archie-hub.github.io/tirzepatide-log/og-image.png">
+<meta property="og:image" content="https://tirzepatide.phoe.be/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Tirzepatide Log: a weight chart with coloured dose bands">
@@ -745,7 +756,7 @@
 
   var STORE_KEY = 'tirzepatide-log-v1';
   var SETTINGS_KEY = 'tirzepatide-settings';
-  var SITE_URL = 'https://archie-hub.github.io/tirzepatide-log/';
+  var SITE_URL = 'https://tirzepatide.phoe.be/';
   // Keep in sync with the value array built in toCSV() below when adding a field.
   var COLUMNS = ['Date', 'Dosage (mg)', 'Weight (lbs)', 'Comments', 'Calories', 'Food Notes', 'Blood Sugar (mg/dL)', 'Injection Site', 'Systolic (mmHg)', 'Diastolic (mmHg)', 'Waist (in)', 'Body Fat (%)', 'Muscle Mass (lbs)'];
   // Rotation order for the "next site" hint
@@ -2963,7 +2974,7 @@
   function saveSync() { try { localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); } catch (e) {} }
   function cloudSignedIn() { return !!(sync && sync.auth && sync.auth.refresh); }
   function cloudAvailable() { return /^https?:$/.test(location.protocol) && !!(window.fetch && window.crypto && window.crypto.subtle); }
-  function redirectUri() { return /(^|\.)(phoe\.be|github\.io)$/.test(location.hostname) ? location.origin + '/tirzepatide-log/' : location.origin + '/'; }
+  function redirectUri() { return location.origin + '/'; }   // the app is at the root of its own host
 
   /* sign in (authorization code + PKCE against the Cognito hosted login) */
   function b64url(buf) {

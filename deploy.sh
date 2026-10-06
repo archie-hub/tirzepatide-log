@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Push main, publish the served files to S3 (phoe.be's primary origin for /tirzepatide-log/*), invalidate the
-# phoe.be CloudFront cache, then wait for the GitHub Pages build (the fallback origin and the github.io address).
+# Push main, publish the app to its own site (https://tirzepatide.phoe.be/), refresh the old www.phoe.be copy (which now only
+# forwards to the new host), invalidate both CloudFront caches, then wait for the GitHub Pages build (also only a forwarder now).
 # Needs: gh (authenticated) and the AWS profile `kathyterraform`.
 set -euo pipefail
 
 REPO="archie-hub/tirzepatide-log"
-DIST_ID="EWVXJSS4UKRDN"
+DIST_ID="EWVXJSS4UKRDN"          # www.phoe.be (old addresses: they forward to the new host)
+SITE_DIST_ID="EIEBIAJ1TVNS4"      # https://tirzepatide.phoe.be/ (the app)
 AWS_PROFILE_NAME="kathyterraform"
 TIMEOUT=300
 
@@ -22,6 +23,9 @@ echo "Pushed ${sha:0:7}; waiting for Pages build..."
 
 # phoe.be serves /tirzepatide-log/* from S3 first (GitHub Pages is the automatic fallback), so publish there at once
 # and invalidate; GitHub being slow or down no longer holds up what visitors see.
+./publish-site.sh
+aws cloudfront create-invalidation --distribution-id "$SITE_DIST_ID" --paths "/index.html" "/sw.js" "/404.html" "/manifest.webmanifest" \
+  --profile "$AWS_PROFILE_NAME" --query 'Invalidation.{Id:Id,Status:Status}' --output text
 ./publish-s3.sh
 aws cloudfront create-invalidation --distribution-id "$DIST_ID" \
   --paths "/tirzepatide-log/*" \

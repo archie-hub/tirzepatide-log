@@ -2,97 +2,9 @@
 // index.html, and Cognito plus the sync API are replaced by an in-memory fake that follows the same contract as
 // tirzepatide-cloud/lambda_src/handler.py (last write wins on updatedAt, tombstones, `since` cursor on syncedAt).
 const { test, expect } = require('@playwright/test');
-const fs = require('fs');
 const path = require('path');
+const { backend, APP, COGNITO, API, CORS } = require('./fake-cloud');
 
-const HTML = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-const APP = 'http://localhost:8080/';
-const COGNITO = 'https://tirzlog-sxsz5z.auth.us-east-1.amazoncognito.com';
-const API = 'https://53bw70yjmk.execute-api.us-east-1.amazonaws.com';
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type', 'access-control-allow-methods': 'GET,PUT,POST,DELETE,OPTIONS' };
-
-function backend({ invited = true } = {}) {
-  const s = { shares: new Map(), entries: new Map(), settings: null, clock: 1000, puts: [], tokenCalls: [], authHeaders: [] };
-  s.put = (e) => {   // what the Lambda does
-    const cur = s.entries.get(e.date);
-    if (cur && cur.updatedAt >= e.updatedAt) return false;
-    s.entries.set(e.date, { ...e, syncedAt: ++s.clock });
-    return true;
-  };
-  s.install = async (page) => {
-    await page.route(/^http:\/\/localhost:8080\//, (r) => {
-      const u = new URL(r.request().url());
-      if (u.pathname === '/') return r.fulfill({ status: 200, contentType: 'text/html', body: HTML });
-      return r.fulfill({ status: 404, body: '' });
-    });
-    await page.route(COGNITO + '/oauth2/authorize*', (r) => {
-      const u = new URL(r.request().url());
-      s.authorizeUrl = u;
-      const to = u.searchParams.get('redirect_uri') + '?code=abc123&state=' + u.searchParams.get('state');   // what the hosted login does after a successful sign-in
-      r.fulfill({ status: 200, contentType: 'text/html', body: '<script>location.replace(' + JSON.stringify(to) + ')</script>' });
-    });
-    await page.route(COGNITO + '/oauth2/token', (r) => {
-      s.tokenCalls.push(r.request().postData());
-      r.fulfill({ status: 200, contentType: 'application/json', headers: CORS, body: JSON.stringify({ access_token: 'access-' + s.tokenCalls.length, refresh_token: 'refresh-1', expires_in: 3600 }) });
-    });
-    await page.route(COGNITO + '/oauth2/revoke', (r) => r.fulfill({ status: 200, headers: CORS, body: '' }));
-    await page.route(API + '/**', (r) => {
-      const req = r.request(), u = new URL(req.url());
-      if (req.method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
-      const send = (status, body) => r.fulfill({ status, contentType: 'application/json', headers: CORS, body: JSON.stringify(body) });
-      const tokenIn = u.pathname.match(/^\/share\/(.+)$/);
-      if (tokenIn) {   // the public route: no login, the token is the credential (same rules as the Lambda)
-        const sh = s.shares.get(tokenIn[1]);
-        if (!sh || !invited) return send(404, { error: 'not found' });
-        const entries = [...s.entries.values()].filter((e) => !e.deleted).sort((a, b) => (a.date < b.date ? -1 : 1)).map((e) => {
-          const { updatedAt, syncedAt, comments, foodNotes, deleted, ...rest } = e;
-          return sh.notes ? { ...rest, ...(comments ? { comments } : {}), ...(foodNotes ? { foodNotes } : {}) } : rest;
-        });
-        const { goal, baseline, heightIn, units, doseDay } = s.settings || {};
-        return send(200, { entries, settings: Object.fromEntries(Object.entries({ goal, baseline, heightIn, units, doseDay }).filter(([, v]) => v !== undefined)), notes: sh.notes, createdAt: sh.createdAt });
-      }
-      s.authHeaders.push(req.headers()['authorization']);
-      if (!invited) return send(403, { error: 'not invited' });
-      if (u.pathname === '/shares' && req.method() === 'GET') return send(200, { shares: [...s.shares.entries()].map(([token, v]) => ({ token, ...v })) });
-      if (u.pathname === '/shares' && req.method() === 'POST') {
-        const token = 'T' + String(s.shares.size + 1).padStart(2, '0') + 'x'.repeat(40);
-        s.shares.set(token, { createdAt: Date.now(), notes: !!JSON.parse(req.postData() || '{}').notes });
-        return send(200, { token, ...s.shares.get(token) });
-      }
-      const del = u.pathname.match(/^\/shares\/(.+)$/);
-      if (del && req.method() === 'DELETE') { const had = s.shares.delete(del[1]); return send(had ? 200 : 404, had ? { revoked: true } : { error: 'not found' }); }
-      if (!invited) return send(403, { error: 'not invited' });
-      if (u.pathname === '/me') return send(200, { allowed: true });
-      if (u.pathname === '/sync') {
-        const since = +(u.searchParams.get('since') || 0);
-        const entries = [...s.entries.values()].filter((e) => e.syncedAt >= since).sort((a, b) => a.syncedAt - b.syncedAt);
-        const settings = s.settings && s.settings.syncedAt >= since ? s.settings : null;
-        const cursor = Math.max(since, ...entries.map((e) => e.syncedAt), settings ? settings.syncedAt : 0);
-        return send(200, { entries, settings, cursor, hasMore: false });
-      }
-      const body = JSON.parse(req.postData() || '{}');
-      if (u.pathname === '/entries') {
-        s.puts.push(body.entries);
-        const stale = [];
-        let applied = 0;
-        const rejected = [];
-        body.entries.forEach((e) => {
-          if (e.waist > 200) return rejected.push({ date: e.date, error: 'waist out of range' });
-          if (s.put(e)) applied++; else stale.push(e.date);
-        });
-        return send(200, { applied, stale, rejected });
-      }
-      if (u.pathname === '/settings') {
-        const cur = s.settings;
-        if (cur && cur.updatedAt >= body.settings.updatedAt) return send(200, { applied: 0 });
-        s.settings = { ...body.settings, syncedAt: ++s.clock };
-        return send(200, { applied: 1 });
-      }
-      return send(404, { error: 'not found' });
-    });
-  };
-  return s;
-}
 
 const local = (rows) => ({ key: 'tirzepatide-log-v1', rows });
 async function seedLocal(page, rows) {
@@ -582,3 +494,34 @@ test('security: a doctor cannot export the patient\'s log as a CSV (spreadsheet 
   await expect(page.locator('#exportBtn')).toBeHidden();
   await expect(page.locator('#backupExport')).toBeHidden();
 });
+
+// ---- the app lives at its own host; the old addresses only forward ----
+for (const old of ['https://www.phoe.be/tirzepatide-log/', 'https://archie-hub.github.io/tirzepatide-log/']) {
+  test(`old address ${old} forwards to the new host, keeps a doctor link's token, and drops the old sign-in`, async ({ page }) => {
+    const html = require('fs').readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const origin = new URL(old).origin;
+    const beacons = [];
+    await page.route(old + '**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: html }));
+    await page.route(origin + '/probe', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>probe</p>' }));
+    await page.route('https://tirzepatide.phoe.be/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<p id="new-home">new home</p>' }));
+    await page.route(COGNITO + '/oauth2/revoke', (r) => { beacons.push(r.request().postData()); r.fulfill({ status: 200, headers: CORS, body: '' }); });
+    await page.addInitScript(() => {
+      if (location.hostname !== 'tirzepatide.phoe.be' && !localStorage.getItem('seeded-by-test')) {
+        localStorage.setItem('seeded-by-test', '1');
+        localStorage.setItem('tirzepatide-sync', JSON.stringify({ auth: { access: 'a', refresh: 'old-refresh-token', exp: Date.now() + 1e6 }, init: true }));
+        localStorage.setItem('tirzepatide-log-v1', JSON.stringify([{ date: '2026-03-01', dose: 2.5, weight: 200 }]));
+      }
+    });
+    const token = 'T01' + 'x'.repeat(40);
+    await page.goto(old + '#share=' + token);
+    await expect(page.locator('#new-home')).toBeVisible();
+    expect(page.url()).toBe('https://tirzepatide.phoe.be/#share=' + token);
+    await expect.poll(() => beacons.length).toBe(1);
+    const form = new URLSearchParams(beacons[0]);
+    expect(form.get('token')).toBe('old-refresh-token');
+    expect(form.get('client_id')).toBe('7bhnc1e4on4g01h0topme3tipl');
+    await page.goto(origin + '/probe');
+    expect(await page.evaluate(() => localStorage.getItem('tirzepatide-sync'))).toBeNull();            // the sign-in no longer sits where other sites can read it
+    expect(await page.evaluate(() => localStorage.getItem('tirzepatide-log-v1'))).not.toBeNull();      // the log itself is left alone for the owner to move
+  });
+}
