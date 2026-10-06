@@ -976,3 +976,34 @@ test('chart lines stop at a gap of more than a month and the dots stay', async (
   const cut = await lineSubpaths([mk('2026-01-01', 210), mk('2026-01-02', 209.8), mk('2026-02-02', 209), mk('2026-02-03', 208.9)]);
   expect(cut.subpaths).toBe(2);
 });
+
+test('the weight line is coloured by trend: green when falling, blue-violet when flat, red when rising', async ({ page }) => {
+  const mk = (date, weight) => ({ date, dose: 2.5, weight, comments: '', cal: null, food: '', sugar: null, site: '', sys: null, dia: null, waist: null, fat: null, muscle: null });
+  const log = (fn) => Array.from({ length: 40 }, (_, i) => mk(new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10), fn(i)));
+  async function stops(entries) {
+    await page.evaluate((e) => { localStorage.setItem('tirzepatide-log-v1', JSON.stringify(e)); }, entries);
+    await page.reload();
+    return page.evaluate(() => {
+      const path = document.querySelector('#chart svg path[stroke-width="3.2"]');
+      const m = /url\(#([^)]+)\)/.exec(path.getAttribute('stroke'));
+      const g = document.getElementById(m[1]);
+      return { units: g.getAttribute('gradientUnits'), colors: [...g.querySelectorAll('stop')].map((s) => s.getAttribute('stop-color')), offsets: [...g.querySelectorAll('stop')].map((s) => +s.getAttribute('offset')) };
+    });
+  }
+  // 0.2 lb a day is 1.4 lb a week, 0.7 percent of body weight a week: past the end of the scale at both ends
+  const falling = await stops(log((i) => 200 - 0.2 * i));
+  expect(falling.units).toBe('userSpaceOnUse');
+  expect(falling.colors.at(-1)).toBe('rgb(5,150,105)');
+  expect(falling.offsets[0]).toBe(0); expect(falling.offsets.at(-1)).toBe(1);
+  const rising = await stops(log((i) => 200 + 0.2 * i));
+  expect(rising.colors.at(-1)).toBe('rgb(239,68,68)');
+  const flat = await stops(log(() => 200));
+  expect(new Set(flat.colors)).toEqual(new Set(['rgb(99,102,241)']));
+  // a loss that stalls: starts green, ends blue-violet
+  const stalls = await stops(log((i) => (i < 20 ? 200 - 0.2 * i : 196)));
+  expect(stalls.colors[3]).toBe('rgb(5,150,105)');
+  expect(stalls.colors.at(-1)).toBe('rgb(99,102,241)');
+  // the legend explains it, and other charts keep their own colours
+  await expect(page.locator('#legend')).toContainText('coloured by trend');
+  await page.getByRole('tab', { name: 'Glucose' }).click().catch(() => {});
+});

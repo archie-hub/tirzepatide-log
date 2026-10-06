@@ -1442,6 +1442,39 @@
     return COMPARE_SERIES.filter(function (x) { return c.indexOf(x.k) >= 0 && (x.k !== 'bmi' || settings.heightIn); });
   }
   // o: { days } trailing window, or { from, to } explicit window; print:true builds a standalone light SVG
+  // The weight line changes colour with the trend: green while the 7-day average is falling, through teal and blue-violet
+  // when it is flat, to amber and red when it is rising. Mirrored by TrendColor in the iPhone app.
+  var TREND_STOPS = [[-0.5, [5, 150, 105]], [-0.15, [14, 165, 164]], [0, [99, 102, 241]], [0.15, [245, 158, 11]], [0.5, [239, 68, 68]]];
+  function trendColor(pct) {   // pct: percent of body weight per week, negative = losing
+    var st = TREND_STOPS, c;
+    if (pct <= st[0][0]) c = st[0][1];
+    else if (pct >= st[st.length - 1][0]) c = st[st.length - 1][1];
+    else {
+      for (var i = 1; i < st.length; i++) {
+        if (pct <= st[i][0]) {
+          var t = (pct - st[i - 1][0]) / (st[i][0] - st[i - 1][0]);
+          c = st[i - 1][1].map(function (v, k) { return v + (st[i][1][k] - v) * t; });
+          break;
+        }
+      }
+    }
+    return 'rgb(' + c.map(Math.round).join(',') + ')';
+  }
+  // Trend at each point: change of the average over the readings within 10 days either side, per week, as % of weight
+  function trendSlopes(pts) {
+    var out = pts.map(function (p, i) {
+      var j0 = i, j1 = i;
+      while (j0 > 0 && dayDiff(pts[j0 - 1].e.date, p.e.date) <= 10) j0--;
+      while (j1 < pts.length - 1 && dayDiff(p.e.date, pts[j1 + 1].e.date) <= 10) j1++;
+      var days = dayDiff(pts[j0].e.date, pts[j1].e.date);
+      return days < 3 || !p.a ? null : (pts[j1].a - pts[j0].a) / days * 7 / p.a * 100;
+    });
+    var last = 0;                                   // isolated readings take the nearest known trend
+    out = out.map(function (v) { if (v !== null) last = v; return v; });
+    var next = 0;
+    for (var i = out.length - 1; i >= 0; i--) { if (out[i] !== null) next = out[i]; else out[i] = next; }
+    return out;
+  }
   // A line is not drawn across a long silence: more than LINE_GAP_DAYS between two readings ends the line and starts a new one
   // (the dots stay). Mirrored by ChartGaps in the iPhone app.
   var LINE_GAP_DAYS = 30;
@@ -1591,7 +1624,14 @@
       g += '<circle' + fade + ' cx="' + X(p.e.date).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + (single ? 6 : r) + '" fill="' + (m.key === 'sugar' ? sugarZone(p.v).color : m.key === 'bmi' ? bmiStage(p.v).color : m.key === 'rate' ? (p.v <= -rateThr ? '#f97316' : m.color) : m.color) + '" opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.9' : (pts.length > 45 ? '0.45' : '0.85')) + '"/>';
     });
     g += zoneLabels;
-    if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="' + (bp ? 2 : 3.2) + '" stroke-linecap="round" stroke-linejoin="round" d="' + runsPath(pts, avgXY) + '"/>';
+    var lineStroke = lc;
+    if (!single && m.key === 'weight' && pts.length > 1 && X(pts[pts.length - 1].e.date) > X(pts[0].e.date)) {
+      var x0 = X(pts[0].e.date), x1 = X(pts[pts.length - 1].e.date), sl = trendSlopes(pts), tg = gid + 't';
+      g = g.replace('</defs>', '<linearGradient id="' + tg + '" gradientUnits="userSpaceOnUse" x1="' + x0.toFixed(1) + '" x2="' + x1.toFixed(1) + '" y1="0" y2="0">' +
+        pts.map(function (p, i) { return '<stop offset="' + ((X(p.e.date) - x0) / (x1 - x0)).toFixed(4) + '" stop-color="' + trendColor(sl[i]) + '"/>'; }).join('') + '</linearGradient></defs>');
+      lineStroke = 'url(#' + tg + ')';
+    }
+    if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lineStroke + '" stroke-width="' + (bp ? 2 : 3.2) + '" stroke-linecap="round" stroke-linejoin="round" d="' + runsPath(pts, avgXY) + '"/>';
     if (bp && !single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="2" stroke-opacity="0.55" stroke-linecap="round" stroke-linejoin="round" d="' +
       runsPath(pts, function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a2).toFixed(1); }) + '"/>';
     if (!o.print) g += '<line id="xh" y1="' + T + '" y2="' + (H - B) + '" stroke="' + C.muted + '" stroke-dasharray="3 4" style="display:none"/>' +
@@ -1770,6 +1810,8 @@
     $('legend').innerHTML = lg + '<span>' + (single ? '' : currentMetric === 'bp'
       ? 'Each bar runs from diastolic (hollow dot) up to systolic (solid dot). Grey lines are 7-day averages (systolic above, diastolic below). Hover or touch the chart for details.'
       : currentMetric === 'rate' ? 'Each dot is the weight trend over the 4 weeks up to that day (below the zero line = losing). Orange dots are faster than ' + FAST_PCT + '% of body weight a week. Hover or touch the chart for details.'
+      : currentMetric === 'weight' && !single ? 'Dots are daily values. The line is the trailing 7-day average, coloured by trend: ' +
+        '<span class="chip" style="--c:#059669">falling</span> <span class="chip" style="--c:#6366f1">steady</span> <span class="chip" style="--c:#ef4444">rising</span> Hover or touch the chart for details.'
       : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') + '</span>';
 
     var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), xc = svg.querySelector('#xc'), cur = -1;
