@@ -433,3 +433,26 @@ test('a malformed share fragment is not a doctor link: the landing page shows an
   await expect(page.locator('#stats')).toBeHidden();
   expect(b.authHeaders).toEqual([]);
 });
+
+test('auto sync: a saved entry reaches the server by itself, and leaving the tab pushes at once', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200)]);
+  await page.goto(APP);
+  await signIn(page);
+  await page.locator('#formPanel > summary').click();
+  await page.locator('#fDate').fill('2026-03-08');
+  await page.locator('#fWeight').fill('199.5');
+  await page.locator('#saveBtn').click();
+  await expect.poll(() => b.entries.get('2026-03-08')?.weight, { timeout: 5000 }).toBe(199.5);   // no Sync now click
+  // another edit, then the tab is hidden before the 1.5 s debounce: it is sent straight away
+  await page.locator('#fDate').fill('2026-03-15');
+  await page.locator('#fWeight').fill('198.1');
+  await page.locator('#saveBtn').click();
+  await page.evaluate(() => { Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+  await expect.poll(() => b.entries.get('2026-03-15')?.weight, { timeout: 1200 }).toBe(198.1);
+  // coming back to the tab catches up with what another device saved
+  b.put({ date: '2026-03-22', updatedAt: Date.now() + 50000, dose: 2.5, weight: 197 });
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('tirzepatide-sync')); s.last = Date.now() - 60000; localStorage.setItem('tirzepatide-sync', JSON.stringify(s)); });
+  await page.reload();
+  await expect.poll(async () => (await storedEntries(page)).some((e) => e.date === '2026-03-22'), { timeout: 5000 }).toBe(true);
+});

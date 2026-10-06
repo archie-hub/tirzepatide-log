@@ -2935,7 +2935,7 @@
   }
   function cloudApi(method, path, body) {
     return cloudToken().then(function (tok) {
-      return fetch(CLOUD.api + path, { method: method, headers: { authorization: 'Bearer ' + tok, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+      return fetch(CLOUD.api + path, { method: method, headers: { authorization: 'Bearer ' + tok, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, keepalive: !!body && JSON.stringify(body).length < 60000 });
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) { if (r.ok) return j; throw { status: r.status, msg: j.error }; });
     });
@@ -3179,7 +3179,9 @@
       if (cloudSignedIn()) syncNow();
     });
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden && cloudSignedIn() && Date.now() - (sync.last || 0) > 15000) syncNow();
+      if (!cloudSignedIn()) return;
+      if (document.hidden) { if (Object.keys(sync.dirty || {}).length || sync.sDirty !== undefined) syncNow(); }   // leaving: push what is waiting now
+      else if (Date.now() - (sync.last || 0) > 5000) syncNow();                                                     // coming back: catch up
     });
     window.addEventListener('online', function () { syncNow(); });
   }
