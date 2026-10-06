@@ -66,3 +66,6 @@ Manual: headless Chromium screenshots for anything the spec doesn't cover yet (v
 3. Partial: ARIA/keyboard review. Dialogs, tabs and range controls already use native `<dialog>`/roving tabindex/`aria-selected`/`aria-pressed`; per-row Edit/Delete buttons now have date-specific `aria-label`s. Chart is keyboard readable: focus the chart, Left/Right step through points, Home/End jump, Esc hides; the tooltip is an aria-live region.
 
 This is a personal tracking tool, not medical advice.
+
+## Planned: cloud sync and paid doctor sharing
+Not built yet. Plan in `docs/aws-sync-plan.md`, diagram in `docs/aws-sync-architecture.html` (and `.png`). Cognito + HTTP API + Lambda + DynamoDB (no AppSync), app served from S3 not GitHub Pages, infra in a separate private repo. Until built, the "never upload data" rule in "Data and privacy rules" still applies.

@@ -14,3 +14,4 @@ playwright-report/
 
 # Personal Claude Code settings (absolute paths)
 .claude/settings.local.json
+!docs/*.png
