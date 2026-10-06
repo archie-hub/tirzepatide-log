@@ -23,6 +23,12 @@ Web uses `fetch` + the hosted login page (no SDK). iOS uses `ASWebAuthentication
 - **Hosting (GitHub independence):** today `/tirzepatide-log/*` on CloudFront is proxied to GitHub Pages, so a GitHub outage can break the page for anyone without a cached copy. For the paid product, serve the app and `share.html` from our own S3 bucket behind the same CloudFront distribution (new origin/behavior replacing the GitHub Pages origin). `deploy.sh` becomes: push to GitHub (source only), `aws s3 sync` the static files, invalidate CloudFront. GitHub then only affects deploying changes, never users or doctors. Cost: cents per month. Keep the GitHub Pages URL as a fallback mirror. Cognito callback URLs and `share.html` live on the phoe.be origin only. Optional `api.phoe.be` custom domain on the HTTP API.
 - **IaC:** Terraform (existing profile `kathyterraform`) in a **separate private repo** (this repo is public; keep account ids, ARNs and Stripe config out of it).
 
+## Access control (invite-only for now, Stripe deferred)
+- **Cognito sign-up disabled:** user pool set to admin-create-only (`allow_admin_create_user_only = true` in Terraform). The hosted login page then has no "Sign up" link and the self-sign-up API call is rejected. Only users you create (`aws cognito-idp admin-create-user`, which emails a temporary password) can ever log in.
+- **Second lock in the API:** every Lambda also requires an `PLAN` item for the caller's `sub` (`status=allowed`). You create it by hand or with a small admin script when you invite someone. A Cognito user without it gets 403. This same item is where Stripe will write later, so adding payments changes who writes it, not the checks.
+- Keep the app URL unlisted (already noindex); optional MFA/passkey for your own account; a Cognito pre-sign-up allowlist Lambda is only needed if self sign-up is ever opened.
+- Doctor links need no login but are only creatable by an allowed user, and are revocable.
+
 ## Cost (rough, small scale)
 Cognito free to 10k MAU; Lambda and DynamoDB inside free tier / pennies; HTTP API $1 per million requests; SSM free. Expect about $0 to $2/month for the first few hundred users. Avoid WAF ($5+/mo) and Secrets Manager; use API throttling on `/share` instead. Stripe fees (2.9% + 30c) and Apple's cut (below) are the real costs.
 
@@ -44,7 +50,7 @@ Cognito free to 10k MAU; Lambda and DynamoDB inside free tier / pennies; HTTP AP
 2. Web: sign-in (PKCE), sync engine over existing `save()`/`loadHostedData()`, settings toggle, offline-first retained; Playwright tests with a mocked API.
 3. iOS: same contract (port automatically; `PARITY.md` row, matching tests, `/sync-check`).
 4. Share links + `share.html` (reuse the doctor report renderer), revoke UI.
-5. Stripe + entitlement gate; Apple IAP decision.
+5. DEFERRED (no Stripe account yet): Stripe + billing Lambda + Apple IAP decision. Until then the `PLAN` entitlement is set manually for invited users.
 6. Privacy policy, delete-account, launch.
 
 ## Deliverables of this planning step (executed after approval)
@@ -57,6 +63,6 @@ Cognito free to 10k MAU; Lambda and DynamoDB inside free tier / pennies; HTTP AP
 - Later phases: `npm test` (web), iOS unit tests, contract test that both clients produce identical sync JSON, an end-to-end check that data entered on web appears on iOS, a revoked share link returns 404, a non-`pro` user gets 403 on share creation, and cross-user access attempts fail.
 
 ## Open decisions (defaults used if you do not say otherwise)
-- Free = local only; Paid = sync + web login + doctor links. Subscription (monthly/annual) rather than one-off.
+- Free = local only; Paid (later) = sync + web login + doctor links. For now: invite-only, no payments. Subscription (monthly/annual) rather than one-off.
 - Doctor link shows live data and is revocable.
 - Email login, no Sign in with Apple at first.
