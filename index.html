@@ -500,6 +500,7 @@
     <button id="openReport">Doctor report</button>
     <button id="exportBtn">Export CSV</button>
     <button id="resetBtn" class="danger">Clear all data</button>
+    <button id="cloudOpen" hidden>Cloud sync</button>
   </div>
 
   <footer class="foot" id="foot"></footer>
@@ -3004,11 +3005,13 @@
     if (!box) return;
     var inn = cloudSignedIn();
     box.hidden = !(cloudAvailable() && (inn || settings.cloudUi));
+    $('cloudOpen').hidden = box.hidden;   // a way in from an empty log too, where the goal card (and so Settings) is not shown
     $('cloudIn').hidden = inn; $('cloudSyncBtn').hidden = !inn; $('cloudOut').hidden = !inn;
     $('cloudSyncBtn').disabled = syncing;
     $('cloudStatus').textContent = !inn ? 'Sign in to keep this log in step with your other devices.'
       : syncing ? 'Syncing...' : syncErr || ((sync.last ? 'Signed in. Last synced ' + new Date(sync.last).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.' : 'Signed in.') + ' ' + rejectedNote()).trim();
   }
+  $('cloudOpen').addEventListener('click', function () { openSettings(); });
   $('cloudIn').addEventListener('click', cloudSignIn);
   $('cloudSyncBtn').addEventListener('click', function () { syncNow(); });
   $('cloudOut').addEventListener('click', function () { cloudSignOut(); });

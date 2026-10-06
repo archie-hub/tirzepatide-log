@@ -272,3 +272,15 @@ test('#cloud on the page that embeds the app in a frame reveals the section insi
   await page.frames()[1].evaluate(() => document.getElementById('setDlg').showModal());
   await expect(frame.locator('#cloudBox')).toBeVisible();
 });
+
+test('a Cloud sync button next to the data buttons opens Settings, even with an empty log', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await page.goto(APP);
+  await expect(page.locator('#cloudOpen')).toBeHidden();
+  await page.goto(APP + '#cloud');
+  await page.reload();
+  await expect(page.locator('#cloudOpen')).toBeVisible();
+  await page.locator('#cloudOpen').click();
+  await expect(page.locator('#cloudBox')).toBeVisible();
+  await expect(page.locator('#cloudIn')).toBeVisible();
+});
