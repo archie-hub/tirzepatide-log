@@ -262,3 +262,13 @@ test('adding #cloud to a tab that is already open reveals the section without a 
   await page.evaluate(() => { location.hash = '#cloud'; });
   await expect(page.locator('#cloudBox')).toBeVisible();
 });
+
+test('#cloud on the page that embeds the app in a frame reveals the section inside the frame', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await page.route('http://localhost:8080/wrapper', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<iframe id="f" src="/" style="width:900px;height:700px"></iframe>' }));
+  await page.goto('http://localhost:8080/wrapper#cloud');
+  const frame = page.frameLocator('#f');
+  await expect(frame.locator('#cloudBox')).toHaveCount(1);
+  await page.frames()[1].evaluate(() => document.getElementById('setDlg').showModal());
+  await expect(frame.locator('#cloudBox')).toBeVisible();
+});

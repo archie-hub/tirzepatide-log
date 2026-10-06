@@ -3013,8 +3013,13 @@
   $('cloudSyncBtn').addEventListener('click', function () { syncNow(); });
   $('cloudOut').addEventListener('click', function () { cloudSignOut(); });
   function cloudInit() {
-    function reveal() { if (location.hash === '#cloud' && !settings.cloudUi) { settings.cloudUi = true; saveSettings(); } renderCloudBox(); }
+    function asked() {   // the phoe.be page embeds this app in a frame, so look at the top address too
+      try { if (window.top !== window && window.top.location.hash === '#cloud') return true; } catch (e) {}
+      return location.hash === '#cloud';
+    }
+    function reveal() { if (asked() && !settings.cloudUi) { settings.cloudUi = true; saveSettings(); } renderCloudBox(); }
     window.addEventListener('hashchange', reveal);   // adding #cloud to a tab that is already open does not reload it
+    try { window.top.addEventListener('hashchange', reveal); } catch (e) {}
     reveal();
     cloudHandleReturn().then(function (ok) {
       renderCloudBox(); renderFooter(); renderBackup();
