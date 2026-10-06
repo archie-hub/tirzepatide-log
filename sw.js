@@ -15,7 +15,7 @@ self.addEventListener('activate', function (ev) {
 
 self.addEventListener('fetch', function (ev) {
   var req = ev.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin || /[?&](code|state)=/.test(req.url)) return;  // never cache the sign-in redirect
   ev.respondWith(fetch(req, { cache: 'no-store' }).then(function (res) {
     if (res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
     return res;

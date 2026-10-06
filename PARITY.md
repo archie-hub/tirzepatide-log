@@ -1,6 +1,6 @@
 # Web / iOS parity
 
-Single source of truth for what the two apps share. Web app: this repo (`index.html`). iOS app: `/Users/andrewchandler/ios_apps.d/tir.d` (TirzTrack, SwiftUI + SwiftData). Both are local-first and never upload data.
+Single source of truth for what the two apps share. Web app: this repo (`index.html`). iOS app: `/Users/andrewchandler/ios_apps.d/tir.d` (TirzTrack, SwiftUI + SwiftData). Both are local-first; the web app can optionally sync to an invited cloud account (see CLAUDE.md), iOS not yet.
 
 **Last synced** (update when you finish a sync pass, via `/sync-check`): web `dcf836e`, iOS `da117d3`, 2026-10-05.
 
@@ -38,6 +38,7 @@ Legend: yes, no, partial.
 | Dose reminder | yes (Settings: weekly .ics calendar file) | yes (weekly local notification) | Same idea, platform-native mechanism |
 | Units: US / metric / UK stones | yes | yes | See Storage units |
 | CSV export (13 columns) | yes | yes | aligned 2026-10-05; iOS now fills all 13 |
+| Cloud sync (invite-only account, per-day last-write-wins) | yes (Phase 2, hidden behind `#cloud`) | no | iOS port is Phase 3 of `docs/aws-sync-plan.md` (needs sync ids/updatedAt/tombstones in SwiftData, sign-in via `ASWebAuthenticationSession`, same API contract as `tirzepatide-cloud/lambda_src/handler.py`). Intentional gap until then; not a device-only gap |
 | CSV import | yes (wizard) | yes | iOS: Settings > Import from CSV. Same column words, date detection, kg conversion, merge/replace by date; `CSVImportTests`. Rows with no dose import as 0 mg (hidden, exported blank) because iOS dose is not optional |
 | JSON backup/restore (with photos) | n/a | yes | Exists for photos; CSV is the shared backup format on both |
 | Doctor report (PDF, summary, charts) | yes | yes | iOS `ReportBuilder` mirrors `buildReport()` (same boxes, order, text summary, range tables, dose schedule, comments, full log; `ReportTests`). Share as PDF, text, CSV for the period, chart images. Web: print/PDF, PNG, copy, mailto, share |
