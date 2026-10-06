@@ -2,7 +2,7 @@
 
 Single source of truth for what the two apps share. Web app: this repo (`index.html`). iOS app: `/Users/andrewchandler/ios_apps.d/tir.d` (TirzTrack, SwiftUI + SwiftData). Both are local-first and never upload data.
 
-**Last synced** (update when you finish a sync pass, via `/sync-check`): web `a626017`, iOS `c4f309e`, 2026-10-05.
+**Last synced** (update when you finish a sync pass, via `/sync-check`): web `6a9cdfa`, iOS `386bbf1`, 2026-10-05.
 
 ## Shared contract (change one side, change the other)
 
@@ -13,6 +13,7 @@ Single source of truth for what the two apps share. Web app: this repo (`index.h
 | Dose colours | 2.5 blue, 5 green, 7.5 yellow, 10 orange, 12.5 pink, 15 violet. |
 | Glucose zones (ADA, fasting) | Below 100 green, 100-125 amber, 126+ red. Web has no separate low tier; iOS also flags below 70 red. Decide and align. |
 | BMI stages | Underweight below 18.5, normal below 25, overweight below 30, obesity I below 35, II below 40, III 40+. Web decides on the rounded value; iOS uses the raw value. Names differ ("Healthy" vs "Normal"). |
+| Blood pressure | AHA categories, higher number decides, rounded values: Normal below 120 and 80 green #16a34a, Elevated 120-129 and below 80 amber #d4a106, Stage 1 130-139 or 80-89 orange #f97316, Stage 2 140+ or 90+ red #dc2626. A reading needs both numbers; typed as `119/79`. |
 | Injection sites | Abdomen/Thigh/Arm, left/right. iOS rotation order: Abdomen L, Thigh R, Abdomen R, Thigh L, Arm L, Arm R. Web stores free text from the same six labels. |
 | Goal forecast | Least-squares slope over recent weigh-ins to project the goal date. Web uses 28 days. |
 
@@ -23,10 +24,10 @@ Legend: yes, no, partial.
 | Feature | Web | iOS | Notes |
 |---|---|---|---|
 | Entry: date, dose, weight, comments, calories, food notes, glucose, site | yes | yes | |
-| Blood pressure (sys/dia) | yes | no | |
-| Waist, body fat, muscle mass | yes | no | |
+| Blood pressure (sys/dia) | yes | yes | AHA zones and parse rule mirrored (`BPCategory`, tested). iOS: one `119/79` field, history label, trends bar chart |
+| Waist, body fat, muscle mass | yes | yes | iOS stores inches/%/lbs like the web; shows cm with the kg setting. No waist-to-height or half-height line yet |
 | Weight chart with trend/average line | yes | yes | |
-| Other chart tabs (glucose, pace, waist, BP, calories, combined, BMI) | yes | no | iOS has weight trend only |
+| Other chart tabs (glucose, pace, waist, BP, calories, combined, BMI) | yes | partial | iOS has weight, BP, waist, body fat, muscle charts; no glucose, pace, calories, combined or BMI chart |
 | Goal weight and projection | yes | yes | |
 | 30/90-day forecast | no | yes | iOS only |
 | BMI with stage and gauge | yes | partial | iOS: category and colour, height in cm |
@@ -34,7 +35,7 @@ Legend: yes, no, partial.
 | Results by dose | yes | no | |
 | Next dose / dose reminders | yes (next-dose card) | yes (weekly notification) | different mechanisms |
 | Units: US / metric / UK stones | yes | partial | iOS lb/kg only |
-| CSV export (13 columns) | yes | yes | aligned 2026-10-05 |
+| CSV export (13 columns) | yes | yes | aligned 2026-10-05; iOS now fills all 13 |
 | CSV import | yes (wizard) | no | iOS restores from JSON backup only |
 | JSON backup/restore (with photos) | no | yes | |
 | Doctor report (PDF, summary, charts) | yes | no | |
