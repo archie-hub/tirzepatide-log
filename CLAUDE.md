@@ -29,6 +29,9 @@ The iPhone app (TirzTrack, SwiftUI + SwiftData) lives at `/Users/andrewchandler/
 - CSV is the bridge between the apps. The web header assertion in `tests/smoke.spec.js` and iOS `TirzTrackTests/CSVContractTests.swift` must both match the 13-column format above.
 - Commit each repo separately and report both hashes.
 
+## Deploying
+- Push with `./deploy.sh`, not bare `git push`: it pulls --rebase, pushes, waits for the GitHub Pages build, then invalidates `/tirzepatide-log/*` and `/tirzepatide-log.html` on CloudFront `EWVXJSS4UKRDN` (profile `kathyterraform`) so phoe.be updates immediately instead of lagging up to 10 minutes (origin `max-age=600`). Needs a clean tree on `main`. If you pushed another way, run the invalidation by hand after the Pages build finishes.
+
 ## Data and privacy rules
 - All data lives in the visitor's browser (`localStorage` key `tirzepatide-log-v1`; report name under `tirzepatide-report-name`; goal, baseline weight, dose day, height, units, combined-chart choice and backup timestamps under `tirzepatide-settings`). Never add code that uploads data.
 - Never commit real health data. `.gitignore` excludes `*.csv` except `sample-data/`. The sample file is fake.
