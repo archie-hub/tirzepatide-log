@@ -633,6 +633,16 @@ test('progress: percent lost and the week on treatment on the Change card', asyn
   await expect(page.locator('#progress')).toHaveCount(0);    // there is no separate progress panel
 });
 
+test('progress: milestones and lost at week 12 are also in More insights', async ({ page }) => {
+  await pasteProgress(page);
+  await page.locator('#insightsPanel > summary').click();
+  const box = (label) => page.locator('#insights .ins', { hasText: label });
+  await expect(box('Milestones')).toContainText('10% reached');
+  await expect(box('Milestones')).toContainText('5% in week 5');
+  await expect(box('Milestones')).toContainText('next, 15%: 5.0 lbs to go');
+  await expect(box('Lost at week 12')).toContainText('11.0%');
+});
+
 test('progress: a start weight before treatment changes the percentages and milestones', async ({ page }) => {
   await pasteProgress(page);
   await page.locator('#stats [data-settings]').first().click();

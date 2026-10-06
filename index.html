@@ -1066,6 +1066,12 @@
       out.push(insBox('#64748b', 'Weigh-ins', String(cs.n), (cs.avgGap !== null ? 'every ' + cs.avgGap.toFixed(1) + ' days on average' : '') +
         (cs.longest ? '. Longest gap ' + cs.longest.days + ' days (' + shortDate(cs.longest.from, false) + ' to ' + shortDate(cs.longest.to, false) + ')' : '')));
     }
+    var pi = progressInfo(all);
+    if (pi) {
+      var reached = pi.ms.filter(function (m) { return m.hit; });
+      out.push(insBox('#7c3aed', 'Milestones', reached.length ? reached[reached.length - 1].pct + '% reached' : 'None yet', milestoneText(pi)));
+      if (pi.w12) out.push(insBox('#14b8a6', 'Lost at week 12', pi.w12.pct.toFixed(1) + '%', fw(pi.w12.lost) + ' ' + WU() + ' by ' + shortDate(pi.w12.date, true)));
+    }
     return out;
   }
   function weeklyTable(weeks) {

@@ -2,7 +2,7 @@
 
 Single source of truth for what the two apps share. Web app: this repo (`index.html`). iOS app: `/Users/andrewchandler/ios_apps.d/tir.d` (TirzTrack, SwiftUI + SwiftData). Both are local-first and never upload data.
 
-**Last synced** (update when you finish a sync pass, via `/sync-check`): web `e47d768`, iOS `b125219`, 2026-10-05.
+**Last synced** (update when you finish a sync pass, via `/sync-check`): web `b5387f3`, iOS `0c049c7`, 2026-10-05.
 
 ## Shared contract (change one side, change the other)
 
@@ -32,8 +32,8 @@ Legend: yes, no, partial.
 | Goal weight and projection | yes | yes | |
 | 30/90-day forecast | no | yes | iOS only |
 | BMI with stage and gauge | yes | partial | iOS: category, colour, scale bar and chart; height in cm. Stage uses the value rounded to 0.1 on both |
-| Progress maths (milestones, week 12, pace, plateau, insights) | yes | no | |
-| Results by dose | yes | no | |
+| Progress maths (percent lost, week on treatment, milestones, lost at week 12, 4-week pace, fast-loss and plateau notices, weekly averages, best week, highs/lows, streak, by-injection-day) | yes | yes | Mirrored in iOS `Progress.swift` with identical hand-built test figures. Both show it in a minimised "More insights" panel; the web also puts it in the doctor report. iOS dose day = reminder weekday if on, else last injection-site entry, else dose start (web: dose-day setting first). Optional start weight ("baseline") is in both Settings |
+| Results by dose | yes | yes | iOS `Progress.doseResults`, same segments, weeks and lbs/week rule |
 | Next dose / dose reminders | yes (next-dose card) | yes (weekly notification) | different mechanisms |
 | Units: US / metric / UK stones | yes | partial | iOS lb/kg only |
 | CSV export (13 columns) | yes | yes | aligned 2026-10-05; iOS now fills all 13 |
@@ -47,4 +47,4 @@ Legend: yes, no, partial.
 
 ## Deliberate gaps
 
-Photos and app lock stay iOS-only (device features). The doctor report and PWA stay web-only. Everything else marked "no" above is a candidate to port, not a decision to leave it out.
+Photos and app lock stay iOS-only and PWA install stays web-only (device features). Everything else marked "no" or "partial" above is simply not built yet and gets ported when next touched; it is not a decision to leave it out. No need to ask.
