@@ -516,3 +516,69 @@ test('pull down from the top of the page to sync (touch screens)', async ({ page
   await pull(100, 300);                                                                      // a long pull from the top syncs
   await expect.poll(async () => (await storedEntries(page)).some((e) => e.date === '2026-03-22'), { timeout: 5000 }).toBe(true);
 });
+
+// ---- security: the text a user types must never run as code, in their own view or in a doctor's ----
+const EVIL = '"><img src=x onerror="window.__xss=(window.__xss||0)+1"><svg onload="window.__xss=(window.__xss||0)+1"><script>window.__xss=(window.__xss||0)+1</script>';
+async function xssCount(page) { return page.evaluate(() => window.__xss || 0); }
+
+test('security: hostile text in comments, food notes and site does not run as code in the owner view', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200, { comments: EVIL, food: EVIL, site: EVIL, sugar: 100 }), row('2026-03-08', 199, { comments: EVIL })]);
+  await page.goto(APP);
+  await signIn(page);
+  await page.locator('#entriesPanel > summary').click();
+  await expect(page.locator('#rows')).toContainText('window.__xss');                    // shown as plain text
+  expect(await page.locator('#rows img, #rows svg[onload], #rows script').count()).toBe(0);
+  for (const tab of ['Glucose', 'Combined', 'Weight']) {
+    await page.getByRole('tab', { name: tab }).click().catch(() => {});
+    await page.locator('#chart svg').first().hover({ position: { x: 300, y: 100 } }).catch(() => {});
+  }
+  await page.locator('#openReport').click();
+  await page.locator('#rcFull').check();                                              // the full log table carries food notes and site too
+  await page.waitForTimeout(500);
+  await expect(page.locator('#reportPreview')).toContainText('window.__xss');          // the hostile text is in the report, as plain text
+  expect(await page.locator('#reportPreview img[src="x"], #reportPreview script, #reportPreview svg[onload]').count()).toBe(0);
+  await page.waitForTimeout(500);
+  expect(await xssCount(page)).toBe(0);
+});
+
+test('security: a hostile patient cannot run code in a doctor\'s browser through a shared link', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  b.put({ date: '2026-03-01', updatedAt: 1, dose: 2.5, weight: 200, comments: EVIL, foodNotes: EVIL, site: EVIL });
+  b.put({ date: '2026-03-08', updatedAt: 1, dose: 2.5, weight: 199, comments: EVIL, foodNotes: EVIL });
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: true });                            // notes included, the worst case
+  await page.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(page.locator('#subtitle')).toContainText('2 entries');
+  await page.locator('#entriesPanel > summary').click();
+  await expect(page.locator('#rows')).toContainText('window.__xss');
+  expect(await page.locator('#rows img, #rows script').count()).toBe(0);
+  await page.locator('#chart svg').first().hover({ position: { x: 300, y: 100 } }).catch(() => {});
+  await page.locator('#openReport').click();
+  await page.locator('#rcFull').check();
+  await page.waitForTimeout(800);
+  await expect(page.locator('#reportPreview')).toContainText('window.__xss');
+  expect(await page.locator('#reportPreview img[src="x"], #reportPreview script, #reportPreview svg[onload]').count()).toBe(0);
+  expect(await xssCount(page)).toBe(0);
+});
+
+test('security: hostile settings values from the server (units, compare) cannot inject markup', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  b.put({ date: '2026-03-01', updatedAt: 1, dose: 2.5, weight: 200 });
+  b.settings = { goal: 180, units: '<img src=x onerror="window.__xss=1">', compare: ['<img src=x onerror="window.__xss=1">', 'weight'], doseDay: 2, updatedAt: 1, syncedAt: 5 };
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: false });
+  await page.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(page.locator('#subtitle')).toContainText('1 entries');
+  await page.getByRole('tab', { name: 'Combined' }).click().catch(() => {});
+  await page.waitForTimeout(500);
+  expect(await xssCount(page)).toBe(0);
+});
+
+test('security: a doctor cannot export the patient\'s log as a CSV (spreadsheet formulas in notes could attack them)', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  b.put({ date: '2026-03-01', updatedAt: 1, dose: 2.5, weight: 200, comments: '=HYPERLINK("http://evil.example","click")' });
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: true });
+  await page.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(page.locator('#subtitle')).toContainText('1 entries');
+  await expect(page.locator('#exportBtn')).toBeHidden();
+  await expect(page.locator('#backupExport')).toBeHidden();
+});

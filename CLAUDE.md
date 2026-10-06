@@ -46,6 +46,7 @@ Phase 2 of `docs/aws-sync-plan.md`; the backend is the private `tirzepatide-clou
 - Pull down from the top of the page on a touch screen to sync (`touchstart`/`touchend` handler before `cloudInit()`, 90 px drag; `overscroll-behavior-y: contain` on `html`).
 - The weight chart's 7-day line is a gradient coloured by the trend (`TREND_STOPS`, `trendColor()`, `trendSlopes()`; green falling through blue-violet steady to red rising; stops placed by x position, `gradientUnits=userSpaceOnUse`). Other charts keep their own colours.
 - Chart lines stop across a gap of more than 30 days (`LINE_GAP_DAYS`, `runs()`, `runsPath()`; dots stay; the print/report charts too). The "not synced" note in the header turns each rejected date into a button (`data-fix`, `openEntryForEdit()`) that opens that day in the form.
+- Security regression tests (`tests/cloud.spec.js`, "security:"): hostile text in comments, food notes, site and server settings must never run as code in the owner view, the doctor view or the report; the doctor view has no CSV export (spreadsheet formulas in a patient's notes). Keep `esc()` on every entry field that reaches HTML.
 - A **Sign out** button sits in the page header whenever signed in (also in the Settings dialog). The iPhone app has no exports at all (see its CLAUDE.md); the web app keeps CSV export and the doctor report.
 - iOS has the same sync (Phase 3, `Support/Cloud/` in the iOS repo). Keep the two engines and their tests in step; the iOS redirect URI `tirztrack://auth` is in the Cognito callback list.
 
