@@ -338,6 +338,12 @@
   .preview tbody tr td:first-child { box-shadow: none; padding-left: 8px; }
   /* ---- doctor report ---- */
   #reportDlg { max-width: 980px; }
+  /* a doctor opening a patient's link: read-only, so every editing control is gone */
+  body.share #formPanel, body.share #openImport, body.share #resetBtn, body.share #cloudOpen, body.share #installBtn, body.share #backupNote,
+  body.share #emptyPanel, body.share [data-settings], body.share [data-edit], body.share [data-del] { display: none !important; }
+  .share-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+  .share-list li { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line, #d7dee6); border-radius: 10px; }
+  .share-list code { font-size: 12px; word-break: break-all; flex: 1 1 100%; }
   .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 14px; margin-top: 12px; }
   #reportPreview { margin-top: 16px; overflow-x: auto; }
   #printArea { display: none; }
@@ -579,6 +585,12 @@
     <button type="button" id="cloudIn">Sign in</button>
     <button type="button" id="cloudSyncBtn">Sync now</button>
     <button type="button" id="cloudOut">Sign out</button>
+    <div id="shareBox" hidden style="grid-column:1/-1">
+      <p class="note" style="margin:6px 0"><strong>Doctor link.</strong> Anyone with the link sees your log read-only, without an account. It never expires and always shows your latest entries. Revoke it to stop it working.</p>
+      <label class="radio"><input type="checkbox" id="shNotes"> <span>Include my notes (comments and food notes)</span></label>
+      <button type="button" id="shCreate" style="margin-top:8px">Create doctor link</button>
+      <ul class="share-list" id="shList"></ul>
+    </div>
   </div>
   <p class="note">Units only change what is shown and typed; CSV exports always use lbs. Leave the goal blank to hide it. The starting weight is only needed when your first logged weight is not where you began treatment; progress percentages are measured from it. "Work it out" uses the day you last logged an injection site, or the day your current dose started.</p>
   <div class="actions">
@@ -655,6 +667,11 @@
     { date: '2026-01-26', dose: 5, weight: 205.9, comments: 'Dose increased.', cal: 1700, food: 'Smaller portions', sugar: 99 }
   ];
 
+  // A doctor opening a patient's link (#share=<token>) gets a read-only view. Nothing is read from or written to this
+  // browser's own log, settings or sync state, even if the doctor uses the app themselves.
+  function topHash() { try { if (window.top !== window) return window.top.location.hash; } catch (e) {} return location.hash; }
+  var SHARE_TOKEN = (/^#share=([A-Za-z0-9_-]{43})$/.exec(topHash()) || [])[1] || null;
+
   var entries = load();
   var settings = loadSettings();   // { goal, doseDay, lastExport, lastChange }
   var editingDate = null;
@@ -720,6 +737,7 @@
 
   /* ---------- storage ---------- */
   function load() {
+    if (SHARE_TOKEN) return [];
     try {
       var raw = localStorage.getItem(STORE_KEY);
       if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) { p.forEach(function (e) { if (e.sys === undefined) e.sys = null; if (e.dia === undefined) e.dia = null; if (e.waist === undefined) e.waist = null; if (e.fat === undefined) e.fat = null; if (e.muscle === undefined) e.muscle = null; }); return p; } }
@@ -727,12 +745,14 @@
     return [];
   }
   function save() {
+    if (SHARE_TOKEN) return;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); }
     catch (e) { say('Could not save to browser storage. Use Export CSV to keep your data.'); }
     settings.lastChange = Date.now();
     saveSettings();
   }
   function loadSettings() {
+    if (SHARE_TOKEN) return {};
     try {
       var p = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       if (p && typeof p === 'object') return p;
@@ -740,6 +760,7 @@
     return {};
   }
   function saveSettings() {
+    if (SHARE_TOKEN) return;
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
     cloudTouch();
   }
@@ -2559,7 +2580,7 @@
     var all = sorted();
     if (!$('rFrom').value) $('rFrom').value = all[0].date;
     if (!$('rTo').value) $('rTo').value = all[all.length - 1].date;
-    try { $('rName').value = localStorage.getItem('tirzepatide-report-name') || $('rName').value; } catch (e) {}
+    try { if (!SHARE_TOKEN) $('rName').value = localStorage.getItem('tirzepatide-report-name') || $('rName').value; } catch (e) {}
     // Without a height there is nothing to calculate: keep the option visible but off, with a hint
     $('rcBmi').disabled = !settings.heightIn;
     $('rcBmiText').textContent = settings.heightIn ? 'BMI chart and stages' : 'BMI chart and stages (set your height on the BMI card first)';
@@ -2620,7 +2641,7 @@
     var c = $('rRange').value === 'custom';
     $('rFromWrap').hidden = !c; $('rToWrap').hidden = !c;
   });
-  $('rName').addEventListener('input', function () { try { localStorage.setItem('tirzepatide-report-name', $('rName').value); } catch (e) {} });
+  $('rName').addEventListener('input', function () { try { if (!SHARE_TOKEN) localStorage.setItem('tirzepatide-report-name', $('rName').value); } catch (e) {} });
   $('rPrint').addEventListener('click', printReport);
   $('rPng').addEventListener('click', function () {
     var rep = buildReport();
@@ -2668,6 +2689,7 @@
   var goalShown = '', heightShown = '';
   var baselineShown = '';
   function openSettings(focus) {
+    refreshShares();
     goalShown = settings.goal ? wShow(settings.goal) : '';
     heightShown = settings.heightIn ? fmtHeight(settings.heightIn) : '';
     $('sGoal').value = goalShown;
@@ -2719,6 +2741,7 @@
   function renderFooter() {
     var hosted = /^https?:$/.test(location.protocol);
     var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.navigator.standalone);
+    if (SHARE_TOKEN) { $('foot').textContent = 'Read-only view shared by the patient \u00b7 Not medical advice'; return; }
     $('foot').innerHTML = (cloudSignedIn() ? 'Your data is kept in this browser and your sync account' : 'Your data stays in this browser') + ' \u00b7 Not medical advice' +
       (ios && hosted ? '<br>To install on iPhone: tap Share, then Add to Home Screen.' : '');
   }
@@ -2734,7 +2757,7 @@
   });
   // The manifest and service worker only work over http(s); from disk the page runs as before
   function setupApp() {
-    if (!/^https?:$/.test(location.protocol)) return;
+    if (SHARE_TOKEN || !/^https?:$/.test(location.protocol)) return;
     var l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest';
     document.head.appendChild(l);
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
@@ -2757,6 +2780,7 @@
   var syncing = false, syncAgain = false, syncTimer = null, syncErr = '';
 
   function loadSync() {
+    if (SHARE_TOKEN) return {};
     try { var p = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (p && typeof p === 'object') return p; } catch (e) {}
     return {};
   }
@@ -2976,7 +3000,7 @@
       }).then(function (again) { if (again && ++rounds < 3) return round(); });
     }
     return round().then(function () {
-      syncErr = ''; sync.last = Date.now(); saveSync();
+      syncErr = ''; sync.last = Date.now(); saveSync(); refreshShares();
     }).catch(function (err) {
       var st = err && err.status;
       if ((st === 400 || st === 401) && !err.msg) { cloudSignOut('Your sync session ended. Sign in again.'); return; }
@@ -2996,6 +3020,43 @@
     syncDetect(); saveSync();
     if (Object.keys(sync.dirty).length || sync.sDirty !== undefined) scheduleSync();
   }
+  /* doctor links: create, copy, revoke (the doctor's view is the read-only mode of this same page, see loadShare) */
+  function shareUrl(token) { return redirectUri() + '#share=' + token; }
+  function renderShares(list) {
+    $('shList').innerHTML = list.map(function (x) {
+      return '<li><span>Created ' + esc(new Date(x.createdAt).toLocaleDateString()) + (x.notes ? ', with notes' : ', without notes') + '</span>' +
+        '<button type="button" class="small" data-copy="' + esc(x.token) + '">Copy link</button>' +
+        '<button type="button" class="small danger" data-revoke="' + esc(x.token) + '">Revoke</button>' +
+        '<code>' + esc(shareUrl(x.token)) + '</code></li>';
+    }).join('');
+  }
+  function refreshShares() {
+    if (!cloudSignedIn() || !cloudAvailable()) return Promise.resolve();
+    return cloudApi('GET', '/shares').then(function (r) { $('shareBox').hidden = false; renderShares(r.shares || []); })
+      .catch(function (err) { if (err && err.status === 403) $('shareBox').hidden = true; });
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(function () { return true; }, function () { return false; });
+    return Promise.resolve(false);
+  }
+  $('shCreate').addEventListener('click', function () {
+    cloudApi('POST', '/shares', { notes: $('shNotes').checked }).then(function (r) {
+      return copyText(shareUrl(r.token)).then(function (ok) {
+        say(ok ? 'Doctor link created and copied. Paste it into an email or message.' : 'Doctor link created. Use Copy link below.');
+        return refreshShares();
+      });
+    }).catch(function (err) { say(err && err.msg ? err.msg : 'Could not create the link.'); });
+  });
+  $('shList').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-copy')) {
+      copyText(shareUrl(b.getAttribute('data-copy'))).then(function (ok) { say(ok ? 'Link copied.' : 'Could not copy. Select the link text and copy it.'); });
+    } else if (b.hasAttribute('data-revoke')) {
+      if (!confirm('Stop this link working? Anyone who has it will lose access.')) return;
+      cloudApi('DELETE', '/shares/' + b.getAttribute('data-revoke')).then(function () { say('Link revoked.'); return refreshShares(); })
+        .catch(function () { say('Could not revoke the link. Try again.'); });
+    }
+  });
   function rejectedNote() {
     var d = Object.keys(sync.rejected || {}).sort();
     return d.length ? d.length + (d.length === 1 ? ' day was' : ' days were') + ' not synced because a value looks out of range: ' + d.slice(0, 5).join(', ') + (d.length > 5 ? ' and more' : '') + '. Edit ' + (d.length === 1 ? 'it' : 'them') + ' to try again.' : '';
@@ -3008,6 +3069,7 @@
     $('cloudOpen').hidden = box.hidden;   // a way in from an empty log too, where the goal card (and so Settings) is not shown
     $('cloudIn').hidden = inn; $('cloudSyncBtn').hidden = !inn; $('cloudOut').hidden = !inn;
     $('cloudSyncBtn').disabled = syncing;
+    if (!inn) $('shareBox').hidden = true;
     $('cloudStatus').textContent = !inn ? 'Sign in to keep this log in step with your other devices.'
       : syncing ? 'Syncing...' : syncErr || ((sync.last ? 'Signed in. Last synced ' + new Date(sync.last).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.' : 'Signed in.') + ' ' + rejectedNote()).trim();
   }
@@ -3016,6 +3078,7 @@
   $('cloudSyncBtn').addEventListener('click', function () { syncNow(); });
   $('cloudOut').addEventListener('click', function () { cloudSignOut(); });
   function cloudInit() {
+    if (SHARE_TOKEN) return;
     function asked() {   // the phoe.be page embeds this app in a frame, so look at the top address too
       try { if (window.top !== window && window.top.location.hash === '#cloud') return true; } catch (e) {}
       return location.hash === '#cloud';
@@ -3034,11 +3097,31 @@
     window.addEventListener('online', function () { syncNow(); });
   }
 
+  /* ---------- doctor view of a shared link ---------- */
+  function loadShare() {
+    document.body.classList.add('share');
+    document.title = 'Shared tirzepatide log (read-only)';
+    document.querySelector('.hero h1').textContent = 'Shared tirzepatide log';
+    say('Loading the shared log...');
+    if (!window.fetch) { say('This browser cannot load the shared log.'); return; }
+    fetch(CLOUD.api + '/share/' + SHARE_TOKEN, { cache: 'no-store' }).then(function (r) {
+      return r.ok ? r.json() : Promise.reject({ status: r.status });
+    }).then(function (res) {
+      entries = (res.entries || []).map(fromCloud);
+      settings = {};
+      CLOUD_SETTING_KEYS.forEach(function (k) { if (res.settings && res.settings[k] !== undefined && k !== 'compare') settings[k] = res.settings[k]; });
+      render(); resetForm();
+      say(entries.length ? '' : 'This shared log has no entries yet.');
+    }).catch(function (err) {
+      say(err && err.status === 404 ? 'This link is no longer available. Ask the patient for a new one.' : 'Could not load the shared log. Check your connection and try again.');
+    });
+  }
+
   /* ---------- hosted data file ---------- */
   // When hosted, an empty browser log is filled from AJC_DATA.csv next to index.html (if present).
   // Browsers that already have entries keep them.
   function loadHostedData() {
-    if (entries.length || location.protocol === 'file:' || !window.fetch || cloudReturning || cloudSignedIn()) return;
+    if (SHARE_TOKEN || entries.length || location.protocol === 'file:' || !window.fetch || cloudReturning || cloudSignedIn()) return;
     fetch('AJC_DATA.csv', { cache: 'no-cache' }).then(function (r) {
       return r.ok ? r.text() : null;
     }).then(function (text) {
@@ -3060,6 +3143,7 @@
   setupApp();
   cloudInit();
   loadHostedData();
+  if (SHARE_TOKEN) loadShare();
 })();
 </script>
 </body>

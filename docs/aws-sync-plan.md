@@ -49,7 +49,7 @@ Cognito free to 10k MAU; Lambda and DynamoDB inside free tier / pennies; HTTP AP
 1. DONE 2026-10-06. Infra repo: Cognito, DynamoDB, HTTP API, sync Lambda, Terraform, tests.
 2. DONE 2026-10-06. Web: sign-in (PKCE), sync engine over existing `save()`, settings section hidden behind `#cloud`, offline-first retained; Playwright tests with a fake API plus a live check against the real stack.
 3. DONE 2026-10-06. iOS: same contract, `Support/Cloud/` in the iOS repo, matching tests, live test against the real API.
-4. Share links + `share.html` (reuse the doctor report renderer), revoke UI.
+4. DONE 2026-10-06. Share links: the doctor view is the read-only mode of the app itself (`#share=<token>`) instead of a separate `share.html`, so it reuses the dashboard and the report as they are; create/copy/revoke in the web and iOS Cloud sync sections.
 5. DEFERRED (no Stripe account yet): Stripe + billing Lambda + Apple IAP decision. Until then the `PLAN` entitlement is set manually for invited users.
 6. Privacy policy, delete-account, launch.
 

@@ -9,10 +9,10 @@ const HTML = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const APP = 'http://localhost:8080/';
 const COGNITO = 'https://tirzlog-sxsz5z.auth.us-east-1.amazoncognito.com';
 const API = 'https://53bw70yjmk.execute-api.us-east-1.amazonaws.com';
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type', 'access-control-allow-methods': 'GET,PUT,OPTIONS' };
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type', 'access-control-allow-methods': 'GET,PUT,POST,DELETE,OPTIONS' };
 
 function backend({ invited = true } = {}) {
-  const s = { entries: new Map(), settings: null, clock: 1000, puts: [], tokenCalls: [], authHeaders: [] };
+  const s = { shares: new Map(), entries: new Map(), settings: null, clock: 1000, puts: [], tokenCalls: [], authHeaders: [] };
   s.put = (e) => {   // what the Lambda does
     const cur = s.entries.get(e.date);
     if (cur && cur.updatedAt >= e.updatedAt) return false;
@@ -39,8 +39,28 @@ function backend({ invited = true } = {}) {
     await page.route(API + '/**', (r) => {
       const req = r.request(), u = new URL(req.url());
       if (req.method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
-      s.authHeaders.push(req.headers()['authorization']);
       const send = (status, body) => r.fulfill({ status, contentType: 'application/json', headers: CORS, body: JSON.stringify(body) });
+      const tokenIn = u.pathname.match(/^\/share\/(.+)$/);
+      if (tokenIn) {   // the public route: no login, the token is the credential (same rules as the Lambda)
+        const sh = s.shares.get(tokenIn[1]);
+        if (!sh || !invited) return send(404, { error: 'not found' });
+        const entries = [...s.entries.values()].filter((e) => !e.deleted).sort((a, b) => (a.date < b.date ? -1 : 1)).map((e) => {
+          const { updatedAt, syncedAt, comments, foodNotes, deleted, ...rest } = e;
+          return sh.notes ? { ...rest, ...(comments ? { comments } : {}), ...(foodNotes ? { foodNotes } : {}) } : rest;
+        });
+        const { goal, baseline, heightIn, units, doseDay } = s.settings || {};
+        return send(200, { entries, settings: Object.fromEntries(Object.entries({ goal, baseline, heightIn, units, doseDay }).filter(([, v]) => v !== undefined)), notes: sh.notes, createdAt: sh.createdAt });
+      }
+      s.authHeaders.push(req.headers()['authorization']);
+      if (!invited) return send(403, { error: 'not invited' });
+      if (u.pathname === '/shares' && req.method() === 'GET') return send(200, { shares: [...s.shares.entries()].map(([token, v]) => ({ token, ...v })) });
+      if (u.pathname === '/shares' && req.method() === 'POST') {
+        const token = 'T' + String(s.shares.size + 1).padStart(2, '0') + 'x'.repeat(40);
+        s.shares.set(token, { createdAt: Date.now(), notes: !!JSON.parse(req.postData() || '{}').notes });
+        return send(200, { token, ...s.shares.get(token) });
+      }
+      const del = u.pathname.match(/^\/shares\/(.+)$/);
+      if (del && req.method() === 'DELETE') { const had = s.shares.delete(del[1]); return send(had ? 200 : 404, had ? { revoked: true } : { error: 'not found' }); }
       if (!invited) return send(403, { error: 'not invited' });
       if (u.pathname === '/me') return send(200, { allowed: true });
       if (u.pathname === '/sync') {
@@ -283,4 +303,120 @@ test('a Cloud sync button next to the data buttons opens Settings, even with an 
   await page.locator('#cloudOpen').click();
   await expect(page.locator('#cloudBox')).toBeVisible();
   await expect(page.locator('#cloudIn')).toBeVisible();
+});
+
+const SHARE_TOKEN = 'T01' + 'x'.repeat(40);
+const sampleLog = (b) => {
+  b.put({ date: '2026-03-01', updatedAt: 1, dose: 2.5, weight: 200, glucose: 98, comments: 'felt sick', foodNotes: 'soup' });
+  b.put({ date: '2026-03-08', updatedAt: 1, dose: 2.5, weight: 198.6 });
+  b.put({ date: '2026-03-15', updatedAt: 1, deleted: true });
+  b.settings = { goal: 180, units: 'uk', compare: ['weight'], updatedAt: 1, syncedAt: 5 };
+};
+
+test('owner: create a doctor link (copied), see it listed, revoke it', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200)]);
+  await page.goto(APP + '#cloud');
+  await signIn(page);
+  await openSettings(page);
+  await expect(page.locator('#shareBox')).toBeVisible();
+  await page.locator('#shCreate').click();
+  await expect(page.locator('#shList li')).toHaveCount(1);
+  await expect(page.locator('#shList li')).toContainText('without notes');
+  await expect(page.locator('#shList code')).toHaveText(APP + '#share=' + SHARE_TOKEN);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(APP + '#share=' + SHARE_TOKEN);
+  await page.locator('#shNotes').check();
+  await page.locator('#shCreate').click();
+  await expect(page.locator('#shList li')).toHaveCount(2);
+  await expect(page.locator('#shList li').nth(1)).toContainText('with notes');
+  page.once('dialog', (d) => d.accept());
+  await page.locator('#shList li').first().getByRole('button', { name: 'Revoke' }).click();
+  await expect(page.locator('#shList li')).toHaveCount(1);
+  expect(b.shares.has(SHARE_TOKEN)).toBe(false);
+});
+
+test('a signed-out visitor never sees the doctor link controls', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await page.goto(APP + '#cloud');
+  await openSettings(page);
+  await expect(page.locator('#shareBox')).toBeHidden();
+});
+
+test('doctor: a link opens a read-only view of the log, without notes unless the patient chose them', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  sampleLog(b);
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: false });
+  await page.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(page.locator('#subtitle')).toContainText('2 entries');
+  await expect(page.locator('h1').first()).toHaveText('Shared tirzepatide log');
+  await expect(page.locator('#foot')).toContainText('Read-only view shared by the patient');
+  // nothing to edit
+  for (const sel of ['#formPanel', '#openImport', '#resetBtn', '#cloudOpen', '#backupNote', '#emptyPanel']) await expect(page.locator(sel)).toBeHidden();
+  await page.locator('#entriesPanel > summary').click();
+  await expect(page.locator('#rows tr')).toHaveCount(2);
+  await expect(page.locator('[data-edit]:visible, [data-del]:visible, [data-settings]:visible')).toHaveCount(0);
+  await expect(page.locator('#rows')).not.toContainText('felt sick');
+  // the patient's units came with the link, and the doctor report is available
+  await expect(page.locator('#stats')).toContainText('st');
+  await page.locator('#openReport').click();
+  await expect(page.locator('#reportDlg')).toBeVisible();
+  // nothing was stored in this browser, and nothing was sent to the server except the one public read
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  expect(keys).toEqual([]);
+  expect(b.authHeaders).toEqual([]);
+  expect(b.puts).toEqual([]);
+});
+
+test('doctor: notes appear when the patient chose to include them', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  sampleLog(b);
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: true });
+  await page.goto(APP + '#share=' + SHARE_TOKEN);
+  await page.locator('#entriesPanel > summary').click();
+  await expect(page.locator('#rows')).toContainText('felt sick');
+});
+
+test('doctor: a doctor who also uses the app keeps their own log untouched', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  sampleLog(b);
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: false });
+  const mine = [row('2025-01-01', 150)];
+  await seedLocal(page, mine);
+  await page.addInitScript(() => { localStorage.setItem('tirzepatide-report-name', 'Dr Own'); });
+  await page.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(page.locator('#subtitle')).toContainText('2 entries');
+  await page.locator('#openReport').click();
+  expect(await page.locator('#rName').inputValue()).toBe('');            // the doctor's own report name is not read either
+  await page.locator('#rName').fill('Patient X');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tirzepatide-log-v1')))).toEqual(mine);
+  expect(await page.evaluate(() => localStorage.getItem('tirzepatide-report-name'))).toBe('Dr Own');
+  await page.goto(APP);                                                  // back to their own app
+  await expect(page.locator('#subtitle')).toContainText('1 entries');
+});
+
+test('doctor: a revoked or unknown link says so and shows nothing', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  sampleLog(b);
+  await page.goto(APP + '#share=' + SHARE_TOKEN);                        // never created, like a revoked one
+  await expect(page.locator('#msg')).toContainText('no longer available');
+  await expect(page.locator('#subtitle')).not.toContainText('entries,');
+  await expect(page.locator('#stats')).toBeHidden();
+});
+
+test('doctor: the link also works from the phoe.be page that embeds the app', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  sampleLog(b);
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: false });
+  await page.route('http://localhost:8080/wrapper', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<iframe id="f" src="/" style="width:900px;height:700px"></iframe>' }));
+  await page.goto('http://localhost:8080/wrapper#share=' + SHARE_TOKEN);
+  await expect(page.frameLocator('#f').locator('#subtitle')).toContainText('2 entries');
+});
+
+test('a malformed share fragment is ignored and the normal app opens', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200)]);
+  await page.goto(APP + '#share=short');
+  await expect(page.locator('#subtitle')).toContainText('1 entries');
+  await expect(page.locator('#formPanel')).toBeVisible();
 });
