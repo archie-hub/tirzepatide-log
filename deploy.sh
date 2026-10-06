@@ -24,7 +24,7 @@ echo "Pushed ${sha:0:7}; waiting for Pages build..."
 # and invalidate; GitHub being slow or down no longer holds up what visitors see.
 ./publish-s3.sh
 aws cloudfront create-invalidation --distribution-id "$DIST_ID" \
-  --paths "/tirzepatide-log/*" "/tirzepatide-log.html" \
+  --paths "/tirzepatide-log/*" \
   --profile "$AWS_PROFILE_NAME" \
   --query 'Invalidation.{Id:Id,Status:Status}' --output text
 echo "phoe.be should show ${sha:0:7} within a minute or two."
