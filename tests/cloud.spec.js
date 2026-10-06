@@ -497,3 +497,22 @@ test('the not-synced note names the day as a button that opens it for editing, a
   await expect.poll(() => b.entries.has('2026-03-08'), { timeout: 8000 }).toBe(true);
   await expect(page.locator('#backupNote button[data-fix]')).toHaveCount(0);
 });
+
+test('pull down from the top of the page to sync (touch screens)', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200)]);
+  await page.goto(APP);
+  await signIn(page);
+  await page.waitForTimeout(300);
+  b.put({ date: '2026-03-22', updatedAt: Date.now() + 50000, dose: 2.5, weight: 197 });   // saved on another device
+  const pull = (from, to) => page.evaluate(([a, z]) => {
+    const t = (y) => new Touch({ identifier: 1, target: document.body, clientX: 100, clientY: y });
+    document.dispatchEvent(new TouchEvent('touchstart', { touches: [t(a)], changedTouches: [t(a)], bubbles: true }));
+    document.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(z)], bubbles: true }));
+  }, [from, to]);
+  await pull(300, 340);                                                                      // a short drag does nothing
+  await page.waitForTimeout(400);
+  expect((await storedEntries(page)).some((e) => e.date === '2026-03-22')).toBe(false);
+  await pull(100, 300);                                                                      // a long pull from the top syncs
+  await expect.poll(async () => (await storedEntries(page)).some((e) => e.date === '2026-03-22'), { timeout: 5000 }).toBe(true);
+});

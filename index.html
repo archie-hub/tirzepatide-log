@@ -47,7 +47,7 @@
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  html { background: var(--bg); }
+  html { background: var(--bg); overscroll-behavior-y: contain; }
   body {
     margin: 0; padding: 20px 16px 72px; color: var(--ink); min-height: 100vh;
     font: 15px/1.5 "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -3211,6 +3211,18 @@
   $('cloudSyncBtn').addEventListener('click', function () { syncNow(); });
   $('cloudOut').addEventListener('click', function () { cloudSignOut(); });
   $('heroOut').addEventListener('click', function () { cloudSignOut(); });
+  // Pull down from the top of the page on a touch screen to sync (the iPhone app does the same)
+  (function () {
+    var y0 = null;
+    document.addEventListener('touchstart', function (ev) {
+      y0 = (cloudSignedIn() && !SHARE_TOKEN && ev.touches.length === 1 && (window.scrollY || document.documentElement.scrollTop) === 0) ? ev.touches[0].clientY : null;
+    }, { passive: true });
+    document.addEventListener('touchend', function (ev) {
+      if (y0 === null) return;
+      var dy = ev.changedTouches[0].clientY - y0; y0 = null;
+      if (dy > 90) { say('Syncing...'); syncNow().then(function () { say(syncErr || ''); }); }
+    }, { passive: true });
+  })();
   function cloudInit() {
     if (SHARE_TOKEN) return;
     applyGate();
