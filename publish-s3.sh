@@ -17,4 +17,6 @@ put manifest.webmanifest "application/manifest+json" "max-age=600"
 put og-image.png "image/png" "max-age=600"
 for f in icons/apple-touch-icon.png icons/icon-192.png icons/icon-512.png; do put "$f" "image/png" "max-age=600"; done
 put icons/icon.svg "image/svg+xml" "max-age=600"
+put landing/dashboard.jpg "image/jpeg" "max-age=600"
+put landing/report.jpg "image/jpeg" "max-age=600"
 echo "Published $(git rev-parse --short HEAD) to $BUCKET/"

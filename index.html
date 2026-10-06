@@ -5,7 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>if (/\/tirzepatide-log\.html$/.test(location.pathname)) document.write('<base href="/tirzepatide-log/">');</script>
 <title>Tirzepatide Log</title>
-<meta name="description" content="Track tirzepatide dose, weight, food and glucose with charts, goal tracking and a doctor-ready report. Your data stays in your browser.">
+<meta name="description" content="Track tirzepatide dose, weight, food and glucose with charts, goal tracking and a doctor-ready report. Private beta, invite only.">
+<script>/* hosted and signed out: show the landing page, never the log (see applyGate) */
+(function () { try {
+  var h = location.hash; try { if (window.top !== window) h = window.top.location.hash; } catch (e) {}
+  if (/^https?:$/.test(location.protocol) && !/^#share=[A-Za-z0-9_-]{43}$/.test(h)) {
+    var s = JSON.parse(localStorage.getItem('tirzepatide-sync') || 'null');
+    if (!(s && s.auth && s.auth.refresh)) document.documentElement.classList.add('landing');
+  }
+} catch (e) { if (/^https?:$/.test(location.protocol)) document.documentElement.classList.add('landing'); } })();</script>
 <meta name="theme-color" content="#0d9488">
 <link rel="canonical" href="https://archie-hub.github.io/tirzepatide-log/">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230d9488'/%3E%3Cstop offset='.52' stop-color='%232563eb'/%3E%3Cstop offset='1' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpolyline points='12,20 24,30 33,26 52,44' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='52' cy='44' r='5.5' fill='%23fff'/%3E%3C/svg%3E">
@@ -16,7 +24,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://archie-hub.github.io/tirzepatide-log/">
 <meta property="og:title" content="Tirzepatide Log">
-<meta property="og:description" content="Track dose, weight, food and glucose. Charts, goal tracking and a doctor-ready report. Your data stays in your browser.">
+<meta property="og:description" content="Track dose, weight, food and glucose. Charts, goal tracking and a doctor-ready report. Private beta, invite only.">
 <meta property="og:image" content="https://archie-hub.github.io/tirzepatide-log/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -338,6 +346,32 @@
   .preview tbody tr td:first-child { box-shadow: none; padding-left: 8px; }
   /* ---- doctor report ---- */
   #reportDlg { max-width: 980px; }
+  /* landing page: the hosted app shows only this until someone signs in */
+  #landing { display: none; }
+  html.landing main > :not(#landing):not(#msg) { display: none !important; }
+  html.landing #landing { display: grid; gap: 16px; }
+  .lp-hero { gap: 22px 32px; padding: 28px 28px 30px; }
+  .lp-hero .lp-copy { flex: 1 1 320px; max-width: 520px; }
+  .lp-hero h1 { font-size: 40px; }
+  .lp-kicker { margin: 0 0 6px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.8); }
+  .lp-lede { margin: 12px 0 0; font-size: 17px; line-height: 1.45; color: rgba(255,255,255,.92); }
+  .lp-cta { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; margin-top: 20px; }
+  .lp-cta .primary { padding: 11px 26px; font-size: 16px; border-radius: 12px; }
+  .lp-cta a { color: #fff; text-underline-offset: 3px; }
+  .lp-hero .lp-shot { flex: 1 1 360px; max-width: 520px; width: 100%; height: auto; border-radius: 14px; box-shadow: 0 18px 50px rgba(8,20,45,.45); border: 1px solid rgba(255,255,255,.35); }
+  .lp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+  .lp-card h2 { margin: 0 0 6px; font-size: 16px; }
+  .lp-card p, .lp-split p, .lp-split li { margin: 0; color: var(--muted); }
+  .lp-card { border-top: 3px solid var(--c, var(--accent)); }
+  .lp-split { display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: center; }
+  .lp-split > div { flex: 1 1 300px; }
+  .lp-split h2 { font-size: 20px; }
+  .lp-split ul { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+  .lp-split img { flex: 1 1 340px; max-width: 520px; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .lp-end { text-align: center; }
+  .lp-end .primary { padding: 11px 26px; font-size: 16px; border-radius: 12px; }
+  .lp-fine { text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+  @media (max-width: 640px) { .lp-hero { padding: 22px 18px 24px; } .lp-hero h1 { font-size: 32px; } }
   /* a doctor opening a patient's link: read-only, so every editing control is gone */
   body.share #formPanel, body.share #openImport, body.share #resetBtn, body.share #cloudOpen, body.share #installBtn, body.share #backupNote,
   body.share #emptyPanel, body.share [data-settings], body.share [data-edit], body.share [data-del] { display: none !important; }
@@ -388,6 +422,53 @@
 </head>
 <body>
 <main>
+  <section id="landing" aria-labelledby="lpTitle">
+    <div class="hero lp-hero">
+      <div class="lp-copy">
+        <p class="lp-kicker">Private beta &middot; invite only</p>
+        <h1 id="lpTitle">Tirzepatide Log</h1>
+        <p class="lp-lede">Track your dose, weight, glucose and blood pressure, see where you are heading, and give your doctor a clear picture. The same log on the web and on your iPhone.</p>
+        <div class="lp-cta">
+          <button type="button" class="primary" id="landingSignIn">Sign in</button>
+          <a href="mailto:info@phoe.be?subject=Tirzepatide%20Log%20invite">Request an invite</a>
+        </div>
+      </div>
+      <img class="lp-shot" src="landing/dashboard.jpg" width="1060" height="760" alt="The Tirzepatide Log dashboard: weight chart with coloured dose bands, goal progress, current and next dose, glucose and blood pressure cards (sample data).">
+    </div>
+    <div class="lp-grid">
+      <div class="panel lp-card" style="--c:#0ea5a4"><h2>One log for everything</h2><p>Dose, weight, calories and food notes, fasting glucose, blood pressure, waist, body fat and muscle mass, each day in one place.</p></div>
+      <div class="panel lp-card" style="--c:#2563eb"><h2>Charts that make sense</h2><p>Weight with a 7-day average and shaded dose bands, plus BMI, glucose, pace, blood pressure and a combined view.</p></div>
+      <div class="panel lp-card" style="--c:#7c3aed"><h2>Know where you are heading</h2><p>Goal projection, milestones from 5 to 25 percent, results by dose, and gentle notices for plateaus and fast loss.</p></div>
+      <div class="panel lp-card" style="--c:#f97316"><h2>Web and iPhone in step</h2><p>Sign in on either and see the same log. After you sign in it keeps working offline and catches up when you are back online.</p></div>
+    </div>
+    <div class="panel lp-split">
+      <div>
+        <h2>A clear report for your doctor</h2>
+        <p>Save a summary as a PDF or send a read-only link. Your doctor needs no account.</p>
+        <ul>
+          <li>Weight change, pace, milestones, glucose and blood pressure ranges</li>
+          <li>The link always shows your latest entries, and you can switch it off at any time</li>
+          <li>Notes only go along if you choose to include them</li>
+        </ul>
+      </div>
+      <img src="landing/report.jpg" width="1413" height="700" loading="lazy" alt="The doctor report: dose, weight change, milestones, 4-week pace, waist and body fat summary boxes (sample data).">
+    </div>
+    <div class="panel lp-split">
+      <div>
+        <h2>Private by design</h2>
+        <ul>
+          <li>Invite only: accounts are created by invitation, nobody can sign themselves up</li>
+          <li>Your log is stored under a random account id, not your name. Your email is used only to sign in</li>
+          <li>No ads and no third-party trackers</li>
+        </ul>
+      </div>
+      <div class="lp-end">
+        <p style="margin-bottom:12px;color:var(--ink);font-weight:600">Have an invite?</p>
+        <button type="button" class="primary" id="landingSignIn2">Sign in</button>
+      </div>
+    </div>
+    <p class="lp-fine">Tirzepatide Log is a personal tracking tool, not medical advice. Talk to your doctor about your treatment. The screenshots show sample data.</p>
+  </section>
   <header class="hero">
     <div>
       <h1>Tirzepatide log - work in progress</h1>
@@ -2849,6 +2930,7 @@
     clearTimeout(syncTimer);
     sync = {}; syncErr = '';
     try { localStorage.removeItem(SYNC_KEY); } catch (e) {}
+    cloudReturning = false; applyGate();
     renderCloudBox(); renderFooter(); renderBackup();
     say(msg || 'Signed out. Your data stays on this device.');
   }
@@ -3057,6 +3139,17 @@
         .catch(function () { say('Could not revoke the link. Try again.'); });
     }
   });
+  /* landing page gate: on the hosted site nothing of the log shows until someone is signed in */
+  function applyGate() {
+    var gated = /^https?:$/.test(location.protocol) && !SHARE_TOKEN && !cloudSignedIn();
+    document.documentElement.classList.toggle('landing', gated);
+    ['landingSignIn', 'landingSignIn2'].forEach(function (id) {
+      var b = $(id); b.disabled = cloudReturning && gated; b.textContent = b.disabled ? 'Signing you in...' : 'Sign in';
+    });
+    return gated;
+  }
+  $('landingSignIn').addEventListener('click', cloudSignIn);
+  $('landingSignIn2').addEventListener('click', cloudSignIn);
   function rejectedNote() {
     var d = Object.keys(sync.rejected || {}).sort();
     return d.length ? d.length + (d.length === 1 ? ' day was' : ' days were') + ' not synced because a value looks out of range: ' + d.slice(0, 5).join(', ') + (d.length > 5 ? ' and more' : '') + '. Edit ' + (d.length === 1 ? 'it' : 'them') + ' to try again.' : '';
@@ -3065,7 +3158,7 @@
     var box = $('cloudBox');
     if (!box) return;
     var inn = cloudSignedIn();
-    box.hidden = !(cloudAvailable() && (inn || settings.cloudUi));
+    box.hidden = !(cloudAvailable() && inn);
     $('cloudOpen').hidden = box.hidden;   // a way in from an empty log too, where the goal card (and so Settings) is not shown
     $('cloudIn').hidden = inn; $('cloudSyncBtn').hidden = !inn; $('cloudOut').hidden = !inn;
     $('cloudSyncBtn').disabled = syncing;
@@ -3079,15 +3172,10 @@
   $('cloudOut').addEventListener('click', function () { cloudSignOut(); });
   function cloudInit() {
     if (SHARE_TOKEN) return;
-    function asked() {   // the phoe.be page embeds this app in a frame, so look at the top address too
-      try { if (window.top !== window && window.top.location.hash === '#cloud') return true; } catch (e) {}
-      return location.hash === '#cloud';
-    }
-    function reveal() { if (asked() && !settings.cloudUi) { settings.cloudUi = true; saveSettings(); } renderCloudBox(); }
-    window.addEventListener('hashchange', reveal);   // adding #cloud to a tab that is already open does not reload it
-    try { window.top.addEventListener('hashchange', reveal); } catch (e) {}
-    reveal();
+    applyGate();
+    renderCloudBox();
     cloudHandleReturn().then(function (ok) {
+      cloudReturning = false; applyGate();
       renderCloudBox(); renderFooter(); renderBackup();
       if (cloudSignedIn()) syncNow();
     });
@@ -3101,7 +3189,7 @@
   function loadShare() {
     document.body.classList.add('share');
     document.title = 'Shared tirzepatide log (read-only)';
-    document.querySelector('.hero h1').textContent = 'Shared tirzepatide log';
+    document.querySelector('header.hero h1').textContent = 'Shared tirzepatide log';
     say('Loading the shared log...');
     if (!window.fetch) { say('This browser cannot load the shared log.'); return; }
     fetch(CLOUD.api + '/share/' + SHARE_TOKEN, { cache: 'no-store' }).then(function (r) {
@@ -3121,7 +3209,7 @@
   // When hosted, an empty browser log is filled from AJC_DATA.csv next to index.html (if present).
   // Browsers that already have entries keep them.
   function loadHostedData() {
-    if (SHARE_TOKEN || entries.length || location.protocol === 'file:' || !window.fetch || cloudReturning || cloudSignedIn()) return;
+    if (SHARE_TOKEN || entries.length || !/^https?:$/.test(location.protocol) || !window.fetch || cloudReturning || cloudSignedIn() || document.documentElement.classList.contains('landing')) return;
     fetch('AJC_DATA.csv', { cache: 'no-cache' }).then(function (r) {
       return r.ok ? r.text() : null;
     }).then(function (text) {
