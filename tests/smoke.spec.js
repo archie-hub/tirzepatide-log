@@ -642,6 +642,74 @@ test('insights: no fast-loss notice for a gentle pace; gaps are reported', async
   await expect(page.locator('#insights .ins', { hasText: 'Weigh-ins' })).toContainText('Longest gap 9 days');
 });
 
+// steadyLossCsv(): one weigh-in a day from 2026-08-01 (200 lbs, down 0.5 a day) for 57 days
+async function customRange(page, from, to) {
+  await page.locator('#range button[data-days="custom"]').click();
+  await page.locator('#cFrom').fill(from); await page.locator('#cTo').fill(to);
+}
+
+test('custom chart range: exact From and To dates, kept after a reload', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await expect(page.locator('#customRange')).toBeHidden();
+  await page.locator('#range button[data-days="custom"]').click();
+  await expect(page.locator('#customRange')).toBeVisible();
+  await expect(page.locator('#range button[data-days="custom"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#range button[data-days="90"]')).toHaveAttribute('aria-pressed', 'false');
+
+  await customRange(page, '2026-08-10', '2026-08-19');
+  const svg = page.locator('#chart svg[role="img"]');
+  await svg.focus();
+  await page.keyboard.press('Home');
+  await expect(page.locator('#tip')).toContainText(/Aug(ust)? 10|10 Aug/);
+  await expect(page.locator('#tip')).toContainText('195.5');           // 200 - 0.5 x 9
+  await page.keyboard.press('End');
+  await expect(page.locator('#tip')).toContainText(/Aug(ust)? 19|19 Aug/);
+  await expect(page.locator('#tip')).toContainText('191.0');
+
+  await page.reload();
+  await expect(page.locator('#range button[data-days="custom"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#cFrom')).toHaveValue('2026-08-10');
+  await expect(page.locator('#cTo')).toHaveValue('2026-08-19');
+  await page.locator('#range button[data-days="30"]').click();
+  await expect(page.locator('#customRange')).toBeHidden();
+  await page.reload();
+  await expect(page.locator('#range button[data-days="30"]')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('custom chart range: step earlier and later by the same length, backwards dates refused, empty window explained', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await customRange(page, '2026-08-10', '2026-08-19');
+  await page.locator('#cNext').click();
+  await expect(page.locator('#cFrom')).toHaveValue('2026-08-20');
+  await expect(page.locator('#cTo')).toHaveValue('2026-08-29');
+  await page.locator('#cPrev').click();
+  await page.locator('#cPrev').click();
+  await expect(page.locator('#cFrom')).toHaveValue('2026-07-31');
+  await expect(page.locator('#cTo')).toHaveValue('2026-08-09');
+  await expect(page.locator('#chart svg[role="img"]')).toBeVisible();
+
+  await page.locator('#cFrom').fill('2026-09-01');                      // after To: refused, the old window stays
+  await expect(page.locator('#customNote')).toContainText('must not be after');
+  await expect(page.locator('#cFrom')).toHaveValue('2026-07-31');
+
+  await customRange(page, '2026-01-01', '2026-01-31');                  // before any reading
+  await expect(page.locator('#chart .empty')).toContainText('between');
+  await expect(page.locator('#chart svg[role="img"]')).toHaveCount(0);
+});
+
+test('custom chart range: the axis spans the chosen window and the combined chart follows it', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await customRange(page, '2026-08-10', '2026-09-10');                  // a window that runs past the last reading's neighbours
+  const labels = await page.locator('#chart svg[role="img"] text').allTextContents();
+  expect(labels.some((t) => /Aug(ust)? 10|10 Aug/.test(t))).toBe(true);
+  expect(labels.some((t) => /Sep(tember)? 10|10 Sep/.test(t))).toBe(true);
+  await page.locator('#tab-compare').click();
+  await expect(page.locator('#chart svg[role="img"]')).toBeVisible();
+  await page.locator('#chart svg[role="img"]').focus();
+  await page.keyboard.press('Home');
+  await expect(page.locator('#tip')).toContainText(/Aug(ust)? 10|10 Aug/);
+});
+
 test('pace chart tab: zero line, fast-loss line and orange dots', async ({ page }) => {
   await pasteCsv(page, steadyLossCsv());
   await page.locator('#tab-rate').click();
@@ -871,7 +939,7 @@ test('the weight line is coloured by trend: green when falling, blue-violet when
 test('chart range: eight choices from 1 week to 3 years, 3 months by default, remembered on this device', async ({ page }) => {
   await importSample(page);                                              // a year of entries ending 2026-09-30
   const labels = await page.locator('#range button').allTextContents();
-  expect(labels).toEqual(['1 wk', '1 mo', '3 mo', '6 mo', '1 yr', '18 mo', '2 yr', '3 yr']);
+  expect(labels).toEqual(['1 wk', '1 mo', '3 mo', '6 mo', '1 yr', '18 mo', '2 yr', '3 yr', 'Custom']);
   await expect(page.locator('#range button[aria-pressed="true"]')).toHaveText('3 mo');
   const dots = () => page.locator('#chart svg[role="img"] circle.fade').count();
   // weigh-ins in view for a range, counted back from the latest entry (the same rule the chart uses)

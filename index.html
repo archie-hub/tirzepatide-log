@@ -266,13 +266,19 @@
   .seg button + button { border-left: 1px solid var(--line); }
   .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); font-weight: 600; }
   .seg button { white-space: nowrap; }
-  /* eight range choices: two rows of four on a phone instead of a pill that runs off the screen */
+  /* nine range choices: two rows (five, then four) on a phone instead of a pill that runs off the screen */
   @media (max-width: 640px) {
-    #range { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; border-radius: 14px; }
+    #range { display: grid; grid-template-columns: repeat(5, 1fr); width: 100%; border-radius: 14px; }
     #range button { padding: 7px 4px; text-align: center; }
-    #range button:nth-child(n+5) { border-top: 1px solid var(--line); }
-    #range button:nth-child(4n+1) { border-left: 0; }
+    #range button:nth-child(n+6) { border-top: 1px solid var(--line); }
+    #range button:nth-child(5n+1) { border-left: 0; }
   }
+  .custom-range { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+  .custom-range[hidden] { display: none; }
+  .custom-range label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .custom-range input[type="date"] { font: inherit; font-size: 14px; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 8px; }
+  .custom-range .note { margin: 0; flex-basis: 100%; }
+  .custom-range .note:empty { display: none; }
 
   #chart { position: relative; }
   svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
@@ -514,7 +520,15 @@
         <button type="button" data-days="548" aria-pressed="false">18 mo</button>
         <button type="button" data-days="730" aria-pressed="false">2 yr</button>
         <button type="button" data-days="1095" aria-pressed="false">3 yr</button>
+        <button type="button" data-days="custom" aria-pressed="false">Custom</button>
       </div>
+    </div>
+    <div class="custom-range" id="customRange" role="group" aria-label="Custom date range" hidden>
+      <button type="button" class="small" id="cPrev" aria-label="Show the earlier period of the same length">&#9664; Earlier</button>
+      <label>From <input type="date" id="cFrom"></label>
+      <label>To <input type="date" id="cTo"></label>
+      <button type="button" class="small" id="cNext" aria-label="Show the later period of the same length">Later &#9654;</button>
+      <span class="note" id="customNote" role="status"></span>
     </div>
     <div class="legend cmp-pick" id="cmpPick" role="group" aria-label="Values to show on the combined chart" hidden></div>
     <div id="chart" role="tabpanel" aria-labelledby="tab-weight"></div>
@@ -714,7 +728,7 @@
   var DEMO = !SHARE_TOKEN && /^\/demo(\.html)?\/?$/.test(location.pathname);
 
   // Nine months of invented data that fills every field: dose steps up every four weeks or so, weight falls with a plateau and a small
-  // rise, a five-week holiday gap, comments, calories, food notes, glucose, injection sites, blood pressure, waist, body fat and muscle.
+  // rise, comments, calories, food notes, glucose, injection sites, blood pressure, waist, body fat and muscle.
   function demoStart() { return addDays(today(), -(40 * 7 - 1)); }
   function demoSettings() { return { goal: 175, heightIn: 69, units: 'us', doseDay: weekday(demoStart()) }; }
   function demoEntries() {
@@ -733,7 +747,6 @@
     var start = demoStart(), inj = weekday(start), siteN = 0, list = [], total = 40 * 7;
     for (var i = 0; i < total; i++) {
       var d = addDays(start, i), wk = i / 7, dow = (weekday(d) - inj + 7) % 7, last = i === total - 1;
-      if (!last && wk >= 22 && wk < 27) continue;                 // a holiday with no logging
       if (!last && dow !== 0 && rnd() < 0.12) continue;           // the odd missed day
       var dose = 2.5; DOSE_AT.forEach(function (x) { if (wk >= x[0]) dose = x[1]; });
       var e = { date: d, dose: dose, weight: r1(base(wk) + (rnd() - 0.5) * 1.4 + (dow >= 3 && dow <= 5 ? 0.4 : 0)),
@@ -1417,12 +1430,25 @@
   /* ---------- chart ---------- */
   // How much history the charts show, counted back from the latest entry. Three months unless the person chose otherwise
   // (the choice is remembered on this device only). Mirrored by ChartRange in the iPhone app.
+  // "Custom" lets the person pick exact From and To dates (and step earlier or later by the same length) to look at history closely.
   var RANGE_DAYS = [7, 30, 90, 180, 365, 548, 730, 1095], DEFAULT_RANGE = 90, RANGE_KEY = 'tirzepatide-chart-range';
+  var customFrom = null, customTo = null;   // ISO dates while the range is 'custom'
+  function isoDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(v || '') && !isNaN(new Date(v + 'T00:00:00').getTime()); }
   function loadRange() {
     if (SHARE_TOKEN || DEMO) return DEFAULT_RANGE;
-    try { var v = parseInt(localStorage.getItem(RANGE_KEY), 10); if (RANGE_DAYS.indexOf(v) >= 0) return v; } catch (e) {}
+    try {
+      var raw = localStorage.getItem(RANGE_KEY) || '', c = /^custom\|(\d{4}-\d{2}-\d{2})\|(\d{4}-\d{2}-\d{2})$/.exec(raw);
+      if (c && isoDate(c[1]) && isoDate(c[2]) && c[1] <= c[2]) { customFrom = c[1]; customTo = c[2]; return 'custom'; }
+      var v = parseInt(raw, 10); if (RANGE_DAYS.indexOf(v) >= 0) return v;
+    } catch (e) {}
     return DEFAULT_RANGE;
   }
+  function saveRange() {
+    if (SHARE_TOKEN || DEMO) return;
+    try { localStorage.setItem(RANGE_KEY, currentRange === 'custom' ? 'custom|' + customFrom + '|' + customTo : String(currentRange)); } catch (e) {}
+  }
+  // What the chart builders take: the last N days back from the latest entry, or an exact From/To window
+  function rangeOpts() { return currentRange === 'custom' ? { from: customFrom, to: customTo } : { days: currentRange }; }
   var currentMetric = 'weight', currentRange = loadRange(), chartSeq = 0;
   var METRICS = {
     weight: { key: 'weight', get label() { return 'Weight (' + WUC() + ')'; }, color: '#0ea5a4', dec: 1 },
@@ -1538,10 +1564,11 @@
                                 : (!o.days || dayDiff(e.date, lastAll) <= o.days);
       if (ok) idxs.push(i);
     });
-    if (!idxs.length) { if (o.print) return null; idxs = [series.length - 1]; }
+    if (!idxs.length) { if (o.print || o.from || o.to) return null; idxs = [series.length - 1]; }
     var pts = idxs.map(function (i) { return { e: series[i], v: series[i][vk], a: avg[i], d: bp ? series[i].dia : null, a2: bp ? avg2[i] : null }; });
     var single = pts.length === 1;
-    var t0 = pts[0].e.date, tN = pts[pts.length - 1].e.date, span = Math.max(dayDiff(t0, tN), 1);
+    // an exact window (custom range) spans the whole of it on the axis, even where readings are sparse
+    var t0 = o.from || pts[0].e.date, tN = o.to || pts[pts.length - 1].e.date, span = Math.max(dayDiff(t0, tN), 1);
 
     var W = 900, H = o.print ? 300 : 320, L = 48, R = 16, T = o.title ? 32 : 14, B = 34, gid = 'ag' + (++chartSeq);
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
@@ -1673,7 +1700,7 @@
     if (!lines.length) return null;
     var dates = [];
     rows.forEach(function (e) { if (lines.some(function (l) { return l.s.val(e) !== null && l.s.val(e) !== undefined; })) dates.push(e); });
-    var t0 = dates[0].date, tN = dates[dates.length - 1].date, span = Math.max(dayDiff(t0, tN), 1), single = dates.length === 1;
+    var t0 = o.from || dates[0].date, tN = o.to || dates[dates.length - 1].date, span = Math.max(dayDiff(t0, tN), 1), single = dates.length === 1;
     var W = 900, H = o.print ? 320 : 320, L = 48, R = 16, T = o.print ? 50 : 14, B = 34;
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
     function X(d) { return single ? L + (W - L - R) / 2 : L + (dayDiff(t0, d) / span) * (W - L - R); }
@@ -1738,10 +1765,10 @@
       return '<button type="button" class="chip" data-cmp="' + x.k + '" style="--c:' + x.color + '" aria-pressed="' + (picked[x.k] ? 'true' : 'false') + '"' +
         (off ? ' disabled title="Set your height on the BMI card first"' : '') + '>' + esc(x.label) + '</button>';
     }).join('');
-    var res = buildCompare({ days: currentRange });
+    var res = buildCompare(rangeOpts());
     $('legend').innerHTML = '';
     if (!res) {
-      $('chart').innerHTML = '<div class="empty">' + (chosen.length ? 'No values to plot for the chosen items yet.' : 'Choose at least one item above.') + '</div>';
+      $('chart').innerHTML = '<div class="empty">' + (chosen.length ? (currentRange === 'custom' ? 'No readings of the chosen items between ' + esc(fmtDate(customFrom)) + ' and ' + esc(fmtDate(customTo)) + '.' : 'No values to plot for the chosen items yet.') : 'Choose at least one item above.') + '</div>';
       return;
     }
     $('chart').innerHTML = '<div class="tip" id="tip"></div>' + res.svg;
@@ -1795,9 +1822,9 @@
     if (currentMetric === 'compare') { renderCompare(); return; }
     $('tab-bmi').hidden = !settings.heightIn;
     if (currentMetric === 'bmi' && !settings.heightIn) { selectTab($('tab-weight')); return; }
-    var m = METRICS[currentMetric], res = buildChart(currentMetric, { days: currentRange });
+    var m = METRICS[currentMetric], res = buildChart(currentMetric, rangeOpts());
     if (!res) {
-      $('chart').innerHTML = '<div class="empty">No ' + esc(m.label) + ' values to plot yet.</div>';
+      $('chart').innerHTML = '<div class="empty">' + (currentRange === 'custom' ? 'No ' + esc(m.label) + ' readings between ' + esc(fmtDate(customFrom)) + ' and ' + esc(fmtDate(customTo)) + '.' : 'No ' + esc(m.label) + ' values to plot yet.') + '</div>';
       $('legend').innerHTML = '';
       return;
     }
@@ -2217,15 +2244,50 @@
     });
   });
   tabs.forEach(function (t) { t.style.setProperty('--c', METRICS[t.dataset.metric].color); });
-  Array.prototype.forEach.call($('range').querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', parseInt(x.dataset.days, 10) === currentRange ? 'true' : 'false'); });
-  Array.prototype.forEach.call($('range').querySelectorAll('button'), function (b) {
+  var rangeBtns = Array.prototype.slice.call($('range').querySelectorAll('button'));
+  function syncRangeUi() {
+    rangeBtns.forEach(function (x) {
+      var on = x.dataset.days === 'custom' ? currentRange === 'custom' : +x.dataset.days === currentRange;
+      x.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    $('customRange').hidden = currentRange !== 'custom';
+    if (currentRange === 'custom') { $('cFrom').value = customFrom; $('cTo').value = customTo; }
+  }
+  rangeBtns.forEach(function (b) {
     b.addEventListener('click', function () {
-      currentRange = parseInt(b.dataset.days, 10);
-      if (!SHARE_TOKEN && !DEMO) { try { localStorage.setItem(RANGE_KEY, String(currentRange)); } catch (e) {} }
-      Array.prototype.forEach.call($('range').querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
-      renderChart();
+      if (b.dataset.days === 'custom') {
+        if (currentRange !== 'custom') {   // start from what is on screen now
+          var all = sorted(), last = all.length ? all[all.length - 1].date : today();
+          customTo = last;
+          customFrom = typeof currentRange === 'number' ? addDays(last, -currentRange) : last;
+          if (all.length && customFrom < all[0].date) customFrom = all[0].date;
+          currentRange = 'custom';
+        }
+      } else currentRange = parseInt(b.dataset.days, 10);
+      saveRange(); syncRangeUi(); renderChart();
     });
   });
+  // From/To dates and the step buttons; the window may not be backwards
+  function setCustom(from, to) {
+    if (!isoDate(from) || !isoDate(to)) return false;
+    if (from > to) { $('customNote').textContent = 'The From date must not be after the To date.'; return false; }
+    customFrom = from; customTo = to; currentRange = 'custom';
+    $('customNote').textContent = '';
+    saveRange(); syncRangeUi(); renderChart();
+    return true;
+  }
+  ['cFrom', 'cTo'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      if (!setCustom($('cFrom').value, $('cTo').value)) { $('cFrom').value = customFrom; $('cTo').value = customTo; }
+    });
+  });
+  function stepCustom(dir) {
+    var len = dayDiff(customFrom, customTo) + 1;
+    setCustom(addDays(customFrom, dir * len), addDays(customTo, dir * len));
+  }
+  $('cPrev').addEventListener('click', function () { stepCustom(-1); });
+  $('cNext').addEventListener('click', function () { stepCustom(1); });
+  syncRangeUi();
   $('pager').addEventListener('click', function (ev) {
     var b = ev.target.closest('button[data-page]');
     if (!b || b.disabled) return;

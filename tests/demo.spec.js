@@ -48,7 +48,7 @@ test('the demo fills every field and has the shapes the app shows off', async ({
   expect(w[0]).toBeGreaterThan(205); expect(w.at(-1)).toBeLessThan(200); expect(w.at(-1)).toBeGreaterThan(180);   // a believable loss
   expect(new Set(col(7)).size).toBe(6);                                                                     // all six injection sites
   const gaps = dates.slice(1).map((d, i) => (new Date(d) - new Date(dates[i])) / 86400000);
-  expect(Math.max(...gaps)).toBeGreaterThanOrEqual(31);                                                     // the holiday gap that breaks the chart line
+  expect(Math.max(...gaps)).toBeLessThan(10);                                                               // no long silence: the chart line is unbroken
   expect(col(8).every((v) => +v >= 105 && +v <= 140)).toBe(true);
   expect(col(6).every((v) => +v >= 84 && +v <= 118)).toBe(true);
   expect(col(3).some((c) => /Dose increased/.test(c))).toBe(true);
@@ -64,7 +64,7 @@ test('every chart and insight has data to show', async ({ page }) => {
   }
   await page.locator('#tab-weight').click();
   const path = page.locator('#chart svg path[stroke-width="3.2"]');
-  expect(((await path.getAttribute('d')) || '').match(/M/g).length).toBeGreaterThanOrEqual(2);              // the holiday splits the line
+  expect(((await path.getAttribute('d')) || '').match(/M/g).length).toBe(1);                                // one unbroken line, no gap
   await page.locator('#insightsPanel > summary').click();
   await expect(page.locator('#insights')).toContainText('Milestones');
   await expect(page.locator('#insights')).toContainText('Best week');
