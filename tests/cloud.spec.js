@@ -30,7 +30,7 @@ test('hosted and signed out: only the landing page shows, even with a log on thi
   await expect(page.locator('html')).toHaveClass(/landing/);
   await expect(page.locator('#landing')).toBeVisible();
   await expect(page.locator('#landing h1')).toHaveText('Tirzepatide Log');
-  await expect(page.locator('#landing a[href^="mailto:"]')).toBeVisible();
+  await expect(page.locator('#landing a[href="https://www.phoe.be/#contact"]')).toBeVisible();
   for (const sel of ['header.hero', '#stats', '#plan', '#chartPanel', '#entriesPanel', '#formPanel', '#shareOpen', '#settingsOpen', '#resetBtn', '#foot']) await expect(page.locator(sel)).toBeHidden();
   expect(await page.evaluate(() => document.body.innerText)).not.toMatch(/\d+ entries|Latest weight|Export CSV|Clear all data|Add entry|lbs/);   // what a visitor can read
   expect(seen.filter((u) => /execute-api/.test(u))).toEqual([]);   // no API call before sign-in
