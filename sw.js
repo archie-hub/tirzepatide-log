@@ -1,5 +1,5 @@
-// Offline support for the hosted app. Network first, so new versions and AJC_DATA.csv
-// show up as soon as you're online; the cached copy is used only when offline.
+// Offline support for the hosted app. Network first, so new versions show up as soon as you are online;
+// the cached copy is used only when offline.
 var CACHE = 'tirzepatide-log-v1';
 var CORE = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 

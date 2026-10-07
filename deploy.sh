@@ -15,7 +15,7 @@ cd "$(dirname "$0")"
 [ "$(git branch --show-current)" = "main" ] || { echo "Not on main" >&2; exit 1; }
 [ -z "$(git status --porcelain)" ] || { echo "Uncommitted changes; commit first" >&2; exit 1; }
 
-# The remote can be ahead (e.g. automated AJC_DATA.csv updates).
+# The remote can be ahead (e.g. an edit made on github.com).
 git pull --rebase origin main
 git push origin main
 sha=$(git rev-parse HEAD)

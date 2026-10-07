@@ -16,3 +16,24 @@ playwright-report/
 .claude/settings.local.json
 !docs/*.png
 dist/
+
+# Secrets and private data must never be committed (scripts/secret_scan.py enforces this too)
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+.env
+.env.*
+*.pem
+*.p12
+*.p8
+*.pfx
+*.key
+*.keystore
+*.mobileprovision
+id_rsa*
+id_ed25519*
+.npmrc
+.netrc
+.secret-scan.local
+*TirzTrackBackup*

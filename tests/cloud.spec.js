@@ -33,7 +33,7 @@ test('hosted and signed out: only the landing page shows, even with a log on thi
   await expect(page.locator('#landing a[href^="mailto:"]')).toBeVisible();
   for (const sel of ['header.hero', '#stats', '#plan', '#chartPanel', '#entriesPanel', '#formPanel', '#shareOpen', '#settingsOpen', '#resetBtn', '#foot']) await expect(page.locator(sel)).toBeHidden();
   expect(await page.evaluate(() => document.body.innerText)).not.toMatch(/\d+ entries|Latest weight|Export CSV|Clear all data|Add entry|lbs/);   // what a visitor can read
-  expect(seen.filter((u) => /AJC_DATA|execute-api/.test(u))).toEqual([]);   // no data file, no API call before sign-in
+  expect(seen.filter((u) => /execute-api/.test(u))).toEqual([]);   // no API call before sign-in
   expect(b.authHeaders).toEqual([]);
 });
 
@@ -215,20 +215,6 @@ test('one day the server refuses does not block the rest; it is reported and ret
   await page.locator('#fWaist').fill('40');
   await page.locator('#saveBtn').click();
   await expect.poll(() => b.entries.has('2026-03-08'), { timeout: 8000 }).toBe(true);
-});
-
-test('a log pre-loaded from the site data file is not uploaded unless the visitor says so', async ({ page }) => {
-  const b = backend(); await b.install(page);
-  await seedLocal(page, [row('2026-03-01', 200)]);
-  await page.addInitScript(() => { if (!localStorage.getItem('tirzepatide-settings')) localStorage.setItem('tirzepatide-settings', JSON.stringify({ hostedLoaded: true })); });
-  await page.goto(APP);
-  let asked = '';
-  page.once('dialog', (d) => { asked = d.message(); d.dismiss(); });
-  await page.locator('#landingSignIn').click();
-  await expect(page.locator('#cloudStatus')).toContainText('Last synced');
-  expect(asked).toContain('AJC_DATA.csv');
-  expect(b.entries.size).toBe(0);
-  expect((await storedEntries(page)).length).toBe(0);
 });
 
 const SHARE_TOKEN = 'T01' + 'x'.repeat(40);

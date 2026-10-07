@@ -28,7 +28,7 @@ Only `Date` is required. Dates may be `YYYY-MM-DD`, `MM/DD/YYYY` or `DD/MM/YYYY`
 
 ## Privacy
 
-Each visitor's data lives only in their own browser; nothing is uploaded anywhere. `.gitignore` excludes `*.csv` by default, except `sample-data/` (fake) and `AJC_DATA.csv`, which the maintainer has chosen to commit and keep public — anything committed to this public repo, including that file, is publicly downloadable. If you fork or host your own copy, you likely want to keep your own real data out of the repository.
+Each visitor's data lives only in their own browser; nothing is uploaded anywhere. `.gitignore` excludes `*.csv` by default, except `sample-data/` (fake). Never commit a real export.
 
 ## Install on your phone
 
@@ -36,7 +36,7 @@ On the live site: in Chrome or Edge use **Install app** in the header; on iPhone
 
 ## Auto-load a data file
 
-If `AJC_DATA.csv` sits next to `index.html` on the hosted site, a browser with an empty log loads it automatically. Anything committed to this public repo is publicly downloadable.
+The hosted site no longer loads any data file: a visitor's log is only what they enter or sync from their own account. Never commit a real export; the secret scanner (`scripts/secret_scan.py`, run by the pre-commit hook and in CI) refuses any CSV outside `sample-data/`.
 
 ## Publish with GitHub Pages
 

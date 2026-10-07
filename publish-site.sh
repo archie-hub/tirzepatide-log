@@ -4,7 +4,7 @@
 # Used by deploy.sh; can be run alone. Nothing is deleted from the bucket (old hashed scripts stay for pages still open).
 set -euo pipefail
 export AWS_PROFILE="${AWS_PROFILE:-kathyterraform}" AWS_PAGER=""
-BUCKET="s3://tirzlog-site-426832080397"
+BUCKET="s3://tirzlog-site-$(aws sts get-caller-identity --query Account --output text)"
 cd "$(dirname "$0")"
 python3 build-hosted.py
 

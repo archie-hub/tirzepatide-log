@@ -2407,7 +2407,6 @@
         if (at >= 0) { entries[at] = e; replaced++; } else { entries.push(e); added++; }
       });
     }
-    delete settings.hostedLoaded;   // the log is now the visitor's own
     save();
     if (mode === 'replace') markBackedUp();
     render(); resetForm(); closeImport();
@@ -2546,10 +2545,6 @@
   function randomToken(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return b64url(a); }
   function cloudSignIn() {
     if (!cloudAvailable()) { say('Cloud sync needs the hosted site (https).'); return; }
-    if (settings.hostedLoaded) {
-      if (entries.length && !confirm('This log was pre-loaded from the site\'s own data file (AJC_DATA.csv), not entered by you. OK uploads it to your account. Cancel removes it from this browser and signs in with an empty log.')) { entries = []; persistEntries(); render(); }
-      delete settings.hostedLoaded; saveSettings();
-    }
     var verifier = randomToken(48), state = randomToken(16);
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function (h) {
       try { sessionStorage.setItem('tirz-pkce', JSON.stringify({ v: verifier, s: state })); }
@@ -2900,32 +2895,11 @@
     });
   }
 
-  /* ---------- hosted data file ---------- */
-  // When hosted, an empty browser log is filled from AJC_DATA.csv next to index.html (if present).
-  // Browsers that already have entries keep them.
-  function loadHostedData() {
-    if (SHARE_TOKEN || entries.length || !/^https?:$/.test(location.protocol) || !window.fetch || cloudReturning || cloudSignedIn() || document.documentElement.classList.contains('landing')) return;
-    fetch('AJC_DATA.csv', { cache: 'no-cache' }).then(function (r) {
-      return r.ok ? r.text() : null;
-    }).then(function (text) {
-      if (!text || entries.length) return;
-      loadText(text);
-      if (!pending || mapping.date < 0) return;
-      var c = convertRows();
-      if (!c.list.length) return;
-      entries = c.list;
-      settings.hostedLoaded = true;   // so signing in to cloud sync can ask before uploading the site's own data file
-      save(); markBackedUp(); render(); resetForm();
-      say('Loaded ' + c.list.length + ' entries from AJC_DATA.csv.');
-    }).catch(function () {});
-  }
-
   resetForm();
   render();
   renderFooter();
   setupApp();
   cloudInit();
-  loadHostedData();
   if (SHARE_TOKEN) loadShare();
 })();
 </script>

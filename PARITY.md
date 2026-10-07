@@ -1,6 +1,6 @@
 # Web / iOS parity
 
-Single source of truth for what the two apps share. Web app: this repo (`index.html`). iOS app: `/Users/andrewchandler/ios_apps.d/tir.d` (TirzTrack, SwiftUI + SwiftData). Both are local-first; both apps can optionally sync to an invited cloud account (see CLAUDE.md).
+Single source of truth for what the two apps share. Web app: this repo (`index.html`). iOS app: `~/ios_apps.d/tir.d` (TirzTrack, SwiftUI + SwiftData). Both are local-first; both apps can optionally sync to an invited cloud account (see CLAUDE.md).
 
 **Last synced** (update when you finish a sync pass, via `/sync-check`): web `dcf836e`, iOS `da117d3`, 2026-10-05.
 

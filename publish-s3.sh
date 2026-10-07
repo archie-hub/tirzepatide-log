@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copy the app's served files to s3://www.phoe.be/tirzepatide-log/ (the phoe.be CloudFront serves /tirzepatide-log/*
 # from there first and falls back to GitHub Pages). An explicit file list under one prefix: never --delete, and
-# nothing outside tirzepatide-log/ is touched. AJC_DATA.csv is left out on purpose (the fallback serves it from GitHub).
+# nothing outside tirzepatide-log/ is touched.
 # Used by deploy.sh; can be run alone.
 set -euo pipefail
 export AWS_PROFILE="${AWS_PROFILE:-kathyterraform}" AWS_PAGER=""
