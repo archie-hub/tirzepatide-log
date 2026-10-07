@@ -419,6 +419,10 @@
     <span><strong>Demo.</strong> Everything here is made-up data. Nothing you do is saved, and it all resets when you reload.</span>
     <span class="demo-links"><a href="/">Back to the overview</a> <a href="https://www.phoe.be/#contact">Request an invite</a></span>
   </div>
+  <div class="demo-bar" id="shareBar" hidden>
+    <span><strong>Shared with you, read-only.</strong> This is a patient's log. Want to see what the app does?</span>
+    <span class="demo-links"><a href="https://tirzepatide.phoe.be/">About Tirzepatide Log</a> <a href="https://tirzepatide.phoe.be/demo">Try the live demo</a></span>
+  </div>
   <section id="landing" aria-labelledby="lpTitle">
     <div class="hero lp-hero">
       <div class="lp-copy">
@@ -3018,6 +3022,7 @@
   /* ---------- doctor view of a shared link ---------- */
   function loadShare() {
     document.body.classList.add('share');
+    $('shareBar').hidden = false;
     document.title = 'Shared tirzepatide log (read-only)';
     document.querySelector('header.hero h1').textContent = 'Shared tirzepatide log';
     say('Loading the shared log...');

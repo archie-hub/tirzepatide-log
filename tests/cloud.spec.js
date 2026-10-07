@@ -264,6 +264,9 @@ test('doctor: a link opens a read-only view of the log, without notes unless the
   await expect(page.locator('#subtitle')).toContainText('2 entries');
   await expect(page.locator('header.hero h1')).toHaveText('Shared tirzepatide log');
   await expect(page.locator('#foot')).toContainText('Read-only view shared by the patient');
+  // a pointer to the app's overview and demo
+  await expect(page.locator('#shareBar a[href="https://tirzepatide.phoe.be/"]')).toBeVisible();
+  await expect(page.locator('#shareBar a[href="https://tirzepatide.phoe.be/demo"]')).toBeVisible();
   // nothing to edit
   for (const sel of ['#formPanel', '#openImport', '#resetBtn', '#shareOpen', '#settingsOpen', '#backupNote', '#emptyPanel']) await expect(page.locator(sel)).toBeHidden();
   await page.locator('#entriesPanel > summary').click();
