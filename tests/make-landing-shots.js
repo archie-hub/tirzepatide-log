@@ -1,4 +1,4 @@
-// Regenerates landing/dashboard.jpg and landing/report.jpg from the fake sample year (never real data).
+// Regenerates landing/dashboard.jpg and landing/insights.jpg from the fake sample year (never real data).
 // Run: node tests/make-landing-shots.js
 const { chromium } = require('@playwright/test');
 const path = require('path');
@@ -16,10 +16,11 @@ const path = require('path');
   await page.evaluate(() => { document.querySelector('.hero h1').textContent = 'Tirzepatide Log'; document.getElementById('msg').textContent = ''; document.getElementById('backupNote').hidden = true; });
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(root, 'landing', 'dashboard.jpg'), type: 'jpeg', quality: 84, clip: { x: 20, y: 10, width: 1060, height: 760 } });
-  await page.locator('#openReport').click();
-  await page.waitForSelector('#reportPreview *');
-  await page.waitForTimeout(800);
-  const box = await page.locator('#reportPreview').boundingBox();
-  await page.screenshot({ path: path.join(root, 'landing', 'report.jpg'), type: 'jpeg', quality: 84, clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, 700) } });
+  await page.locator('#insightsPanel > summary').click();
+  await page.waitForTimeout(600);
+  await page.setViewportSize({ width: 1100, height: 2600 });
+  await page.waitForTimeout(400);
+  const box = await page.locator('#insightsPanel').boundingBox();
+  await page.screenshot({ path: path.join(root, 'landing', 'insights.jpg'), type: 'jpeg', quality: 84, clip: { x: box.x, y: box.y, width: box.width, height: 640 } });
   await browser.close();
 })();

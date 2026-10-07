@@ -35,7 +35,7 @@ test('the policy is strict: scripts only from our own files, no framing, nothing
   expect(/\son[a-z]+\s*=\s*["']/.test(html)).toBe(false);
 });
 
-test('the whole signed-in app works under the policy: landing, sign-in, entries, every chart, report, settings, links, sign-out', async ({ page, context }) => {
+test('the whole signed-in app works under the policy: landing, sign-in, entries, every chart, settings, links, sign-out', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   const problems = await watch(page);
   const b = backend({ dist: true }); await b.install(page);
@@ -59,14 +59,13 @@ test('the whole signed-in app works under the policy: landing, sign-in, entries,
   await expect.poll(() => b.entries.get('2026-05-01')?.weight).toBe(190.5);
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);   // a blob download
   expect(download.suggestedFilename()).toMatch(/\.csv$/);
-  await page.locator('#openReport').click();
-  await page.locator('#rcFull').check();
-  await expect(page.locator('#reportPreview svg').first()).toBeVisible();
-  await page.locator('#rClose').click();
-  await page.locator('#cloudOpen').click();
+  await page.locator('#settingsOpen').click();
+  await expect(page.locator('#cloudBox')).toBeVisible();
+  await page.evaluate(() => document.getElementById('setDlg').close());
+  await page.locator('#shareOpen').click();
   await page.locator('#shCreate').click();
   await expect(page.locator('#shList li')).toHaveCount(1);
-  await page.evaluate(() => document.getElementById('setDlg').close());
+  await page.evaluate(() => document.getElementById('shareDlg').close());
   await page.locator('#heroOut').click();
   await expect(page.locator('#landing')).toBeVisible();
   expect(await violations(page)).toEqual([]);
@@ -81,8 +80,8 @@ test('the doctor view works under the policy too', async ({ page }) => {
   b.shares.set(TOKEN, { createdAt: 1, notes: true });
   await page.goto(APP + '#share=' + TOKEN);
   await expect(page.locator('#subtitle')).toContainText('2 entries');
-  await page.locator('#openReport').click();
-  await expect(page.locator('#reportPreview')).toContainText('hello'.slice(0, 0) + 'Tirzepatide progress report');
+  await page.locator('#entriesPanel > summary').click();
+  await expect(page.locator('#rows')).toContainText('hello');
   expect(await violations(page)).toEqual([]);
   expect(problems).toEqual([]);
 });

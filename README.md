@@ -1,12 +1,12 @@
 # Tirzepatide Log
 
-A single-file web page for tracking tirzepatide dose, weight, calories, food notes and glucose, with charts and a printable report for your doctor.
+A single-file web page for tracking tirzepatide dose, weight, calories, food notes and glucose, with charts and a read-only link for your doctor.
 
 **Live:** https://archie-hub.github.io/tirzepatide-log/
 
 - No build step, no dependencies, no server. Open `index.html` in a browser.
 - Data stays in the browser (localStorage). Nothing is uploaded.
-- Import any CSV with a column-matching step, export your log as CSV, and generate a PDF/PNG/text report.
+- Import any CSV with a column-matching step, export your log as CSV, and share a read-only link with your doctor.
 - Next-dose countdown, goal weight with a progress ring and projected date, results by dose (lbs per week at each dose), and a backup reminder.
 - Installable as an app (home screen, works offline) when hosted.
 

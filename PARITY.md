@@ -46,7 +46,7 @@ Legend: yes, no, partial.
 | Pull down to sync | yes (touch screens, from the top of the page) | yes (every tab, `.refreshable`) | Both also sync by themselves on open/return, after each change and when leaving |
 | Clear all data | yes (button; signs out of cloud sync first) | yes (Settings > Clear All Data; signs out first) | The cloud copy is never touched; signing in again brings it back |
 | JSON backup/restore (with photos) | n/a | yes | Exists for photos; CSV is the shared backup format on both |
-| Doctor report (PDF, summary, charts) | yes | no (removed on purpose) | The iPhone app has no report screen; its only way to share is a doctor link (account required), which opens the web app read-only. Intentional gap |
+| Doctor report (PDF, summary, charts) | no (removed on purpose) | no (removed on purpose) | Neither app has a report any more: to share, create a doctor link (account required); the doctor sees the web dashboard read-only. The web "Share with doctor" button opens a dialog; the iPhone has the same in Settings > Cloud Sync. Intentional |
 | Progress photos and gallery | no | yes | |
 | App lock (Face ID) | no | yes | |
 | Light/dark | yes | yes | |

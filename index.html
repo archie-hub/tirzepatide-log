@@ -362,8 +362,6 @@
   summary { cursor: pointer; color: var(--muted); }
   .preview td, .preview th { padding: 5px 8px; font-size: 13px; }
   .preview tbody tr td:first-child { box-shadow: none; padding-left: 8px; }
-  /* ---- doctor report ---- */
-  #reportDlg { max-width: 980px; }
   /* landing page: the hosted app shows only this until someone signs in */
   #landing { display: none; }
   html.landing main > :not(#landing):not(#msg) { display: none !important; }
@@ -391,51 +389,12 @@
   .lp-fine { text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 8px; }
   @media (max-width: 640px) { .lp-hero { padding: 22px 18px 24px; } .lp-hero h1 { font-size: 32px; } }
   /* a doctor opening a patient's link: read-only, so every editing control is gone */
-  body.share #formPanel, body.share #openImport, body.share #resetBtn, body.share #cloudOpen, body.share #installBtn, body.share #backupNote,
+  body.share #formPanel, body.share #openImport, body.share #resetBtn, body.share #shareOpen, body.share #settingsOpen, body.share #installBtn, body.share #backupNote,
   body.share #emptyPanel, body.share #heroOut, body.share #exportBtn, body.share #backupExport, body.share [data-settings], body.share [data-edit], body.share [data-del] { display: none !important; }
   .share-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
   .share-list li { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line, #d7dee6); border-radius: 10px; }
   .share-list code { font-size: 12px; word-break: break-all; flex: 1 1 100%; }
   .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 14px; margin-top: 12px; }
-  #reportPreview { margin-top: 16px; overflow-x: auto; }
-  #printArea { display: none; }
-  .rep {
-    --ink: #12202e; --muted: #5a6b7c; --line: #dbe4ec; --panel: #ffffff; --bg: #ffffff; --accent: #0ea5a4; --good: #059669; --bad: #ea580c;
-    background: #fff; color: #12202e; padding: 24px; border-radius: 10px; border: 1px solid #dbe4ec; font-size: 13.5px; line-height: 1.45;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact; text-align: left;
-  }
-  .rep h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
-  .rep h2 { font-size: 15px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #0ea5a4; }
-  .rep p { margin: 6px 0; }
-  .rep-meta { color: #5a6b7c; font-size: 13px; }
-  .rep-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 16px; }
-  .rep-box { border: 1px solid #dbe4ec; border-left: 4px solid var(--c, #0ea5a4); border-radius: 8px; padding: 8px 12px; break-inside: avoid; }
-  .rep-box .l { font-size: 12px; color: #5a6b7c; }
-  .rep-box .v { font-size: 19px; font-weight: 700; color: var(--c, #0ea5a4); line-height: 1.25; }
-  .rep-box .s { font-size: 11.5px; color: #5a6b7c; }
-  .rep section { break-inside: avoid; margin-top: 16px; }
-  .rep svg { width: 100%; height: auto; }
-  .rep-cap { color: #5a6b7c; font-size: 11.5px; }
-  .rep-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin: 8px 0 10px; background: #dbe4ec; }
-  .rep-bar span { display: block; height: 100%; }
-  .rep table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  .rep th, .rep td { padding: 5px 7px; border-bottom: 1px solid #dbe4ec; text-align: left; vertical-align: top; color: #12202e; }
-  .rep th { color: #5a6b7c; font-weight: 600; }
-  .rep th.num, .rep td.num { text-align: right; }
-  .rep tr { break-inside: avoid; }
-  .rep thead { display: table-header-group; }
-  .rep tbody tr td:first-child { box-shadow: none; padding-left: 7px; white-space: normal; }
-  .rep tbody tr:hover td { background: none; }
-  .rep td.pre { white-space: pre-wrap; }
-  .rep footer { margin-top: 20px; color: #5a6b7c; font-size: 11.5px; }
-  @media print {
-    @page { margin: 13mm; }
-    .report-mode, .report-mode body { background: #fff !important; }
-    .report-mode body { padding: 0; min-height: 0; }
-    .report-mode body > main, .report-mode dialog { display: none !important; }
-    .report-mode #printArea { display: block; }
-    .report-mode #printArea .rep { border: 0; padding: 0; border-radius: 0; }
-  }
 </style>
 </head>
 <body>
@@ -455,21 +414,21 @@
     </div>
     <div class="lp-grid">
       <div class="panel lp-card" style="--c:#0ea5a4"><h2>One log for everything</h2><p>Dose, weight, calories and food notes, fasting glucose, blood pressure, waist, body fat and muscle mass, each day in one place.</p></div>
-      <div class="panel lp-card" style="--c:#2563eb"><h2>Charts that make sense</h2><p>Weight with a 7-day average and shaded dose bands, plus BMI, glucose, pace, blood pressure and a combined view.</p></div>
+      <div class="panel lp-card" style="--c:#2563eb"><h2>Charts that make sense</h2><p>Weight with a 7-day average line that changes colour with your trend, shaded dose bands, plus BMI, glucose, pace, blood pressure and a combined view. Look back 1 week to 3 years.</p></div>
       <div class="panel lp-card" style="--c:#7c3aed"><h2>Know where you are heading</h2><p>Goal projection, milestones from 5 to 25 percent, results by dose, and gentle notices for plateaus and fast loss.</p></div>
       <div class="panel lp-card" style="--c:#f97316"><h2>Web and iPhone in step</h2><p>Sign in on either and see the same log. After you sign in it keeps working offline and catches up when you are back online.</p></div>
     </div>
     <div class="panel lp-split">
       <div>
-        <h2>A clear report for your doctor</h2>
-        <p>Save a summary as a PDF or send a read-only link. Your doctor needs no account.</p>
+        <h2>Share with your doctor in one click</h2>
+        <p>Create a link and send it. Your doctor opens it in any browser, with no account, and sees your log as a clear web page.</p>
         <ul>
-          <li>Weight change, pace, milestones, glucose and blood pressure ranges</li>
+          <li>Weight change, pace, milestones, glucose and blood pressure ranges, charts by dose</li>
           <li>The link always shows your latest entries, and you can switch it off at any time</li>
           <li>Notes only go along if you choose to include them</li>
         </ul>
       </div>
-      <img src="landing/report.jpg" width="1413" height="700" loading="lazy" alt="The doctor report: dose, weight change, milestones, 4-week pace, waist and body fat summary boxes (sample data).">
+      <img src="landing/insights.jpg" width="1590" height="960" loading="lazy" alt="The insights panel: this week against last, highest and lowest weight, best week, 4-week pace, milestones and weight by injection day (sample data).">
     </div>
     <div class="panel lp-split">
       <div>
@@ -606,16 +565,15 @@
 
   <div class="toolbar page-bar" aria-label="Data actions">
     <button id="installBtn" hidden>Install app</button>
-    <button id="openImport" class="primary">Import data</button>
-    <button id="openReport">Doctor report</button>
+    <button id="shareOpen" class="primary" hidden>Share with doctor</button>
+    <button id="openImport">Import data</button>
     <button id="exportBtn">Export CSV</button>
+    <button id="settingsOpen">Settings</button>
     <button id="resetBtn" class="danger">Clear all data</button>
-    <button id="cloudOpen" hidden>Cloud sync</button>
   </div>
 
   <footer class="foot" id="foot"></footer>
 </main>
-<div id="printArea" aria-hidden="true"></div>
 
 <dialog id="importDlg" aria-labelledby="dlgTitle">
   <div class="dlg-head">
@@ -671,6 +629,18 @@
   </div>
 </dialog>
 
+<dialog id="shareDlg" aria-labelledby="shTitle" style="max-width:560px">
+  <div class="dlg-head">
+    <h2 id="shTitle">Share with your doctor</h2>
+    <button type="button" class="small" id="shClose">Close</button>
+  </div>
+  <p class="note" style="margin-top:0">Create a link and send it to your doctor. They open it in any browser, with no account, and see your log read-only on a web page. It always shows your latest entries and never expires. Revoke it to stop it working.</p>
+  <label class="radio"><input type="checkbox" id="shNotes"> <span>Include my notes (comments and food notes)</span></label>
+  <div class="actions"><button type="button" class="primary" id="shCreate">Create doctor link</button></div>
+  <p class="note" id="shMsg" role="status"></p>
+  <ul class="share-list" id="shList"></ul>
+</dialog>
+
 <dialog id="setDlg" aria-labelledby="setTitle" style="max-width:520px">
   <div class="dlg-head">
     <h2 id="setTitle">Settings</h2>
@@ -689,12 +659,6 @@
     <button type="button" id="cloudIn">Sign in</button>
     <button type="button" id="cloudSyncBtn">Sync now</button>
     <button type="button" id="cloudOut">Sign out</button>
-    <div id="shareBox" hidden style="grid-column:1/-1">
-      <p class="note" style="margin:6px 0"><strong>Doctor link.</strong> Anyone with the link sees your log read-only, without an account. It never expires and always shows your latest entries. Revoke it to stop it working.</p>
-      <label class="radio"><input type="checkbox" id="shNotes"> <span>Include my notes (comments and food notes)</span></label>
-      <button type="button" id="shCreate" style="margin-top:8px">Create doctor link</button>
-      <ul class="share-list" id="shList"></ul>
-    </div>
   </div>
   <p class="note">Units only change what is shown and typed; CSV exports always use lbs. Leave the goal blank to hide it. The starting weight is only needed when your first logged weight is not where you began treatment; progress percentages are measured from it. "Work it out" uses the day you last logged an injection site, or the day your current dose started.</p>
   <div class="actions">
@@ -703,52 +667,6 @@
   </div>
 </dialog>
 
-<dialog id="reportDlg" aria-labelledby="rTitle">
-  <div class="dlg-head">
-    <h2 id="rTitle">Share with your doctor</h2>
-    <button type="button" class="small" id="rClose">Close</button>
-  </div>
-  <div class="opts">
-    <label>Your name (optional)<input id="rName" type="text" autocomplete="name"></label>
-    <label>Period
-      <select id="rRange">
-        <option value="all">All data</option>
-        <option value="365">Last 12 months</option>
-        <option value="180">Last 6 months</option>
-        <option value="90">Last 3 months</option>
-        <option value="30">Last 30 days</option>
-        <option value="custom">Custom dates</option>
-      </select>
-    </label>
-    <label id="rFromWrap" hidden>From<input type="date" id="rFrom"></label>
-    <label id="rToWrap" hidden>To<input type="date" id="rTo"></label>
-  </div>
-  <div class="checks" role="group" aria-label="Include in report">
-    <label class="radio"><input type="checkbox" id="rcWeight" checked> <span>Weight chart</span></label>
-    <label class="radio"><input type="checkbox" id="rcWaist"> <span>Waist chart</span></label>
-    <label class="radio" id="rcBmiWrap"><input type="checkbox" id="rcBmi" checked> <span id="rcBmiText">BMI chart and stages</span></label>
-    <label class="radio"><input type="checkbox" id="rcSugar" checked> <span>Glucose chart</span></label>
-    <label class="radio"><input type="checkbox" id="rcBp" checked> <span>Blood pressure chart</span></label>
-    <label class="radio"><input type="checkbox" id="rcCal" checked> <span>Calories chart</span></label>
-    <label class="radio"><input type="checkbox" id="rcCompare"> <span>Combined chart (the items chosen on the Combined tab)</span></label>
-    <label class="radio"><input type="checkbox" id="rcRate"> <span>Loss pace chart</span></label>
-    <label class="radio"><input type="checkbox" id="rcWeekly"> <span>Weekly averages table</span></label>
-    <label class="radio"><input type="checkbox" id="rcDose" checked> <span>Dose schedule table</span></label>
-    <label class="radio"><input type="checkbox" id="rcComments" checked> <span>Comments and side effects</span></label>
-    <label class="radio"><input type="checkbox" id="rcFull"> <span>Full daily log table</span></label>
-  </div>
-  <label style="margin-top:12px">Notes or questions for your doctor (optional)<textarea id="rNotes"></textarea></label>
-  <div class="actions" style="margin-top:14px">
-    <button type="button" class="primary" id="rPrint">Print or save as PDF</button>
-    <button type="button" id="rPng">Download chart images</button>
-    <button type="button" id="rCopy">Copy text summary</button>
-    <button type="button" id="rCsv">Download CSV</button>
-    <button type="button" id="rMail">Email summary</button>
-    <button type="button" id="rShare" hidden>Share&hellip;</button>
-  </div>
-  <p class="note" style="margin-bottom:0">Everything is created in your browser; nothing is uploaded. In the print window choose "Save as PDF" to get a file. Email links cannot attach files, so attach the saved PDF or images yourself. Many clinics prefer their patient portal for health information.</p>
-  <div id="reportPreview"></div>
-</dialog>
 
 <script>
 (function () {
@@ -2497,7 +2415,6 @@
   });
 
   /* ---------- doctor report ---------- */
-  var rdlg = $('reportDlg');
   function sgn(v, dec) { return (v > 0 ? '+' : (v < 0 ? '\u2212' : '')) + Math.abs(v).toFixed(dec); }
   function statOf(list, key) {
     var v = list.filter(function (e) { return e[key] !== null; }).map(function (e) { return e[key]; });
@@ -2512,362 +2429,8 @@
     });
     return segs;
   }
-  function reportWindow() {
-    var all = sorted(); if (!all.length) return null;
-    var last = all[all.length - 1].date, sel = $('rRange').value, from, to = last;
-    if (sel === 'custom') { from = $('rFrom').value || all[0].date; to = $('rTo').value || last; }
-    else if (sel === 'all') from = all[0].date;
-    else from = addDays(last, -parseInt(sel, 10));
-    return { from: from, to: to };
-  }
   function nf(n) { return Math.round(n).toLocaleString(); }
   function sugarText(v, unit) { return '<span style="color:' + sugarZone(v).color + ';font-weight:700">' + Math.round(v) + unit + '</span>'; }
-
-  function buildReport() {
-    var w = reportWindow(); if (!w) return null;
-    var list = sorted().filter(function (e) { return e.date >= w.from && e.date <= w.to; });
-    var name = $('rName').value.trim(), notes = $('rNotes').value.trim();
-    var period = fmtDate(w.from) + ' to ' + fmtDate(w.to);
-    var prepared = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-    var head = '<h1>Tirzepatide progress report</h1><div class="rep-meta">' + (name ? 'Patient: ' + esc(name) + '<br>' : '') +
-      'Period: ' + esc(period) + '<br>Prepared: ' + esc(prepared) + '</div>';
-    if (!list.length) return { html: '<div class="rep">' + head + '<p>No entries in this period.</p></div>', text: '', charts: [], list: list, w: w };
-
-    var boxes = [], tl = [];
-    var wl = list.filter(function (e) { return e.weight !== null; });
-    var segs = segsOf(list);
-    tl.push('Tirzepatide progress summary, ' + period + (name ? ' (' + name + ')' : ''));
-    if (segs.length) {
-      var d0 = segs[0].dose, d1 = segs[segs.length - 1].dose;
-      boxes.push(['Dose', d0 + (segs.length > 1 ? ' \u2192 ' + d1 : '') + ' mg', doseColor(d1), segs.length > 1 ? segs.length + ' dose levels' : 'no change in period']);
-      tl.push('- Dose: ' + (segs.length > 1 ? 'started at ' + d0 + ' mg, now ' + d1 + ' mg' : d0 + ' mg throughout'));
-    }
-    if (wl.length) {
-      var f = wl[0], l = wl[wl.length - 1], d = l.weight - f.weight, weeks = dayDiff(f.date, l.date) / 7;
-      boxes.push(['Weight', fwa(f.weight) + ' \u2192 ' + fwu(l.weight), '#0ea5a4', fmtDate(f.date) + ' to ' + fmtDate(l.date)]);
-      if (wl.length > 1) {
-        boxes.push(['Change', sgn(dw(d), 1) + ' ' + WU(), d <= 0 ? '#059669' : '#ea580c', sgn(d / f.weight * 100, 1) + '% of starting weight']);
-        tl.push('- Weight: ' + fwa(f.weight) + ' to ' + fwu(l.weight) + ' (' + sgn(dw(d), 1) + ' ' + WU() + ', ' + sgn(d / f.weight * 100, 1) + '%)' + (weeks >= 2 ? ', about ' + sgn(dw(d / weeks), 2) + ' ' + WU() + ' per week' : ''));
-        if (weeks >= 2) boxes.push(['Average per week', sgn(dw(d / weeks), 2) + ' ' + WU(), '#6366f1', 'over ' + Math.round(weeks) + ' weeks']);
-      }
-    }
-    var upto = sorted().filter(function (e) { return e.date <= w.to; }), pi = progressInfo(upto);
-    if (pi && (wl.length > 1 || pi.hasBase)) {
-      var lostTxt = fw(Math.abs(pi.lost)) + ' ' + WU() + (pi.hasBase ? ' from a start weight of ' + fwu(pi.base) : ' from the first weigh-in');
-      boxes.push([pi.lost >= 0 ? 'Weight lost' : 'Weight gained', pctText(pi.pct), pi.lost >= 0 ? '#059669' : '#ea580c', lostTxt]);
-      boxes.push(['Weeks on treatment', 'Week ' + pi.week, '#6366f1', 'since ' + fmtDate(pi.start)]);
-      tl.push('- Total weight ' + (pi.lost >= 0 ? 'lost' : 'gained') + ': ' + pctText(pi.pct) + ' (' + lostTxt + '), week ' + pi.week + ' of treatment');
-      boxes.push(['Milestones', pi.ms.filter(function (m) { return m.hit; }).length + ' of ' + MILESTONES.length, '#16a34a', milestoneText(pi)]);
-      tl.push('- Milestones: ' + milestoneText(pi));
-      if (pi.w12) {
-        boxes.push(['Lost at week 12', pctText(pi.w12.pct), '#0ea5a4', fw(pi.w12.lost) + ' ' + WU() + ' by ' + fmtDate(pi.w12.date)]);
-        tl.push('- Lost at week 12: ' + pctText(pi.w12.pct) + ' (' + fw(pi.w12.lost) + ' ' + WU() + ', weigh-in on ' + shortDate(pi.w12.date, true) + ')');
-      }
-    }
-    var allW = sorted().filter(function (e) { return e.weight !== null && e.date <= w.to; });
-    var pl = plateauInfo(allW);
-    if (pl) {
-      boxes.push(['Weight trend', 'Steady', '#64748b', plateauText(pl).replace('Weight has been steady for ', 'About ').replace(/ \(within/, ', within').replace(/\)\.$/, '')]);
-      tl.push('- ' + plateauText(pl));
-    }
-    // pace, extremes, best week, logging consistency (period-based; the pace as of the end date)
-    var fl = fastLoss(allW), rrs = rollingRates(allW).filter(function (r) { return r.date >= w.from; });
-    if (rrs.length) {
-      var rcur = rrs[rrs.length - 1], rfast = rrs.reduce(function (a, b) { return b.v < a.v ? b : a; });
-      boxes.push(['4-week pace', sgn(dw(rcur.v), 2) + ' ' + WU() + '/wk', fl ? '#ea580c' : '#0284c7', 'fastest ' + sgn(dw(rfast.v), 2) + ' (' + shortDate(rfast.date, true) + ')' + (fl ? '; faster than ' + FAST_PCT + '% of body weight a week' : '')]);
-      tl.push('- 4-week pace: ' + sgn(dw(rcur.v), 2) + ' ' + WU() + '/wk at the end of the period; fastest ' + sgn(dw(rfast.v), 2) + ' on ' + shortDate(rfast.date, true) + (fl ? '. ' + fastText(fl) : ''));
-    }
-    var ex = extremes(wl);
-    if (ex && wl.length > 1) {
-      boxes.push(['Highest / lowest', fwa(ex.hi.weight) + ' / ' + fwu(ex.lo.weight), '#64748b', shortDate(ex.hi.date, true) + ' / ' + shortDate(ex.lo.date, true)]);
-      tl.push('- Highest weight ' + fwu(ex.hi.weight) + ' (' + shortDate(ex.hi.date, true) + '), lowest ' + fwu(ex.lo.weight) + ' (' + shortDate(ex.lo.date, true) + ')');
-    }
-    var weeksP = weeklyAverages(upto).filter(function (b) { return b.to >= w.from; }), bwk = bestWeek(weeksP);
-    if (bwk) {
-      boxes.push(['Best week', sgn(dw(bwk.change), 1) + ' ' + WU(), '#6366f1', 'week ' + bwk.week + ', ' + shortDate(bwk.from, false) + ' to ' + shortDate(bwk.to, false) + ' (average vs the week before)']);
-      tl.push('- Best week: week ' + bwk.week + ' (' + shortDate(bwk.from, true) + '), ' + sgn(dw(bwk.change), 1) + ' ' + WU() + ' on the week before');
-    }
-    var cs = consistency(wl);
-    if (cs && cs.n > 1) {
-      boxes.push(['Weigh-in consistency', cs.n + ' weigh-ins', '#d97706', (cs.avgGap !== null ? 'every ' + cs.avgGap.toFixed(1) + ' days on average' : '') + (cs.longest ? '; longest gap ' + cs.longest.days + ' days' : '')]);
-      tl.push('- Weigh-ins: ' + cs.n + (cs.avgGap !== null ? ', every ' + cs.avgGap.toFixed(1) + ' days on average' : '') + (cs.longest ? '; longest gap ' + cs.longest.days + ' days (' + shortDate(cs.longest.from, true) + ' to ' + shortDate(cs.longest.to, true) + ')' : ''));
-    }
-    // body measures over the period
-    var rwa = firstLast(list, 'waist'), rfa = firstLast(list, 'fat'), rmu = firstLast(list, 'muscle');
-    if (rwa) {
-      var rr_ = whtr(rwa.last.waist);
-      boxes.push(['Waist', (rwa.n > 1 ? flen(rwa.first.waist) + ' \u2192 ' : '') + flen(rwa.last.waist) + ' ' + LU(), '#c026d3',
-        (rwa.n > 1 ? sgn(dl(rwa.last.waist - rwa.first.waist), 1) + ' ' + LU() + '; ' : '') + (rr_ !== null ? 'waist-to-height ' + rr_.toFixed(2) + ' (0.5 is the usual reference)' : rwa.n + ' readings')]);
-      tl.push('- Waist: ' + (rwa.n > 1 ? flen(rwa.first.waist) + ' to ' : '') + flen(rwa.last.waist) + ' ' + LU() + (rr_ !== null ? ', waist-to-height ' + rr_.toFixed(2) : '') + ' (' + rwa.n + ' readings)');
-    }
-    if (rfa) {
-      boxes.push(['Body fat', (rfa.n > 1 ? rfa.first.fat + ' \u2192 ' : '') + rfa.last.fat + '%', '#65a30d', rfa.n + ' readings, latest ' + shortDate(rfa.last.date, true)]);
-      tl.push('- Body fat: ' + (rfa.n > 1 ? rfa.first.fat + '% to ' : '') + rfa.last.fat + '% (' + rfa.n + ' readings)');
-    }
-    if (rmu) {
-      boxes.push(['Muscle mass', (rmu.n > 1 ? fw(rmu.first.muscle) + ' \u2192 ' : '') + fw(rmu.last.muscle) + ' ' + WU(), '#b45309', (rmu.n > 1 ? sgn(dw(rmu.last.muscle - rmu.first.muscle), 1) + ' ' + WU() + '; ' : '') + rmu.n + ' readings']);
-      tl.push('- Muscle mass: ' + (rmu.n > 1 ? fw(rmu.first.muscle) + ' to ' : '') + fw(rmu.last.muscle) + ' ' + WU() + ' (' + rmu.n + ' readings)');
-    }
-    var ipat = injectionPattern(allW);
-    if (ipat) tl.push('- ' + injectionText(ipat));
-    var gi = goalInfo(allW);
-    if (gi) {
-      boxes.push(['Goal: ' + goalLabel(gi.goal), gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'Reached', '#6366f1',
-        Math.round(gi.pct * 100) + '% of the way. ' + gi.proj]);
-      tl.push('- Goal: ' + goalLabel(gi.goal) + ', ' + (gi.left > 0 ? fw(gi.left) + ' ' + WU() + ' to go' : 'reached') + ' (' + Math.round(gi.pct * 100) + '% of the way). ' + gi.proj);
-    }
-    if (wl.length && settings.heightIn) {
-      var hb = settings.heightIn, b1 = bmiOf(wl[wl.length - 1].weight, hb), s1 = bmiStage(b1), b0r = bmiOf(wl[0].weight, hb), s0r = bmiStage(b0r);
-      boxes.push(['BMI', wl.length > 1 ? b0r.toFixed(1) + ' \u2192 ' + b1.toFixed(1) : b1.toFixed(1), s1.color,
-        s1.name + (s0r !== s1 && wl.length > 1 ? ' (was ' + s0r.name.toLowerCase() + ')' : '') + ', height ' + fmtHeight(hb)]);
-      var bi = bmiNextInfo(allW, hb);
-      if (bi && bi.normal) tl.push('- BMI: in the normal range');
-      else if (bi) {
-        boxes.push(['BMI next stage', bi.tgt.name, bi.tgt.color, 'below ' + bi.below + ' at ' + fwFloor(bi.tw) + ' (' + fw(bi.toGo) + ' ' + WU() + ' to go). ' + bi.proj]);
-        tl.push('- ' + bmiNextText(allW, hb));
-      }
-      tl.push('- BMI: ' + (wl.length > 1 ? b0r.toFixed(1) + ' (' + s0r.name.toLowerCase() + ') to ' : '') + b1.toFixed(1) + ' (' + s1.name.toLowerCase() + '), height ' + fmtHeight(hb));
-    }
-    var cal = statOf(list, 'cal'), sug = statOf(list, 'sugar');
-    if (cal) { boxes.push(['Average calories', nf(cal.avg), '#8b5cf6', 'across ' + cal.n + ' logged days']); tl.push('- Calories: average ' + nf(cal.avg) + ' per logged day (' + cal.n + ' days logged)'); }
-    if (sug) {
-      var sz = sugarZone(sug.avg);
-      boxes.push(['Average fasting glucose', Math.round(sug.avg) + ' mg/dL', sz.color, sz.label + '; range ' + sug.min + ' to ' + sug.max + ', ' + sug.n + ' readings']);
-      var ls = list.filter(function (e) { return e.sugar !== null; }).pop(), lz = sugarZone(ls.sugar);
-      boxes.push(['Latest fasting glucose', ls.sugar + ' mg/dL', lz.color, lz.label + ', ' + fmtDate(ls.date)]);
-      tl.push('- Fasting glucose: average ' + Math.round(sug.avg) + ' mg/dL (' + sz.label.toLowerCase() + '), range ' + sug.min + ' to ' + sug.max + ' (' + sug.n + ' readings)');
-    }
-    var bpr = list.filter(hasBp), bpAvg = null;
-    if (bpr.length) {
-      var as = statOf(bpr, 'sys'), ad = statOf(bpr, 'dia'), lbp = bpr[bpr.length - 1], lbz = bpZone(lbp.sys, lbp.dia);
-      bpAvg = { sys: as.avg, dia: ad.avg, z: bpZone(as.avg, ad.avg) };
-      boxes.push(['Average blood pressure', Math.round(as.avg) + '/' + Math.round(ad.avg) + ' mmHg', bpAvg.z.color, bpAvg.z.label + '; ' + bpr.length + ' readings']);
-      boxes.push(['Latest blood pressure', bpText(lbp) + ' mmHg', lbz.color, lbz.label + ', ' + fmtDate(lbp.date)]);
-      tl.push('- Blood pressure: average ' + Math.round(as.avg) + '/' + Math.round(ad.avg) + ' mmHg (' + bpAvg.z.label.toLowerCase() + '), systolic ' + as.min + ' to ' + as.max + ', diastolic ' + ad.min + ' to ' + ad.max + ' (' + bpr.length + ' readings); latest ' + bpText(lbp) + ' on ' + shortDate(lbp.date, true));
-    }
-    var dcov = dayDiff(list[0].date, list[list.length - 1].date) + 1;
-    boxes.push(['Entries logged', String(list.length), '#d97706', dcov + ' days covered, self-reported']);
-    tl.push('- Entries: ' + list.length + ' over ' + dcov + ' days');
-    var di = doseInfo();
-    if (di) {
-      boxes.push(['Next dose', DAY_NAMES[di.dow] + (di.diff === 0 ? ' (today)' : ''), doseColor(di.dose), fmtDate(di.next) + ', week ' + di.week + ' at ' + di.dose + ' mg']);
-      tl.push('- Next dose: ' + DAY_NAMES[di.dow] + ' ' + shortDate(di.next, true) + ' (week ' + di.week + ' at ' + di.dose + ' mg)');
-    }
-
-    // Fasting glucose readings counted by ADA range
-    var ranges = '';
-    if (sug) {
-      var counts = SUGAR_ZONES.map(function (z) {
-        return { z: z, n: list.filter(function (e) { return e.sugar !== null && sugarZone(e.sugar) === z; }).length };
-      });
-      ranges = '<h2>Fasting glucose ranges</h2><div class="rep-bar">' + counts.map(function (c) {
-        return c.n ? '<span style="width:' + (c.n / sug.n * 100).toFixed(2) + '%;background:' + c.z.color + '"></span>' : '';
-      }).join('') + '</div><table><thead><tr><th>Range</th><th>mg/dL</th><th class="num">Readings</th><th class="num">Share</th></tr></thead><tbody>' +
-        counts.map(function (c) {
-          return '<tr><td><span class="chip" style="--c:' + c.z.color + '">' + sugarFace(c.z, 14) + esc(c.z.label) + '</span></td><td>' + esc(c.z.range) + '</td><td class="num">' + c.n +
-            '</td><td class="num">' + Math.round(c.n / sug.n * 100) + '%</td></tr>';
-        }).join('') + '</tbody></table><div class="rep-cap">American Diabetes Association cut-offs for fasting glucose. All readings were taken fasting.</div>';
-      tl.push('- Fasting readings by range: ' + counts.map(function (c) { return c.n + ' ' + c.z.label.toLowerCase(); }).join(', '));
-    }
-
-    // Blood pressure readings counted by category
-    var bpRanges = '';
-    if (bpr.length) {
-      var bc = BP_ZONES.map(function (z) { return { z: z, n: bpr.filter(function (e) { return bpZone(e.sys, e.dia) === z; }).length }; });
-      bpRanges = '<h2>Blood pressure categories</h2><div class="rep-bar">' + bc.map(function (c) {
-        return c.n ? '<span style="width:' + (c.n / bpr.length * 100).toFixed(2) + '%;background:' + c.z.color + '"></span>' : '';
-      }).join('') + '</div><table><thead><tr><th>Category</th><th>mmHg</th><th class="num">Readings</th><th class="num">Share</th></tr></thead><tbody>' +
-        bc.map(function (c) {
-          return '<tr><td><span class="chip" style="--c:' + c.z.color + '">' + esc(c.z.label) + '</span></td><td>' + esc(c.z.range) + '</td><td class="num">' + c.n +
-            '</td><td class="num">' + Math.round(c.n / bpr.length * 100) + '%</td></tr>';
-        }).join('') + '</tbody></table><div class="rep-cap">American Heart Association categories; the higher of the two numbers decides. Home readings are self-reported.</div>';
-      tl.push('- Blood pressure readings by category: ' + bc.map(function (c) { return c.n + ' ' + c.z.label.toLowerCase(); }).join(', '));
-    }
-
-    var h = '<div class="rep">' + head + '<div class="rep-grid">' + boxes.map(function (b) {
-      return '<div class="rep-box" style="--c:' + b[2] + '"><div class="l">' + esc(b[0]) + '</div><div class="v">' + esc(b[1]) + '</div><div class="s">' + esc(b[3] || '') + '</div></div>';
-    }).join('') + '</div>';
-    if (notes) { h += '<h2>Notes for my doctor</h2><p>' + esc(notes).replace(/\n/g, '<br>') + '</p>'; tl.push('', 'Notes for my doctor: ' + notes); }
-
-    var charts = [];
-    [['weight', 'rcWeight'], ['bmi', 'rcBmi'], ['sugar', 'rcSugar'], ['bp', 'rcBp'], ['cal', 'rcCal'], ['rate', 'rcRate'], ['waist', 'rcWaist'], ['compare', 'rcCompare']].forEach(function (pr) {
-      if (!$(pr[1]).checked || $(pr[1]).disabled) return;
-      var res = buildChart(pr[0], { from: w.from, to: w.to, print: true, title: METRICS[pr[0]].label + ', ' + period });
-      if (!res) return;
-      charts.push({ key: pr[0], svg: res.svg, w: res.W, h: res.H });
-      h += '<section>' + res.svg + '<div class="rep-cap">' + (pr[0] === 'waist' ? 'Dots are daily values. The line is the trailing 7-day average.' + (settings.heightIn ? ' The dashed line is half your height (waist-to-height ratio 0.5), a commonly used reference.' : '') + ' Shaded bands show the dose in effect.' : pr[0] === 'rate' ? 'Each dot is the weight trend over the 4 weeks up to that day (below the zero line = losing). Orange dots are faster than ' + FAST_PCT + '% of body weight a week, a threshold shown for reference only. Shaded bands show the dose in effect.' : pr[0] === 'compare' ? 'Each line is scaled between its own lowest and highest value in the period, so it shows the shape of the trend, not the size; see the other charts and tables for real values. Dots are daily values, lines are 7-day averages. Shaded bands show the dose in effect.' : 'Dots are daily values. The line is the trailing 7-day average. Shaded bands show the dose in effect.') +
-        (pr[0] === 'sugar' ? ' Dot colours show the fasting range: green below 100, amber 100 to 125, red 126 and above.' : '') +
-        (pr[0] === 'bp' ? ' Each bar runs from diastolic (hollow dot) to systolic (solid dot), coloured by category: green normal, amber elevated, orange stage 1, red stage 2. Dashed lines mark the category limits for the top and bottom number.' : '') +
-        (pr[0] === 'bmi' ? ' Dot colours show the BMI stage; dashed lines mark the stage boundaries. Height ' + esc(fmtHeight(settings.heightIn)) + '.' : '') + '</div></section>';
-      if (pr[0] === 'bmi') h += '<section><h2>BMI stages</h2><table><thead><tr><th>Stage</th><th>BMI</th><th class="num">Weight at ' + esc(fmtHeight(settings.heightIn)) + '</th></tr></thead><tbody>' +
-        BMI_STAGES.map(function (g) {
-          var cur = bmiStage(bmiOf(wl[wl.length - 1].weight, settings.heightIn)) === g, hh = settings.heightIn;
-          return '<tr' + (cur ? ' style="font-weight:700"' : '') + '><td><span class="chip" style="--c:' + g.color + '">' + esc(g.name) + (cur ? ' (current)' : '') + '</span></td><td>' + bmiRange(g) + '</td><td class="num">' +
-            (g.min === 0 ? '<' + lbsAtTxt(18.5, hh) : g.max === null ? lbsAtTxt(40, hh) + '+' : lbsAtTxt(g.min, hh) + ' \u2013 ' + lbsAtTxt(g.max - 0.1, hh)) + unitSfx() + '</td></tr>';
-        }).join('') + '</tbody></table></section>';
-      if (pr[0] === 'sugar') { h += '<section>' + ranges + '</section>'; ranges = ''; }
-      if (pr[0] === 'bp') { h += '<section>' + bpRanges + '</section>'; bpRanges = ''; }
-    });
-    if (ranges) h += '<section>' + ranges + '</section>';   // sugar chart not selected
-    if (bpRanges) h += '<section>' + bpRanges + '</section>';   // blood pressure chart not selected
-
-    if ($('rcWeekly').checked && weeksP.length) {
-      h += '<h2>Weekly averages' + (weeksP.length > 26 ? ' (last 26 weeks)' : '') + '</h2><table><thead><tr><th>Week</th><th>Dates</th><th class="num">Average (' + WUA() + ')</th><th class="num">Change</th><th class="num">Weigh-ins</th></tr></thead><tbody>' +
-        weeksP.slice(-26).map(function (b) {
-          return '<tr><td>' + b.week + '</td><td>' + esc(shortDate(b.from, false) + ' to ' + shortDate(b.to, false)) + '</td><td class="num">' + fwa(b.avg) + '</td><td class="num">' +
-            (b.change === null ? '\u2014' : sgn(dw(b.change), 1)) + '</td><td class="num">' + b.n + '</td></tr>';
-        }).join('') + '</tbody></table>';
-    }
-    if ($('rcDose').checked && segs.length) {
-      h += '<h2>Dose schedule</h2><table><thead><tr><th>Dose</th><th>From</th><th>To</th><th class="num">Weeks</th><th class="num">Weight change</th><th class="num">Per week</th><th class="num">Avg calories</th><th class="num">Avg glucose</th><th class="num">Avg BP</th></tr></thead><tbody>';
-      tl.push('', 'Dose schedule:');
-      segs.forEach(function (sg) {
-        var it = sg.items, a = it[0].date, b = it[it.length - 1].date;
-        var ws = it.filter(function (e) { return e.weight !== null; });
-        var wspan = ws.length > 1 ? dayDiff(ws[0].date, ws[ws.length - 1].date) : 0;
-        var pw = wspan >= 6 ? sgn(dw((ws[ws.length - 1].weight - ws[0].weight) / (wspan / 7)), 2) + ' ' + WU() : null;
-        var wc = ws.length > 1 ? sgn(dw(ws[ws.length - 1].weight - ws[0].weight), 1) + ' ' + WU() : '\u2014';
-        var ca = statOf(it, 'cal'), su = statOf(it, 'sugar'), bi_ = it.filter(hasBp), bs_ = statOf(bi_, 'sys'), bd_ = statOf(bi_, 'dia');
-        var wk = Math.max(1, Math.round((dayDiff(a, b) + 1) / 7));
-        h += '<tr><td><span class="chip" style="--c:' + doseColor(sg.dose) + '">' + sg.dose + ' mg</span></td><td>' + esc(fmtDate(a)) + '</td><td>' + esc(fmtDate(b)) + '</td><td class="num">' + wk + '</td><td class="num">' + wc +
-          '</td><td class="num">' + (pw || '\u2014') + '</td><td class="num">' + (ca ? nf(ca.avg) : '\u2014') + '</td><td class="num">' + (su ? sugarText(su.avg, ' mg/dL') : '\u2014') + '</td><td class="num">' +
-          (bs_ ? '<span style="color:' + bpZone(bs_.avg, bd_.avg).color + ';font-weight:700">' + Math.round(bs_.avg) + '/' + Math.round(bd_.avg) + '</span>' : '\u2014') + '</td></tr>';
-        tl.push('- ' + sg.dose + ' mg, ' + shortDate(a, true) + ' to ' + shortDate(b, true) + ' (' + wk + ' wk)' + (ws.length > 1 ? ', weight ' + fwa(ws[0].weight) + ' to ' + fwa(ws[ws.length - 1].weight) : '') + (pw ? ' (' + pw + '/wk)' : ''));
-      });
-      h += '</tbody></table>';
-    }
-
-    var cm = list.filter(function (e) { return e.comments && e.comments.trim(); });
-    if ($('rcComments').checked && cm.length) {
-      h += '<h2>Comments and side effects (' + cm.length + ')</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (' + WUA() + ')</th><th>Comment</th></tr></thead><tbody>' +
-        cm.map(function (e) {
-          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + (e.dose === null ? '\u2014' : e.dose + ' mg') + '</td><td class="num">' + (e.weight === null ? '\u2014' : fwa(e.weight)) + '</td><td class="pre">' + esc(e.comments) + '</td></tr>';
-        }).join('') + '</tbody></table>';
-    }
-    if ($('rcFull').checked) {
-      function v(x) { return x === null ? '\u2014' : esc(x); }
-      h += '<h2>Daily log (' + list.length + ' entries)</h2><table><thead><tr><th>Date</th><th class="num">Dose</th><th class="num">Weight (' + WUA() + ')</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th class="num">BP</th><th>Site</th></tr></thead><tbody>' +
-        list.slice().reverse().map(function (e) {
-          return '<tr><td>' + esc(fmtDate(e.date)) + '</td><td class="num">' + v(e.dose) + '</td><td class="num">' + (e.weight === null ? '\u2014' : fwa(e.weight)) + '</td><td class="num">' + v(e.cal) + '</td><td>' + (e.food ? esc(e.food) : '\u2014') + '</td><td class="num">' + (e.sugar === null ? '\u2014' : sugarText(e.sugar, '')) + '</td><td class="num">' + (hasBp(e) ? '<span style="color:' + bpZone(e.sys, e.dia).color + ';font-weight:700">' + bpText(e) + '</span>' : '\u2014') + '</td><td>' + (e.site ? esc(e.site) : '\u2014') + '</td></tr>';
-        }).join('') + '</tbody></table>';
-    }
-    h += '<footer>Self-reported data from a personal log. This is not a medical record or medical advice.</footer></div>';
-    return { html: h, text: tl.join('\n'), charts: charts, list: list, w: w };
-  }
-
-  var previewTimer = null;
-  function renderReportPreview() {
-    var rep = buildReport();
-    $('reportPreview').innerHTML = rep ? rep.html : '';
-  }
-  function queuePreview() { clearTimeout(previewTimer); previewTimer = setTimeout(renderReportPreview, 150); }
-
-  function openReport() {
-    if (!entries.length) { say('Add some entries before making a report.'); return; }
-    var all = sorted();
-    if (!$('rFrom').value) $('rFrom').value = all[0].date;
-    if (!$('rTo').value) $('rTo').value = all[all.length - 1].date;
-    try { if (!SHARE_TOKEN) $('rName').value = localStorage.getItem('tirzepatide-report-name') || $('rName').value; } catch (e) {}
-    // Without a height there is nothing to calculate: keep the option visible but off, with a hint
-    $('rcBmi').disabled = !settings.heightIn;
-    $('rcBmiText').textContent = settings.heightIn ? 'BMI chart and stages' : 'BMI chart and stages (set your height on the BMI card first)';
-    if (!rdlg.open) rdlg.showModal();
-    renderReportPreview();
-  }
-
-  function printReport() {
-    var rep = buildReport(); if (!rep) return;
-    $('printArea').innerHTML = rep.html;
-    document.documentElement.classList.add('report-mode');
-    window.print();
-  }
-  window.addEventListener('afterprint', function () {
-    document.documentElement.classList.remove('report-mode');
-    $('printArea').innerHTML = '';
-  });
-
-  function svgToPng(svg, w, h) {
-    return new Promise(function (resolve, reject) {
-      var img = new Image();
-      img.onload = function () {
-        var c = document.createElement('canvas'), k = 2;
-        c.width = w * k; c.height = h * k;
-        var x = c.getContext('2d');
-        x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
-        x.drawImage(img, 0, 0, c.width, c.height);
-        c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not create image')); }, 'image/png');
-      };
-      img.onerror = function () { reject(new Error('Could not render chart')); };
-      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-    });
-  }
-  function chartFiles(rep) {
-    return Promise.all(rep.charts.map(function (c) {
-      return svgToPng(c.svg, c.w, c.h).then(function (b) {
-        return { name: 'TirzepatideLog-' + c.key + '-' + rep.w.from + '-to-' + rep.w.to + '.png', blob: b };
-      });
-    }));
-  }
-  function copyText(t) {
-    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t);
-    return new Promise(function (resolve, reject) {
-      var ta = document.createElement('textarea');
-      ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy') ? resolve() : reject(new Error('copy')); } catch (e) { reject(e); } finally { ta.remove(); }
-    });
-  }
-
-  $('openReport').addEventListener('click', openReport);
-  $('rClose').addEventListener('click', function () { if (rdlg.open) rdlg.close(); });
-  ['rName', 'rRange', 'rFrom', 'rTo', 'rNotes', 'rcWeight', 'rcBmi', 'rcSugar', 'rcBp', 'rcCal', 'rcCompare', 'rcRate', 'rcWaist', 'rcWeekly', 'rcDose', 'rcComments', 'rcFull'].forEach(function (id) {
-    $(id).addEventListener('input', queuePreview);
-    $(id).addEventListener('change', queuePreview);
-  });
-  $('rRange').addEventListener('change', function () {
-    var c = $('rRange').value === 'custom';
-    $('rFromWrap').hidden = !c; $('rToWrap').hidden = !c;
-  });
-  $('rName').addEventListener('input', function () { try { if (!SHARE_TOKEN) localStorage.setItem('tirzepatide-report-name', $('rName').value); } catch (e) {} });
-  $('rPrint').addEventListener('click', printReport);
-  $('rPng').addEventListener('click', function () {
-    var rep = buildReport();
-    if (!rep || !rep.charts.length) { say('Select at least one chart that has data in this period.'); return; }
-    chartFiles(rep).then(function (files) {
-      files.forEach(function (f, i) { setTimeout(function () { download(f.name, f.blob, 'image/png'); }, i * 350); });
-      say('Downloading ' + files.length + ' chart image' + (files.length > 1 ? 's' : '') + '.');
-    }).catch(function (e) { say('Image export failed: ' + e.message); });
-  });
-  $('rCopy').addEventListener('click', function () {
-    var rep = buildReport();
-    if (!rep || !rep.text) { say('No entries in this period.'); return; }
-    copyText(rep.text).then(function () { say('Summary copied. Paste it into a portal message or email.'); })
-      .catch(function () { say('Could not copy automatically. Select the text in the preview instead.'); });
-  });
-  $('rCsv').addEventListener('click', function () {
-    var rep = buildReport();
-    if (!rep || !rep.list.length) { say('No entries in this period.'); return; }
-    download('TirzepatideLog-' + rep.w.from + '-to-' + rep.w.to + '.csv', toCSV(rep.list));
-    say('Exported ' + rep.list.length + ' entries.');
-  });
-  $('rMail').addEventListener('click', function () {
-    var rep = buildReport();
-    if (!rep || !rep.text) { say('No entries in this period.'); return; }
-    window.location.href = 'mailto:?subject=' + encodeURIComponent('Tirzepatide progress summary') + '&body=' + encodeURIComponent(rep.text.slice(0, 1800) + '\n\n(Attach the saved PDF or chart images for the graphs.)');
-  });
-  if (navigator.share) {
-    $('rShare').hidden = false;
-    $('rShare').addEventListener('click', function () {
-      var rep = buildReport();
-      if (!rep || !rep.text) { say('No entries in this period.'); return; }
-      chartFiles(rep).then(function (files) {
-        var fl = files.map(function (f) { return new File([f.blob], f.name, { type: 'image/png' }); });
-        var data = { title: 'Tirzepatide progress summary', text: rep.text };
-        if (fl.length && navigator.canShare && navigator.canShare({ files: fl })) data.files = fl;
-        return navigator.share(data);
-      }).catch(function (e) { if (e && e.name !== 'AbortError') say('Sharing failed: ' + e.message); });
-    });
-  }
 
   /* ---------- settings ---------- */
   var sdlg = $('setDlg');
@@ -2876,7 +2439,6 @@
   var goalShown = '', heightShown = '';
   var baselineShown = '';
   function openSettings(focus) {
-    refreshShares();
     goalShown = settings.goal ? wShow(settings.goal) : '';
     heightShown = settings.heightIn ? fmtHeight(settings.heightIn) : '';
     $('sGoal').value = goalShown;
@@ -3188,7 +2750,7 @@
       }).then(function (again) { if (again && ++rounds < 3) return round(); });
     }
     return round().then(function () {
-      syncErr = ''; sync.last = Date.now(); saveSync(); refreshShares();
+      syncErr = ''; sync.last = Date.now(); saveSync();
     }).catch(function (err) {
       var st = err && err.status;
       if ((st === 400 || st === 401) && !err.msg) { cloudSignOut('Your sync session ended. Sign in again.'); return; }
@@ -3220,9 +2782,14 @@
   }
   function refreshShares() {
     if (!cloudSignedIn() || !cloudAvailable()) return Promise.resolve();
-    return cloudApi('GET', '/shares').then(function (r) { $('shareBox').hidden = false; renderShares(r.shares || []); })
-      .catch(function (err) { if (err && err.status === 403) $('shareBox').hidden = true; });
+    return cloudApi('GET', '/shares').then(function (r) { renderShares(r.shares || []); })
+      .catch(function (err) { shSay(err && err.status === 403 ? 'This account has not been invited to cloud sync, so links cannot be created.' : 'Could not load your links. Check your connection.'); });
   }
+  function shSay(t) { $('shMsg').textContent = t || ''; }   // messages inside the share dialog (the page behind it is covered)
+  var shareDlg = $('shareDlg');
+  $('shareOpen').addEventListener('click', function () { shSay(''); renderShares([]); refreshShares(); if (!shareDlg.open) shareDlg.showModal(); });
+  $('shClose').addEventListener('click', function () { if (shareDlg.open) shareDlg.close(); });
+  $('settingsOpen').addEventListener('click', function () { openSettings(); });
   function copyText(t) {
     if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(function () { return true; }, function () { return false; });
     return Promise.resolve(false);
@@ -3230,19 +2797,19 @@
   $('shCreate').addEventListener('click', function () {
     cloudApi('POST', '/shares', { notes: $('shNotes').checked }).then(function (r) {
       return copyText(shareUrl(r.token)).then(function (ok) {
-        say(ok ? 'Doctor link created and copied. Paste it into an email or message.' : 'Doctor link created. Use Copy link below.');
+        shSay(ok ? 'Doctor link created and copied. Paste it into an email or message.' : 'Doctor link created. Use Copy link below.');
         return refreshShares();
       });
-    }).catch(function (err) { say(err && err.msg ? err.msg : 'Could not create the link.'); });
+    }).catch(function (err) { shSay(err && err.msg ? err.msg : 'Could not create the link.'); });
   });
   $('shList').addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-copy')) {
-      copyText(shareUrl(b.getAttribute('data-copy'))).then(function (ok) { say(ok ? 'Link copied.' : 'Could not copy. Select the link text and copy it.'); });
+      copyText(shareUrl(b.getAttribute('data-copy'))).then(function (ok) { shSay(ok ? 'Link copied.' : 'Could not copy. Select the link text and copy it.'); });
     } else if (b.hasAttribute('data-revoke')) {
       if (!confirm('Stop this link working? Anyone who has it will lose access.')) return;
-      cloudApi('DELETE', '/shares/' + b.getAttribute('data-revoke')).then(function () { say('Link revoked.'); return refreshShares(); })
-        .catch(function () { say('Could not revoke the link. Try again.'); });
+      cloudApi('DELETE', '/shares/' + b.getAttribute('data-revoke')).then(function () { shSay('Link revoked.'); return refreshShares(); })
+        .catch(function () { shSay('Could not revoke the link. Try again.'); });
     }
   });
   /* landing page gate: on the hosted site nothing of the log shows until someone is signed in */
@@ -3274,14 +2841,12 @@
     var inn = cloudSignedIn();
     box.hidden = !(cloudAvailable() && inn);
     $('heroOut').hidden = !inn;   // sign out is one click away at the top of the page
-    $('cloudOpen').hidden = box.hidden;   // a way in from an empty log too, where the goal card (and so Settings) is not shown
+    $('shareOpen').hidden = !inn;         // the doctor link needs an account
     $('cloudIn').hidden = inn; $('cloudSyncBtn').hidden = !inn; $('cloudOut').hidden = !inn;
     $('cloudSyncBtn').disabled = syncing;
-    if (!inn) $('shareBox').hidden = true;
     $('cloudStatus').textContent = !inn ? 'Sign in to keep this log in step with your other devices.'
       : syncing ? 'Syncing...' : syncErr || ((sync.last ? 'Signed in. Last synced ' + new Date(sync.last).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.' : 'Signed in.') + ' ' + rejectedNote()).trim();
   }
-  $('cloudOpen').addEventListener('click', function () { openSettings(); });
   $('cloudIn').addEventListener('click', cloudSignIn);
   $('cloudSyncBtn').addEventListener('click', function () { syncNow(); });
   $('cloudOut').addEventListener('click', function () { cloudSignOut(); });

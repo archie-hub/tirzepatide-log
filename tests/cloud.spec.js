@@ -31,7 +31,7 @@ test('hosted and signed out: only the landing page shows, even with a log on thi
   await expect(page.locator('#landing')).toBeVisible();
   await expect(page.locator('#landing h1')).toHaveText('Tirzepatide Log');
   await expect(page.locator('#landing a[href^="mailto:"]')).toBeVisible();
-  for (const sel of ['header.hero', '#stats', '#plan', '#chartPanel', '#entriesPanel', '#formPanel', '#openReport', '#resetBtn', '#foot']) await expect(page.locator(sel)).toBeHidden();
+  for (const sel of ['header.hero', '#stats', '#plan', '#chartPanel', '#entriesPanel', '#formPanel', '#shareOpen', '#settingsOpen', '#resetBtn', '#foot']) await expect(page.locator(sel)).toBeHidden();
   expect(await page.evaluate(() => document.body.innerText)).not.toMatch(/\d+ entries|Latest weight|Export CSV|Clear all data|Add entry|lbs/);   // what a visitor can read
   expect(seen.filter((u) => /AJC_DATA|execute-api/.test(u))).toEqual([]);   // no data file, no API call before sign-in
   expect(b.authHeaders).toEqual([]);
@@ -46,8 +46,9 @@ test('landing: Sign in brings the app in, Sign out brings the landing page back 
   await expect(page.locator('#landing')).toBeHidden();
   await expect(page.locator('html')).not.toHaveClass(/landing/);
   await expect(page.locator('#stats')).toBeVisible();
-  await expect(page.locator('#cloudOpen')).toBeVisible();
-  await page.locator('#cloudOpen').click();
+  await expect(page.locator('#settingsOpen')).toBeVisible();
+  await expect(page.locator('#shareOpen')).toBeVisible();
+  await page.locator('#settingsOpen').click();
   await expect(page.locator('#cloudBox')).toBeVisible();
   await page.locator('#cloudOut').click();
   await page.evaluate(() => { const d = document.getElementById('setDlg'); if (d.open) d.close(); });
@@ -244,9 +245,10 @@ test('owner: create a doctor link (copied), see it listed, revoke it', async ({ 
   await seedLocal(page, [row('2026-03-01', 200)]);
   await page.goto(APP);
   await signIn(page);
-  await openSettings(page);
-  await expect(page.locator('#shareBox')).toBeVisible();
+  await page.locator('#shareOpen').click();
+  await expect(page.locator('#shareDlg')).toBeVisible();
   await page.locator('#shCreate').click();
+  await expect(page.locator('#shMsg')).toContainText('created');
   await expect(page.locator('#shList li')).toHaveCount(1);
   await expect(page.locator('#shList li')).toContainText('without notes');
   await expect(page.locator('#shList code')).toHaveText(APP + '#share=' + SHARE_TOKEN);
@@ -265,7 +267,8 @@ test('a signed-out visitor never sees the doctor link controls', async ({ page }
   const b = backend(); await b.install(page);
   await page.goto(APP);
   await expect(page.locator('#landing')).toBeVisible();
-  await expect(page.locator('#shareBox')).toBeHidden();
+  await expect(page.locator('#shareOpen')).toBeHidden();
+  await expect(page.locator('#shareDlg')).toBeHidden();
 });
 test('doctor: a link opens a read-only view of the log, without notes unless the patient chose them', async ({ page }) => {
   const b = backend(); await b.install(page);
@@ -276,15 +279,13 @@ test('doctor: a link opens a read-only view of the log, without notes unless the
   await expect(page.locator('header.hero h1')).toHaveText('Shared tirzepatide log');
   await expect(page.locator('#foot')).toContainText('Read-only view shared by the patient');
   // nothing to edit
-  for (const sel of ['#formPanel', '#openImport', '#resetBtn', '#cloudOpen', '#backupNote', '#emptyPanel']) await expect(page.locator(sel)).toBeHidden();
+  for (const sel of ['#formPanel', '#openImport', '#resetBtn', '#shareOpen', '#settingsOpen', '#backupNote', '#emptyPanel']) await expect(page.locator(sel)).toBeHidden();
   await page.locator('#entriesPanel > summary').click();
   await expect(page.locator('#rows tr')).toHaveCount(2);
   await expect(page.locator('[data-edit]:visible, [data-del]:visible, [data-settings]:visible')).toHaveCount(0);
   await expect(page.locator('#rows')).not.toContainText('felt sick');
-  // the patient's units came with the link, and the doctor report is available
+  // the patient's units came with the link
   await expect(page.locator('#stats')).toContainText('st');
-  await page.locator('#openReport').click();
-  await expect(page.locator('#reportDlg')).toBeVisible();
   // nothing was stored in this browser, and nothing was sent to the server except the one public read
   const keys = await page.evaluate(() => Object.keys(localStorage));
   expect(keys).toEqual([]);
@@ -307,14 +308,9 @@ test('doctor: a doctor who also uses the app keeps their own log untouched', asy
   b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: false });
   const mine = [row('2025-01-01', 150)];
   await seedLocal(page, mine);
-  await page.addInitScript(() => { localStorage.setItem('tirzepatide-report-name', 'Dr Own'); });
   await page.goto(APP + '#share=' + SHARE_TOKEN);
   await expect(page.locator('#subtitle')).toContainText('2 entries');
-  await page.locator('#openReport').click();
-  expect(await page.locator('#rName').inputValue()).toBe('');            // the doctor's own report name is not read either
-  await page.locator('#rName').fill('Patient X');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tirzepatide-log-v1')))).toEqual(mine);
-  expect(await page.evaluate(() => localStorage.getItem('tirzepatide-report-name'))).toBe('Dr Own');
   await page.goto(APP);                                                  // back to their own app
   await expect(page.locator('#subtitle')).toContainText('1 entries');
 });
@@ -445,12 +441,6 @@ test('security: hostile text in comments, food notes and site does not run as co
     await page.getByRole('tab', { name: tab }).click().catch(() => {});
     await page.locator('#chart svg').first().hover({ position: { x: 300, y: 100 } }).catch(() => {});
   }
-  await page.locator('#openReport').click();
-  await page.locator('#rcFull').check();                                              // the full log table carries food notes and site too
-  await page.waitForTimeout(500);
-  await expect(page.locator('#reportPreview')).toContainText('window.__xss');          // the hostile text is in the report, as plain text
-  expect(await page.locator('#reportPreview img[src="x"], #reportPreview script, #reportPreview svg[onload]').count()).toBe(0);
-  await page.waitForTimeout(500);
   expect(await xssCount(page)).toBe(0);
 });
 
@@ -465,11 +455,6 @@ test('security: a hostile patient cannot run code in a doctor\'s browser through
   await expect(page.locator('#rows')).toContainText('window.__xss');
   expect(await page.locator('#rows img, #rows script').count()).toBe(0);
   await page.locator('#chart svg').first().hover({ position: { x: 300, y: 100 } }).catch(() => {});
-  await page.locator('#openReport').click();
-  await page.locator('#rcFull').check();
-  await page.waitForTimeout(800);
-  await expect(page.locator('#reportPreview')).toContainText('window.__xss');
-  expect(await page.locator('#reportPreview img[src="x"], #reportPreview script, #reportPreview svg[onload]').count()).toBe(0);
   expect(await xssCount(page)).toBe(0);
 });
 

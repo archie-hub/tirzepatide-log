@@ -28,6 +28,40 @@ async function importSample(page) {
   await expect(page.locator('#importDlg')).toBeHidden();
 }
 
+
+const BP_CSV = 'Date,Systolic (mmHg),Diastolic (mmHg)\n2026-10-01,118,76\n2026-10-02,125,78\n2026-10-03,128,84\n2026-10-04,134,79\n2026-10-05,126,92';
+
+async function pasteBp(page) {
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill(BP_CSV);
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await expect(page.locator('#importDlg')).toBeHidden();
+}
+
+
+function steadyLossCsv(extra) {
+  const rows = ['Date,Dosage (mg),Weight (lbs)'];
+  const t0 = Date.UTC(2026, 7, 1);
+  for (let i = 0; i < 57; i++) {
+    const d = new Date(t0 + i * 86400000).toISOString().slice(0, 10);
+    rows.push(d + ',2.5,' + (extra ? extra(i, d) : (200 - 0.5 * i).toFixed(1)));
+  }
+  return rows.join('\n');
+}
+async function pasteCsv(page, csv) {
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill(csv);
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  await expect(page.locator('#importDlg')).toBeHidden();
+}
+
+
+const BODY_CSV = 'Date,Dosage (mg),Weight (lbs),Waist (in),Body Fat (%),Muscle Mass (lbs)\n2026-09-01,5,200,40,36.0,98\n2026-09-15,5,196,38.5,35.2,97.5\n2026-10-01,5,190,37,34.1,96';
+
 test('imports sample data and renders stats and charts', async ({ page }) => {
   await importSample(page);
   await expandPanels(page);
@@ -106,40 +140,6 @@ test('fasting glucose is coloured green, amber and red by range', async ({ page 
   await expect(page.locator('#chart svg text', { hasText: '126 diabetes range' })).toHaveCount(1);
 });
 
-test('doctor report shows fasting glucose ranges', async ({ page }) => {
-  await page.locator('#emptyImport').click();
-  await page.locator('#importDlg summary').click();
-  await page.locator('#pasteBox').fill('Date,Blood Sugar (mg/dL)\n2026-10-01,95\n2026-10-02,97\n2026-10-03,110\n2026-10-04,130');
-  await page.locator('#pasteBtn').click();
-  await page.locator('#doImport').click();
-  await page.locator('#openReport').click();
-
-  const ranges = page.locator('#reportPreview h2', { hasText: 'Fasting glucose ranges' });
-  await expect(ranges).toHaveCount(1);
-  const rows = await ranges.locator('xpath=following-sibling::table[1]//tbody/tr').evaluateAll((trs) =>
-    trs.map((tr) => [...tr.cells].map((td) => td.textContent)));
-  expect(rows).toEqual([
-    ['Normal', 'Below 100', '2', '50%'],
-    ['Prediabetes', '100 to 125', '1', '25%'],
-    ['Diabetes range', '126 and above', '1', '25%'],
-  ]);
-
-  // Still shown when the glucose chart is left out of the report.
-  await page.locator('#rcSugar').uncheck();
-  await expect(page.locator('#reportPreview h2', { hasText: 'Fasting glucose ranges' })).toHaveCount(1);
-});
-
-const BP_CSV = 'Date,Systolic (mmHg),Diastolic (mmHg)\n2026-10-01,118,76\n2026-10-02,125,78\n2026-10-03,128,84\n2026-10-04,134,79\n2026-10-05,126,92';
-
-async function pasteBp(page) {
-  await page.locator('#emptyImport').click();
-  await page.locator('#importDlg summary').click();
-  await page.locator('#pasteBox').fill(BP_CSV);
-  await page.locator('#pasteBtn').click();
-  await page.locator('#doImport').click();
-  await expect(page.locator('#importDlg')).toBeHidden();
-}
-
 test('blood pressure is coloured by AHA category in the table, plan-row panel and chart', async ({ page }) => {
   const GREEN = '#16a34a', AMBER = '#d4a106', ORANGE = '#f97316', RED = '#dc2626';
   await pasteBp(page);
@@ -161,7 +161,7 @@ test('blood pressure is coloured by AHA category in the table, plan-row panel an
   await expect(page.locator('#chart svg text', { hasText: 'bottom 90 stage 2' })).toHaveCount(1);
 });
 
-test('blood pressure round-trips through the form, CSV export and the report', async ({ page }) => {
+test('blood pressure round-trips through the form and the CSV export', async ({ page }) => {
   await pasteBp(page);
   await expandPanels(page);
   await page.locator('[data-edit="2026-10-01"]').click();
@@ -175,14 +175,7 @@ test('blood pressure round-trips through the form, CSV export and the report', a
   expect(csv[0]).toBe('Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg),Waist (in),Body Fat (%),Muscle Mass (lbs)');
   expect(csv[1]).toBe('2026-10-01,,,,,,,,145,76,,,');
 
-  await page.locator('#openReport').click();
-  await expect(page.locator('#reportPreview .rep-box', { hasText: 'Latest blood pressure' })).toContainText('126/92');
-  const cats = page.locator('#reportPreview h2', { hasText: 'Blood pressure categories' });
-  const table = await cats.locator('xpath=following-sibling::table[1]//tbody/tr').evaluateAll((trs) =>
-    trs.map((tr) => [tr.cells[0].textContent, tr.cells[2].textContent]));
-  expect(table).toEqual([['Normal', '0'], ['Elevated', '1'], ['Hypertension stage 1', '2'], ['Hypertension stage 2', '2']]);
-  await page.locator('#rcBp').uncheck();
-  await expect(page.locator('#reportPreview h2', { hasText: 'Blood pressure categories' })).toHaveCount(1);
+  await expect(page.locator('#plan .stat.mini', { hasText: 'Latest BP' })).toContainText('126/92');
 });
 
 test('dose bands are a plain tint: no strip or dose text in the chart', async ({ page }) => {
@@ -195,42 +188,6 @@ test('dose bands are a plain tint: no strip or dose text in the chart', async ({
   await page.locator('#range button[data-days="1095"]').click();
   await expect(page.locator('#legend .chip', { hasText: /^2\.5 mg$/ })).toHaveCount(1);
 
-  // Doctor report charts show neither dose text nor a dose key.
-  await page.locator('#openReport').click();
-  const reportLabels = await page.locator('#reportPreview svg.psvg text').allTextContents();
-  expect(reportLabels.filter((t) => / mg$|Dose in effect/.test(t))).toEqual([]);
-});
-
-test('doctor report preview renders and CSV/image export trigger downloads', async ({ page }) => {
-  await importSample(page);
-
-  await page.locator('#openReport').click();
-  await expect(page.locator('#reportDlg')).toBeVisible();
-  await expect(page.locator('#reportPreview')).not.toBeEmpty();
-
-  const [csvDownload] = await Promise.all([
-    page.waitForEvent('download'),
-    page.locator('#rCsv').click(),
-  ]);
-  expect(csvDownload.suggestedFilename()).toMatch(/^TirzepatideLog-.*\.csv$/);
-
-  const [pngDownload] = await Promise.all([
-    page.waitForEvent('download'),
-    page.locator('#rPng').click(),
-  ]);
-  expect(pngDownload.suggestedFilename()).toMatch(/\.png$/);
-});
-
-test('print report builds print-safe markup without crashing', async ({ page }) => {
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(e));
-
-  await importSample(page);
-  await page.locator('#openReport').click();
-  await page.locator('#rPrint').click();
-  await page.waitForTimeout(200);
-
-  expect(errors).toEqual([]);
 });
 
 test('BMI card prompts for height once, then calculates automatically', async ({ page }) => {
@@ -288,7 +245,7 @@ test('BMI height can be edited from the card', async ({ page }) => {
   await expect(page.locator('#sHeight')).toHaveValue("5'8.9\"");
 });
 
-test('top row is weight, goal, change, glucose (BP is in the plan row); no backup card; report shows BMI', async ({ page }) => {
+test('top row is weight, goal, change, glucose (BP is in the plan row); no backup card; BMI card takes a height', async ({ page }) => {
   await importSample(page);
   const labels = await page.locator('#stats .stat .l').allInnerTexts();
   expect(labels.map((l) => l.split(/[:(]|Since|since/)[0].trim().replace(/\s*Edit$/, ''))).toEqual(
@@ -297,27 +254,10 @@ test('top row is weight, goal, change, glucose (BP is in the plan row); no backu
   await expect(page.locator('#plan')).not.toContainText('Backup');
   await expect(page.locator('[data-export]')).toHaveCount(0);
 
-  await page.locator('#openReport').click();
-  await expect(page.locator('#reportPreview .rep-box', { hasText: 'BMI' })).toHaveCount(0);   // no height yet
-  await expect(page.locator('#rcBmi')).toBeDisabled();
-  await expect(page.locator('#rcBmiText')).toContainText('set your height');
-  await page.keyboard.press('Escape');
   await page.fill('#bmiHeight', "5'9\"");
   await page.press('#bmiHeight', 'Enter');
-  await page.locator('#openReport').click();
-  const box = page.locator('#reportPreview .rep-box', { hasText: "height 5'9\"" });
-  await expect(box).toHaveCount(1);
-  await expect(box).toContainText('BMI');
-
-  // Everything on the dashboard is also in the report
-  await expect(page.locator('#rcBmi')).toBeEnabled();
-  await expect(page.locator('#reportPreview svg').filter({ hasText: 'BMI,' })).toHaveCount(1);
-  const boxLabels = await page.locator('#reportPreview .rep-box .l').allInnerTexts();
-  for (const want of ['Dose', 'Weight', 'Change', 'BMI', 'BMI next stage', 'Next dose', 'Latest fasting glucose', 'Entries logged']) {
-    expect(boxLabels, want).toContain(want);
-  }
-  await expect(page.locator('#reportPreview h2', { hasText: 'BMI stages' })).toHaveCount(1);
-  await expect(page.locator('#reportPreview', { hasText: 'days covered' })).toHaveCount(1);
+  await expect(page.locator('#plan .bmi')).toContainText("5'9\"");
+  await expect(page.locator('#plan .bmi-seg')).toHaveCount(6);
 });
 
 test('BMI chart tab appears once height is set', async ({ page }) => {
@@ -430,16 +370,12 @@ test('metric units: kg and cm everywhere, storage and export stay in lbs', async
   const after = await stored();
   expect(after.some((w) => Math.abs(w - 176.37) < 0.02)).toBe(true);
 
-  // Report follows the unit; the CSV export is still lbs
-  await page.locator('#openReport').click();
-  await expect(page.locator('#reportPreview')).toContainText('kg');
-  await expect(page.locator('#reportPreview')).not.toContainText(' lbs');
-  await page.keyboard.press('Escape');
+  // The CSV export is still lbs
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
   expect(await dl.suggestedFilename()).toMatch(/\.csv$/);
 });
 
-test('plateau notice appears for 3 flat weeks and in the report', async ({ page }) => {
+test('plateau notice appears for 3 flat weeks', async ({ page }) => {
   const rows = ['Date,Weight (lbs)'];
   const base = new Date(); base.setDate(base.getDate() - 24);
   for (let i = 0; i <= 24; i += 3) {
@@ -453,11 +389,8 @@ test('plateau notice appears for 3 flat weeks and in the report', async ({ page 
   await page.locator('#doImport').click();
   await expect(page.locator('#plateau')).toBeVisible();
   await expect(page.locator('#plateau')).toContainText('steady for about');
-  await page.locator('#openReport').click();
-  await expect(page.locator('#reportPreview .rep-box', { hasText: 'Weight trend' })).toHaveCount(1);
 
   // A steady loss is not a plateau
-  await page.keyboard.press('Escape');
   await page.evaluate(() => {
     const e = JSON.parse(localStorage.getItem('tirzepatide-log-v1')).map((x, i) => Object.assign(x, { weight: 190 - i * 2 }));
     localStorage.setItem('tirzepatide-log-v1', JSON.stringify(e));
@@ -518,7 +451,7 @@ test('blood pressure is one field like 119/79; bad input is rejected; combined C
   await expect(page.locator('#rows tr').first().locator('td:nth-child(9) .chip')).toHaveText('119/79');
 });
 
-test('combined chart: pick which values to plot, hover shows real values, choice is remembered, report can include it', async ({ page }) => {
+test('combined chart: pick which values to plot, hover shows real values, choice is remembered', async ({ page }) => {
   await importSample(page);
   await page.locator('#tab-compare').click();
   await expect(page.locator('#tab-compare')).toHaveAttribute('aria-selected', 'true');
@@ -548,15 +481,11 @@ test('combined chart: pick which values to plot, hover shows real values, choice
   await expect(tip).toContainText('Calories');
   await expect(tip).not.toContainText('Weight');
 
-  // Remembered across a reload, and available in the doctor report.
+  // Remembered across a reload.
   await page.reload();
   await page.locator('#tab-compare').click();
   await expect(chip('cal')).toHaveAttribute('aria-pressed', 'true');
   await expect(chip('weight')).toHaveAttribute('aria-pressed', 'false');
-  await page.locator('#openReport').click();
-  await page.locator('#rcCompare').check();
-  await expect(page.locator('#reportPreview svg[aria-label^="Combined chart"]')).toHaveCount(1);
-  await expect(page.locator('#reportPreview svg[aria-label^="Combined chart"] text', { hasText: 'Systolic' })).toHaveCount(1);
 });
 
 test('Entries and Add entry panels start minimised and expand on click', async ({ page }) => {
@@ -651,45 +580,14 @@ test('progress: a start weight before treatment changes the percentages and mile
   await page.fill('#sBaseline', '210');
   await page.locator('#setSave').click();
   await expect(page.locator('#stats .stat', { hasText: 'Change since' })).toContainText('16.7% lost from start');   // 210 -> 175
-  await page.locator('#openReport').click();
+  await page.locator('#insightsPanel > summary').click();
   // 5% <= 199.5 first on 07-15 (day 14, week 3); 10% <= 189 on 09-01 (day 62, week 9); 15% <= 178.5 on 09-22 (day 83, week 12); next is 20%
-  const ms = page.locator('#reportPreview .rep-box', { hasText: 'Milestones' });
+  const ms = page.locator('#insights .ins', { hasText: 'Milestones' });
   await expect(ms).toContainText('5% in week 3');
   await expect(ms).toContainText('10% in week 9');
   await expect(ms).toContainText('15% in week 12');
   await expect(ms).toContainText('next, 20%: 7.0 lbs to go');
 });
-
-test('progress: the doctor report carries percent lost, weeks, milestones and the week 12 value', async ({ page }) => {
-  await pasteProgress(page);
-  await page.locator('#openReport').click();
-  const boxes = page.locator('#reportPreview .rep-box');
-  await expect(boxes.filter({ hasText: 'Weight lost' })).toContainText('12.5%');
-  await expect(boxes.filter({ hasText: 'Weeks on treatment' })).toContainText('Week 14');
-  await expect(boxes.filter({ hasText: 'Milestones' })).toContainText('5% in week 5');
-  await expect(boxes.filter({ hasText: 'Milestones' })).toContainText('next, 15%: 5.0 lbs to go');   // 15% target is 170 lbs
-  await expect(boxes.filter({ hasText: 'Lost at week 12' })).toContainText('11.0%');
-});
-
-// 57 daily weigh-ins from 2026-08-01, losing exactly 0.5 lb/day (3.5 lb/week) from 200 lbs: 200.0 -> 172.0.
-// 3.5/week is more than 1% of body weight (1.72) a week, so the fast-loss flag must be on.
-function steadyLossCsv(extra) {
-  const rows = ['Date,Dosage (mg),Weight (lbs)'];
-  const t0 = Date.UTC(2026, 7, 1);
-  for (let i = 0; i < 57; i++) {
-    const d = new Date(t0 + i * 86400000).toISOString().slice(0, 10);
-    rows.push(d + ',2.5,' + (extra ? extra(i, d) : (200 - 0.5 * i).toFixed(1)));
-  }
-  return rows.join('\n');
-}
-async function pasteCsv(page, csv) {
-  await page.locator('#emptyImport').click();
-  await page.locator('#importDlg summary').click();
-  await page.locator('#pasteBox').fill(csv);
-  await page.locator('#pasteBtn').click();
-  await page.locator('#doImport').click();
-  await expect(page.locator('#importDlg')).toBeHidden();
-}
 
 test('insights: fast-loss notice, pace, extremes, best week, streak and weekly averages', async ({ page }) => {
   await pasteCsv(page, steadyLossCsv());
@@ -774,24 +672,6 @@ test('insights: weight by injection day shows once there are four weeks of data'
   await expect(page.locator('#insights')).toContainText('lightest on injection day');
 });
 
-test('insights are in the doctor report: pace, extremes, best week, consistency, weekly table, pace chart', async ({ page }) => {
-  await pasteCsv(page, steadyLossCsv());
-  await page.locator('#openReport').click();
-  const boxes = page.locator('#reportPreview .rep-box');
-  await expect(boxes.filter({ hasText: '4-week pace' })).toContainText('−3.50 lbs/wk');
-  await expect(boxes.filter({ hasText: '4-week pace' })).toContainText('faster than 1%');
-  await expect(boxes.filter({ hasText: 'Highest / lowest' })).toContainText('200.0 / 172.0');
-  await expect(boxes.filter({ hasText: 'Best week' })).toContainText('week 2');
-  await expect(boxes.filter({ hasText: 'Weigh-in consistency' })).toContainText('57 weigh-ins');
-  await expect(page.locator('#reportPreview h2', { hasText: 'Weekly averages' })).toHaveCount(0);
-  await page.locator('#rcWeekly').check();
-  await page.locator('#rcRate').check();
-  await expect(page.locator('#reportPreview h2', { hasText: 'Weekly averages' })).toHaveCount(1);
-  await expect(page.locator('#reportPreview svg[aria-label^="Loss pace"]')).toHaveCount(1);
-});
-
-const BODY_CSV = 'Date,Dosage (mg),Weight (lbs),Waist (in),Body Fat (%),Muscle Mass (lbs)\n2026-09-01,5,200,40,36.0,98\n2026-09-15,5,196,38.5,35.2,97.5\n2026-10-01,5,190,37,34.1,96';
-
 test('body measures: import, table, waist chart with the half-height line and combined series', async ({ page }) => {
   await pasteCsv(page, BODY_CSV);
   await page.fill('#bmiHeight', "5'10\"");          // 70 in
@@ -831,20 +711,6 @@ test('body measures: form round-trip, exact values kept on edit, metric shows cm
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
   const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
   expect(csv[3].split(',').slice(-3)).toEqual(['36.5', '34.1', '96']);   // inches, %, lbs
-});
-
-test('body measures: doctor report boxes, text and waist chart', async ({ page }) => {
-  await pasteCsv(page, BODY_CSV);
-  await page.fill('#bmiHeight', "5'10\"");
-  await page.press('#bmiHeight', 'Enter');
-  await page.locator('#openReport').click();
-  const boxes = page.locator('#reportPreview .rep-box');
-  await expect(boxes.filter({ hasText: 'Waist' }).first()).toContainText('40.0 → 37.0 in');
-  await expect(boxes.filter({ hasText: 'Waist' }).first()).toContainText('waist-to-height 0.53');
-  await expect(boxes.filter({ hasText: 'Body fat' })).toContainText('36 → 34.1%');
-  await expect(boxes.filter({ hasText: 'Muscle mass' })).toContainText('98.0 → 96.0 lbs');
-  await page.locator('#rcWaist').check();
-  await expect(page.locator('#reportPreview svg[aria-label^="Waist"]')).toHaveCount(1);
 });
 
 test('body measures: files without them still import, and nothing extra shows', async ({ page }) => {
@@ -934,18 +800,11 @@ test('UK units: untouched edit keeps exact pounds; goal and start weight in ston
   await expect(page.locator('#fWeight')).toHaveAttribute('type', 'number');
 });
 
-test('UK units: doctor report and BMI weights use stones and pounds', async ({ page }) => {
+test('UK units: BMI weights use stones and pounds', async ({ page }) => {
   await pasteProgress(page);
   await page.fill('#bmiHeight', "5'10\"");
   await page.press('#bmiHeight', 'Enter');
   await setUnits(page, 'uk');
-  await page.locator('#openReport').click();
-  const boxes = page.locator('#reportPreview .rep-box');
-  await expect(boxes.filter({ hasText: 'Weight' }).first()).toContainText('14 st 4 → 12 st 7 lb');
-  await expect(boxes.filter({ hasText: 'Highest / lowest' })).toContainText('14 st 4 / 12 st 7 lb');
-  await expect(boxes.filter({ hasText: 'Change' }).first()).toContainText('−25.0 lbs');   // differences stay in lbs
-  await expect(page.locator('#reportPreview')).not.toContainText('NaN');
-  await page.keyboard.press('Escape');
   // BMI stage weight ranges in the bubble
   const seg = page.locator('.bmi-seg').nth(1);
   await seg.focus();
