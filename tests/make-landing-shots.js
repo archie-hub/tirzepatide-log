@@ -15,7 +15,17 @@ const path = require('path');
   await page.waitForSelector('#stats .stat');
   await page.evaluate(() => { document.querySelector('.hero h1').textContent = 'Tirzepatide Log'; document.getElementById('msg').textContent = ''; document.getElementById('backupNote').hidden = true; });
   await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(root, 'landing', 'dashboard.jpg'), type: 'jpeg', quality: 84, clip: { x: 20, y: 10, width: 1060, height: 760 } });
+  // the dashboard picture comes from the demo data (steady entries, no gaps) so the chart line is unbroken, and shows the whole chart
+  const dash = await browser.newPage({ viewport: { width: 1100, height: 1300 }, deviceScaleFactor: 1.5, colorScheme: 'light' });
+  await dash.route('http://localhost:8080/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: require('fs').readFileSync(path.join(root, 'index.html'), 'utf8') }));
+  await dash.goto('http://localhost:8080/demo');
+  await dash.evaluate(() => { document.querySelector('header.hero h1').textContent = 'Tirzepatide Log'; const m = document.getElementById('msg'); if (m) m.textContent = ''; const d = document.getElementById('demoBar'); if (d) d.hidden = true; const n = document.getElementById('backupNote'); if (n) n.hidden = true; });
+  await dash.locator('#range button[data-days="365"]').click();
+  await dash.waitForTimeout(1200);
+  await dash.evaluate(() => { document.querySelector('header.hero h1').textContent = 'Tirzepatide Log'; });
+  const cb = await dash.locator('#chart').boundingBox();
+  await dash.screenshot({ path: path.join(root, 'landing', 'dashboard.jpg'), type: 'jpeg', quality: 84, clip: { x: 20, y: 10, width: 1060, height: Math.round(cb.y + cb.height + 40 - 10) } });
+  await dash.close();
   await page.locator('#insightsPanel > summary').click();
   await page.waitForTimeout(600);
   await page.setViewportSize({ width: 1100, height: 2600 });
