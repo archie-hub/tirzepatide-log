@@ -23,11 +23,11 @@ function backend({ invited = true, dist = false } = {}) {
     await page.route(/^http:\/\/localhost:8080\//, (r) => {
       const u = new URL(r.request().url());
       if (!dist) {
-        if (u.pathname === '/') return r.fulfill({ status: 200, contentType: 'text/html', body: HTML });
+        if (u.pathname === '/' || u.pathname === '/demo') return r.fulfill({ status: 200, contentType: 'text/html', body: HTML });
         return r.fulfill({ status: 404, body: '' });
       }
       // the hosted build, with the headers CloudFront adds (csp.txt is the single source of the policy)
-      const rel = u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname.slice(1));
+      const rel = u.pathname === '/' ? 'index.html' : u.pathname === '/demo' ? 'demo.html' : decodeURIComponent(u.pathname.slice(1));
       const file = path.join(ROOT, 'dist', rel);
       if (!file.startsWith(path.join(ROOT, 'dist')) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return r.fulfill({ status: 404, body: '' });
       return r.fulfill({ status: 200, contentType: TYPES[path.extname(file)] || 'application/octet-stream', body: fs.readFileSync(file), headers: {

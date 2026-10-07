@@ -22,5 +22,13 @@ const path = require('path');
   await page.waitForTimeout(400);
   const box = await page.locator('#insightsPanel').boundingBox();
   await page.screenshot({ path: path.join(root, 'landing', 'insights.jpg'), type: 'jpeg', quality: 84, clip: { x: box.x, y: box.y, width: box.width, height: 640 } });
+  // the demo page itself (served at /demo like the hosted site) for the landing page's demo panel
+  const demo = await browser.newPage({ viewport: { width: 1100, height: 1000 }, deviceScaleFactor: 1.5, colorScheme: 'light' });
+  await demo.route('http://localhost:8080/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: require('fs').readFileSync(path.join(root, 'index.html'), 'utf8') }));
+  await demo.goto('http://localhost:8080/demo');
+  await demo.locator('#range button[data-days="365"]').click();
+  await demo.waitForTimeout(900);
+  const dbox = await demo.locator('#chartPanel').boundingBox();
+  await demo.screenshot({ path: path.join(root, 'landing', 'demo.jpg'), type: 'jpeg', quality: 84, clip: { x: dbox.x, y: dbox.y, width: dbox.width, height: Math.min(dbox.height, 700) } });
   await browser.close();
 })();

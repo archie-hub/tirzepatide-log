@@ -32,6 +32,7 @@ for m, base in reversed(list(zip(scripts, ['gate', 'app']))):   # replace from t
     out = out[:m.start()] + f'<script src="{name}"></script>' + out[m.end():]
     names.append(name)
 open(os.path.join(dist, 'index.html'), 'w', encoding='utf-8').write(out)
+open(os.path.join(dist, 'demo.html'), 'w', encoding='utf-8').write(out)   # the same page; the app notices the /demo address and loads made-up data
 
 open(os.path.join(dist, '404.html'), 'w', encoding='utf-8').write(
     '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'

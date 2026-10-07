@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
 <title>Tirzepatide Log</title>
 <meta name="description" content="Track tirzepatide dose, weight, food and glucose with charts, goal tracking and a doctor-ready report. Private beta, invite only.">
 <script>/* The app lives at https://tirzepatide.phoe.be/ (its own browser origin, so no other site can read its data). The old
@@ -19,7 +20,7 @@
 } catch (e) {} })();
 (function () { try {
   var h = location.hash; try { if (window.top !== window) h = window.top.location.hash; } catch (e) {}
-  if (/^https?:$/.test(location.protocol) && !/^#share=[A-Za-z0-9_-]{43}$/.test(h)) {
+  if (/^https?:$/.test(location.protocol) && !/^#share=[A-Za-z0-9_-]{43}$/.test(h) && !/^\/demo(\.html)?\/?$/.test(location.pathname)) {
     var s = JSON.parse(localStorage.getItem('tirzepatide-sync') || 'null');
     if (!(s && s.auth && s.auth.refresh)) document.documentElement.classList.add('landing');
   }
@@ -362,6 +363,14 @@
   summary { cursor: pointer; color: var(--muted); }
   .preview td, .preview th { padding: 5px 8px; font-size: 13px; }
   .preview tbody tr td:first-child { box-shadow: none; padding-left: 8px; }
+  /* the public demo (/demo): the app with made-up data, no sign-in, nothing stored */
+  .demo-bar { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 12px;
+    background: #fff7e0; border: 1px solid #e0a800; color: #3d2f00; font-size: 14px; }
+  .demo-bar[hidden] { display: none; }
+  .demo-bar a { color: #3d2f00; font-weight: 600; margin-right: 12px; }
+  body.demo #shareOpen, body.demo #heroOut, body.demo #installBtn, body.demo #backupNote, body.demo #openImport, body.demo #resetBtn { display: none !important; }
+  .lp-demo-btn { display: inline-block; padding: 10px 24px; border-radius: 12px; background: linear-gradient(110deg, #0d9488, #2563eb); color: #fff; font-weight: 600; text-decoration: none; font-size: 16px; }
+  .lp-demo-btn:hover { filter: brightness(1.08); }
   /* landing page: the hosted app shows only this until someone signs in */
   #landing { display: none; }
   html.landing main > :not(#landing):not(#msg) { display: none !important; }
@@ -397,6 +406,10 @@
 </head>
 <body>
 <main>
+  <div class="demo-bar" id="demoBar" hidden>
+    <span><strong>Demo.</strong> Everything here is made-up data. Nothing you do is saved, and it all resets when you reload.</span>
+    <span class="demo-links"><a href="/">Back to the overview</a> <a href="mailto:info@phoe.be?subject=Tirzepatide%20Log%20invite">Request an invite</a></span>
+  </div>
   <section id="landing" aria-labelledby="lpTitle">
     <div class="hero lp-hero">
       <div class="lp-copy">
@@ -415,6 +428,14 @@
       <div class="panel lp-card" style="--c:#2563eb"><h2>Charts that make sense</h2><p>Weight with a 7-day average line that changes colour with your trend, shaded dose bands, plus BMI, glucose, pace, blood pressure and a combined view. Look back 1 week to 3 years.</p></div>
       <div class="panel lp-card" style="--c:#7c3aed"><h2>Know where you are heading</h2><p>Goal projection, milestones from 5 to 25 percent, results by dose, and gentle notices for plateaus and fast loss.</p></div>
       <div class="panel lp-card" style="--c:#f97316"><h2>Web and iPhone in step</h2><p>Sign in on either and see the same log. After you sign in it keeps working offline and catches up when you are back online.</p></div>
+    </div>
+    <div class="panel lp-split">
+      <div>
+        <h2>Try it first, no sign-in needed</h2>
+        <p>Open a full demo filled with made-up data from nine months on treatment. Every chart, the insights, the entry form and the settings work. Nothing you do there is saved.</p>
+        <p style="margin-top:14px"><a class="lp-demo-btn" href="/demo">Open the live demo</a></p>
+      </div>
+      <a href="/demo" aria-label="Open the live demo"><img src="landing/demo.jpg" width="1060" height="700" loading="lazy" alt="The demo: nine months of weight with shaded dose bands, a line coloured by trend and a break for a five-week holiday, with tabs for every other chart (made-up data)."></a>
     </div>
     <div class="panel lp-split">
       <div>
@@ -687,6 +708,48 @@
   // browser's own log, settings or sync state, even if the doctor uses the app themselves.
   function topHash() { try { if (window.top !== window) return window.top.location.hash; } catch (e) {} return location.hash; }
   var SHARE_TOKEN = (/^#share=([A-Za-z0-9_-]{43})$/.exec(topHash()) || [])[1] || null;
+  // https://tirzepatide.phoe.be/demo is the whole app filled with made-up data, open to anyone. Like the doctor view it never reads or writes
+  // this browser's own log, settings or sign-in; edits there live in memory only and vanish on reload.
+  var DEMO = !SHARE_TOKEN && /^\/demo(\.html)?\/?$/.test(location.pathname);
+
+  // Nine months of invented data that fills every field: dose steps up every four weeks or so, weight falls with a plateau and a small
+  // rise, a five-week holiday gap, comments, calories, food notes, glucose, injection sites, blood pressure, waist, body fat and muscle.
+  function demoStart() { return addDays(today(), -(40 * 7 - 1)); }
+  function demoSettings() { return { goal: 175, heightIn: 69, units: 'us', doseDay: weekday(demoStart()) }; }
+  function demoEntries() {
+    var seed = 20260601;
+    function rnd() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+    function pick(a) { return a[Math.floor(rnd() * a.length)]; }
+    function r1(v) { return Math.round(v * 10) / 10; }
+    var DOSE_AT = [[0, 2.5], [4, 5], [8, 7.5], [12, 10], [20, 12.5], [28, 15]];
+    var NOTES = ['Mild nausea for a day.', 'Felt great, more energy.', 'Slight headache after the dose.', 'Appetite much lower.', 'Tired in the afternoon.', 'No side effects this week.', 'A little constipated, drank more water.', 'Smaller portions felt like plenty.'];
+    var FOODS = ['Greek yogurt and berries', 'Chicken salad, no dressing', 'Eggs and toast', 'Salmon, rice and greens', 'Soup and a small sandwich', 'Smoothie, skipped lunch', 'Turkey wrap', 'Stir fry with lots of vegetables'];
+    function base(w) {   // pounds by week: fast start, steady middle, plateau, a small rise, then a second loss
+      var phases = [[8, -0.9], [12, -0.7], [7, -0.1], [3, 0.5], [10, -0.55]], v = 214, left = w;
+      for (var i = 0; i < phases.length && left > 0; i++) { var span = Math.min(left, phases[i][0]); v += span * phases[i][1]; left -= span; }
+      return v;
+    }
+    var start = demoStart(), inj = weekday(start), siteN = 0, list = [], total = 40 * 7;
+    for (var i = 0; i < total; i++) {
+      var d = addDays(start, i), wk = i / 7, dow = (weekday(d) - inj + 7) % 7, last = i === total - 1;
+      if (!last && wk >= 22 && wk < 27) continue;                 // a holiday with no logging
+      if (!last && dow !== 0 && rnd() < 0.12) continue;           // the odd missed day
+      var dose = 2.5; DOSE_AT.forEach(function (x) { if (wk >= x[0]) dose = x[1]; });
+      var e = { date: d, dose: dose, weight: r1(base(wk) + (rnd() - 0.5) * 1.4 + (dow >= 3 && dow <= 5 ? 0.4 : 0)),
+        comments: '', cal: null, food: '', sugar: null, site: '', sys: null, dia: null, waist: null, fat: null, muscle: null };
+      if (dow === 0) {
+        e.site = SITES[siteN++ % SITES.length];
+        e.comments = DOSE_AT.some(function (x) { return x[0] > 0 && Math.floor(wk) === x[0]; }) ? 'Dose increased to ' + dose + ' mg.' : (wk < 1 ? 'First dose.' : (rnd() < 0.55 ? pick(NOTES) : ''));
+      }
+      if (rnd() < 0.7) e.cal = Math.round((1500 + rnd() * 750) / 10) * 10;
+      if (rnd() < 0.35) e.food = pick(FOODS);
+      if (rnd() < 0.6) e.sugar = Math.max(84, Math.min(118, Math.round(108 - wk * 0.25 + (rnd() - 0.5) * 9)));
+      if (rnd() < 0.45) { e.sys = Math.round(129 - wk * 0.18 + (rnd() - 0.5) * 9); e.dia = Math.round(83 - wk * 0.1 + (rnd() - 0.5) * 6); }
+      if (dow === 1 && rnd() < 0.9) { e.waist = r1(41.5 - wk * 0.15 + (rnd() - 0.5) * 0.4); e.fat = r1(36 - wk * 0.13 + (rnd() - 0.5) * 0.4); e.muscle = r1(96.5 - wk * 0.05 + (rnd() - 0.5) * 0.5); }
+      list.push(e);
+    }
+    return list;
+  }
 
   var entries = load();
   var settings = loadSettings();   // { goal, doseDay, lastExport, lastChange }
@@ -754,6 +817,7 @@
   /* ---------- storage ---------- */
   function load() {
     if (SHARE_TOKEN) return [];
+    if (DEMO) return demoEntries();
     try {
       var raw = localStorage.getItem(STORE_KEY);
       if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) { p.forEach(function (e) { if (e.sys === undefined) e.sys = null; if (e.dia === undefined) e.dia = null; if (e.waist === undefined) e.waist = null; if (e.fat === undefined) e.fat = null; if (e.muscle === undefined) e.muscle = null; }); return p; } }
@@ -761,7 +825,7 @@
     return [];
   }
   function save() {
-    if (SHARE_TOKEN) return;
+    if (SHARE_TOKEN || DEMO) return;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); }
     catch (e) { say('Could not save to browser storage. Use Export CSV to keep your data.'); }
     settings.lastChange = Date.now();
@@ -769,6 +833,7 @@
   }
   function loadSettings() {
     if (SHARE_TOKEN) return {};
+    if (DEMO) return demoSettings();
     try {
       var p = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       if (p && typeof p === 'object') return p;
@@ -776,7 +841,7 @@
     return {};
   }
   function saveSettings() {
-    if (SHARE_TOKEN) return;
+    if (SHARE_TOKEN || DEMO) return;
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
     cloudTouch();
   }
@@ -1353,7 +1418,7 @@
   // (the choice is remembered on this device only). Mirrored by ChartRange in the iPhone app.
   var RANGE_DAYS = [7, 30, 90, 180, 365, 548, 730, 1095], DEFAULT_RANGE = 90, RANGE_KEY = 'tirzepatide-chart-range';
   function loadRange() {
-    if (SHARE_TOKEN) return DEFAULT_RANGE;
+    if (SHARE_TOKEN || DEMO) return DEFAULT_RANGE;
     try { var v = parseInt(localStorage.getItem(RANGE_KEY), 10); if (RANGE_DAYS.indexOf(v) >= 0) return v; } catch (e) {}
     return DEFAULT_RANGE;
   }
@@ -2155,7 +2220,7 @@
   Array.prototype.forEach.call($('range').querySelectorAll('button'), function (b) {
     b.addEventListener('click', function () {
       currentRange = parseInt(b.dataset.days, 10);
-      if (!SHARE_TOKEN) { try { localStorage.setItem(RANGE_KEY, String(currentRange)); } catch (e) {} }
+      if (!SHARE_TOKEN && !DEMO) { try { localStorage.setItem(RANGE_KEY, String(currentRange)); } catch (e) {} }
       Array.prototype.forEach.call($('range').querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
       renderChart();
     });
@@ -2484,6 +2549,7 @@
     var hosted = /^https?:$/.test(location.protocol);
     var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.navigator.standalone);
     if (SHARE_TOKEN) { $('foot').textContent = 'Read-only view shared by the patient \u00b7 Not medical advice'; return; }
+    if (DEMO) { $('foot').textContent = 'Demo with made-up data \u00b7 Not medical advice'; return; }
     $('foot').innerHTML = (cloudSignedIn() ? 'Your data is kept in this browser and your sync account' : 'Your data stays in this browser') + ' \u00b7 Not medical advice' +
       (ios && hosted ? '<br>To install on iPhone: tap Share, then Add to Home Screen.' : '');
   }
@@ -2499,7 +2565,7 @@
   });
   // The manifest and service worker only work over http(s); from disk the page runs as before
   function setupApp() {
-    if (SHARE_TOKEN || !/^https?:$/.test(location.protocol)) return;
+    if (SHARE_TOKEN || DEMO || !/^https?:$/.test(location.protocol)) return;
     var l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest';
     document.head.appendChild(l);
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
@@ -2522,7 +2588,7 @@
   var syncing = false, syncAgain = false, syncTimer = null, syncErr = '';
 
   function loadSync() {
-    if (SHARE_TOKEN) return {};
+    if (SHARE_TOKEN || DEMO) return {};
     try { var p = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (p && typeof p === 'object') return p; } catch (e) {}
     return {};
   }
@@ -2803,7 +2869,7 @@
   });
   /* landing page gate: on the hosted site nothing of the log shows until someone is signed in */
   function applyGate() {
-    var gated = /^https?:$/.test(location.protocol) && !SHARE_TOKEN && !cloudSignedIn();
+    var gated = /^https?:$/.test(location.protocol) && !SHARE_TOKEN && !DEMO && !cloudSignedIn();
     document.documentElement.classList.toggle('landing', gated);
     ['landingSignIn'].forEach(function (id) {
       var b = $(id); b.disabled = cloudReturning && gated; b.textContent = b.disabled ? 'Signing you in...' : 'Sign in';
@@ -2852,7 +2918,7 @@
     }, { passive: true });
   })();
   function cloudInit() {
-    if (SHARE_TOKEN) return;
+    if (SHARE_TOKEN || DEMO) return;
     applyGate();
     renderCloudBox();
     cloudHandleReturn().then(function (ok) {
@@ -2888,12 +2954,20 @@
     });
   }
 
+  function startDemo() {
+    document.body.classList.add('demo');
+    document.title = 'Tirzepatide Log demo';
+    document.querySelector('header.hero h1').textContent = 'Tirzepatide Log (demo)';
+    $('demoBar').hidden = false;
+  }
+
   resetForm();
   render();
   renderFooter();
   setupApp();
   cloudInit();
   if (SHARE_TOKEN) loadShare();
+  if (DEMO) startDemo();
 })();
 </script>
 </body>

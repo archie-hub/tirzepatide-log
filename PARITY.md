@@ -43,6 +43,7 @@ Legend: yes, no, partial.
 | CSV import | yes (wizard) | no (removed on purpose) | The iPhone app has no import or export of any kind (CSV, backup file); sign in and the account supplies the log. Intentional gap |
 | Weight line coloured by trend | yes (`trendColor()`, `trendSlopes()`, gradient on the 7-day line) | yes (`TrendColor`, gradient per unbroken stretch) | Same scale (percent of body weight per week: <= -0.5 green rgb(5,150,105), -0.15 teal, 0 blue-violet rgb(99,102,241), +0.15 amber, >= +0.5 red rgb(239,68,68)), trend taken over the readings within 10 days either side. Tests: web smoke `coloured by trend`, iOS `TrendColorTests` |
 | Chart lines break across gaps over 30 days | yes (`runs()`, `LINE_GAP_DAYS`) | yes (`ChartGaps`) | A line is not drawn between two readings more than 30 days apart; dots stay. Tests: web smoke `chart lines stop at a gap`, iOS `ChartGapTests` |
+| Public demo with made-up data | yes (`/demo`) | no (web-only marketing page) | Intentional: it exists to show visitors the web app before they have an invite |
 | Pull down to sync | yes (touch screens, from the top of the page) | yes (every tab, `.refreshable`) | Both also sync by themselves on open/return, after each change and when leaving |
 | Clear all data | yes (button; signs out of cloud sync first) | yes (Settings > Clear All Data; signs out first) | The cloud copy is never touched; signing in again brings it back |
 | JSON backup/restore (with photos) | n/a | yes | Exists for photos; CSV is the shared backup format on both |
