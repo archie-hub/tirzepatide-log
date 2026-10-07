@@ -116,12 +116,12 @@ test('the landing page has a demo panel above the doctor-link panel that opens t
   await expect(page.locator('#landing')).toBeVisible();
 });
 
-test('the demo panel puts the picture on the left on a wide screen and the words first on a phone', async ({ page }) => {
+test('the demo panel puts the picture on the right on a wide screen and the words first on a phone', async ({ page }) => {
   const b = backend(); await b.install(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(APP);
   const x = async (sel) => (await page.locator('#landing .lp-demo ' + sel).first().boundingBox()).x;
-  expect(await x('img')).toBeLessThan(await x('h2'));
+  expect(await x('img')).toBeGreaterThan(await x('h2'));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   const y = async (sel) => (await page.locator('#landing .lp-demo ' + sel).first().boundingBox()).y;
