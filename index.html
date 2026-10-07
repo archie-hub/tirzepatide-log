@@ -399,6 +399,8 @@
   .lp-split h2 { font-size: 20px; }
   .lp-split ul { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 4px; }
   @media (max-width: 640px) { .lp-demo > a { order: 2; } }   /* on a phone the words come before the picture */
+  .lp-split .lp-phones { display: flex; gap: 14px; justify-content: center; }
+  .lp-split .lp-phones img { flex: 0 1 240px; width: calc(50% - 7px); max-width: 240px; border-radius: 26px; }
   .lp-split img { flex: 1 1 340px; max-width: 520px; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow); }
   .lp-fine { text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 8px; }
   @media (max-width: 640px) { .lp-hero { padding: 22px 18px 24px; } .lp-hero h1 { font-size: 32px; } }
@@ -437,7 +439,7 @@
       <div class="panel lp-card" style="--c:#f97316"><h2>Web and iPhone in step</h2><p>Sign in on either and see the same log. After you sign in it keeps working offline and catches up when you are back online.</p></div>
     </div>
     <div class="panel lp-split lp-demo">
-      <a href="/demo" aria-label="Open the live demo"><img src="landing/demo.jpg" width="1060" height="700" loading="lazy" alt="The demo: nine months of weight with shaded dose bands, a line coloured by trend and a break for a five-week holiday, with tabs for every other chart (made-up data)."></a>
+      <a href="/demo" aria-label="Open the live demo"><img src="landing/demo.jpg" width="1060" height="700" loading="lazy" alt="The demo: nine months of weight with shaded dose bands, a line coloured by trend, with tabs for every other chart (made-up data)."></a>
       <div>
         <h2>Try it first, no sign-in needed</h2>
         <p>Open a full demo filled with made-up data from nine months on treatment. Every chart, the insights, the entry form and the settings work. Nothing you do there is saved.</p>
@@ -455,6 +457,22 @@
         </ul>
       </div>
       <img src="landing/insights.jpg" width="1590" height="960" loading="lazy" alt="The insights panel: this week against last, highest and lowest weight, best week, 4-week pace, milestones and weight by injection day (sample data).">
+    </div>
+    <div class="panel lp-split lp-ios">
+      <div class="lp-phones">
+        <img src="landing/ios-trends.jpg" width="598" height="1300" loading="lazy" alt="The TirzTrack iPhone app, Trends screen: latest weight, change, glucose, blood pressure, current and next dose cards (sample data).">
+        <img src="landing/ios-chart.jpg" width="598" height="1300" loading="lazy" alt="The TirzTrack iPhone app: BMI card and the weight chart with coloured dose bands and a 1 week to 3 year range choice (sample data).">
+      </div>
+      <div>
+        <h2>Your pocket log: the iPhone app</h2>
+        <p>TirzTrack puts the same log in your pocket. Add a dose or a weigh-in in seconds, then watch the trend on the Trends tab: weight with shaded dose bands, BMI, glucose, blood pressure and your next dose at a glance.</p>
+        <ul>
+          <li>Sign in once and the web and iPhone logs stay in step automatically, even after time offline</li>
+          <li>Pull down to sync, and set a weekly dose reminder</li>
+          <li>Create a doctor link from your phone, with no account needed to view it</li>
+          <li>Progress photos stay on your device</li>
+        </ul>
+      </div>
     </div>
     <div class="panel lp-split">
       <div>
