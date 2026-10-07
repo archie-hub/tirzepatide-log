@@ -384,8 +384,6 @@
   .lp-split h2 { font-size: 20px; }
   .lp-split ul { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 4px; }
   .lp-split img { flex: 1 1 340px; max-width: 520px; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow); }
-  .lp-end { text-align: center; }
-  .lp-end .primary { padding: 11px 26px; font-size: 16px; border-radius: 12px; }
   .lp-fine { text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 8px; }
   @media (max-width: 640px) { .lp-hero { padding: 22px 18px 24px; } .lp-hero h1 { font-size: 32px; } }
   /* a doctor opening a patient's link: read-only, so every editing control is gone */
@@ -438,10 +436,6 @@
           <li>Your log is stored under a random account id, not your name. Your email is used only to sign in</li>
           <li>No ads and no third-party trackers</li>
         </ul>
-      </div>
-      <div class="lp-end">
-        <p style="margin-bottom:12px;color:var(--ink);font-weight:600">Have an invite?</p>
-        <button type="button" class="primary" id="landingSignIn2">Sign in</button>
       </div>
     </div>
     <p class="lp-fine">Tirzepatide Log is a personal tracking tool, not medical advice. Talk to your doctor about your treatment. The screenshots show sample data. A <a href="https://www.phoe.be/">phoe.be</a> project.</p>
@@ -2811,13 +2805,12 @@
   function applyGate() {
     var gated = /^https?:$/.test(location.protocol) && !SHARE_TOKEN && !cloudSignedIn();
     document.documentElement.classList.toggle('landing', gated);
-    ['landingSignIn', 'landingSignIn2'].forEach(function (id) {
+    ['landingSignIn'].forEach(function (id) {
       var b = $(id); b.disabled = cloudReturning && gated; b.textContent = b.disabled ? 'Signing you in...' : 'Sign in';
     });
     return gated;
   }
   $('landingSignIn').addEventListener('click', cloudSignIn);
-  $('landingSignIn2').addEventListener('click', cloudSignIn);
   function rejectedNote() {
     var d = Object.keys(sync.rejected || {}).sort();
     return d.length ? d.length + (d.length === 1 ? ' day was' : ' days were') + ' not synced because a value looks out of range: ' + d.slice(0, 5).join(', ') + (d.length > 5 ? ' and more' : '') + '. Edit ' + (d.length === 1 ? 'it' : 'them') + ' to try again.' : '';
