@@ -37,6 +37,7 @@ const path = require('path');
   await demo.route('http://localhost:8080/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: require('fs').readFileSync(path.join(root, 'index.html'), 'utf8') }));
   await demo.goto('http://localhost:8080/demo');
   await demo.locator('#range button[data-days="365"]').click();
+  await demo.locator('#tab-compare').click();   // a different chart from the hero picture: weight, glucose and blood pressure on one plot
   await demo.waitForTimeout(900);
   const dbox = await demo.locator('#chartPanel').boundingBox();
   await demo.screenshot({ path: path.join(root, 'landing', 'demo.jpg'), type: 'jpeg', quality: 84, clip: { x: dbox.x, y: dbox.y, width: dbox.width, height: Math.min(dbox.height, 700) } });
