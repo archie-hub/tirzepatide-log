@@ -24,7 +24,7 @@ echo "Pushed ${sha:0:7}; waiting for Pages build..."
 # phoe.be serves /tirzepatide-log/* from S3 first (GitHub Pages is the automatic fallback), so publish there at once
 # and invalidate; GitHub being slow or down no longer holds up what visitors see.
 ./publish-site.sh
-aws cloudfront create-invalidation --distribution-id "$SITE_DIST_ID" --paths "/index.html" "/sw.js" "/404.html" "/manifest.webmanifest" \
+aws cloudfront create-invalidation --distribution-id "$SITE_DIST_ID" --paths "/index.html" "/sw.js" "/404.html" "/manifest.webmanifest" "/demo" "/demo.html" "/landing/*" \
   --profile "$AWS_PROFILE_NAME" --query 'Invalidation.{Id:Id,Status:Status}' --output text
 ./publish-s3.sh
 aws cloudfront create-invalidation --distribution-id "$DIST_ID" \
