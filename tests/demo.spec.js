@@ -115,6 +115,18 @@ test('the landing page has a demo panel above the doctor-link panel that opens t
   await expect(page.locator('#landing')).toBeVisible();
 });
 
+test('the demo panel puts the picture on the left on a wide screen and the words first on a phone', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(APP);
+  const x = async (sel) => (await page.locator('#landing .lp-demo ' + sel).first().boundingBox()).x;
+  expect(await x('img')).toBeLessThan(await x('h2'));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  const y = async (sel) => (await page.locator('#landing .lp-demo ' + sel).first().boundingBox()).y;
+  expect(await y('h2')).toBeLessThan(await y('img'));
+});
+
 test('the demo works on the hosted build under the strict policy, with no violations', async ({ page }) => {
   const b = backend({ dist: true }); await b.install(page);
   await page.addInitScript(() => { document.addEventListener('securitypolicyviolation', (e) => { (window.__csp = window.__csp || []).push(e.violatedDirective + ' ' + e.blockedURI); }); });
