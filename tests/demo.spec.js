@@ -107,7 +107,7 @@ test('the landing page has a demo panel above the doctor-link panel that opens t
   await expect(panel).toBeVisible();
   const order = await page.locator('#landing .lp-split h2').allTextContents();
   expect(order.indexOf('Try it first, no sign-in needed')).toBeLessThan(order.indexOf('Share with your doctor in one click'));   // above it, with the iPhone panel in between
-  expect(order.indexOf('Your pocket log: the iPhone app')).toBe(order.indexOf('Share with your doctor in one click') - 1);   // the iPhone panel is directly above the doctor panel
+  expect(order.indexOf('TirzTrack for iPhone')).toBe(order.indexOf('Share with your doctor in one click') - 1);   // the iPhone panel is directly above the doctor panel
   await expect(panel.locator('a.lp-demo-btn')).toHaveAttribute('href', '/demo');
   await panel.locator('a.lp-demo-btn').click();
   await expect(page).toHaveURL(DEMO);
