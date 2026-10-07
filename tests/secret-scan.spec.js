@@ -97,6 +97,16 @@ test('--all scans the tree and --history finds something that was deleted later'
   expect(h.out).toContain('old.txt');
 });
 
+test('accepted_history silences only the listed old findings in --history', async () => {
+  const r = repo({ 'old.txt': 'key=' + AKIA + '\n' }, { accepted_history: [] });
+  r.git('commit', '-q', '-m', 'one');
+  expect(r.run('--history').code).toBe(1);
+  fs.writeFileSync(path.join(r.dir, '.secret-scan.json'), JSON.stringify({ accepted_history: ['old.txt:aws-access-key'] }));
+  expect(r.run('--history').code).toBe(0);
+  fs.writeFileSync(path.join(r.dir, '.secret-scan.json'), JSON.stringify({ accepted_history: ['other.txt:aws-access-key'] }));
+  expect(r.run('--history').code).toBe(1);
+});
+
 test('the project\'s own tree is clean', async () => {
   const r = spawnSync('python3', [SCAN, '--all'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
   expect(r.stdout).toContain('clean');

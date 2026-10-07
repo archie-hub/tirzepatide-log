@@ -7,13 +7,13 @@
 
 Blocks: credentials and tokens, private keys, state/env/key/profile files, real health-data files (CSV and backups), and (per
 .secret-scan.json) personal email addresses, AWS account ids and local home-directory paths. Findings never print the secret itself.
-A line containing the text "secret-scan:allow" is skipped; .secret-scan.json can allow whole paths, emails and CSVs.
+A line containing the text "secret-scan:allow" is skipped; .secret-scan.json can allow whole paths, emails and CSVs, and list old history findings you accept as "path:rule".
 Exit status: 0 clean, 1 findings.
 """
 import fnmatch, json, os, re, subprocess, sys
 
 ROOT = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], text=True).strip()
-CFG = {'allow_paths': [], 'allow_emails': [], 'allow_csv': [], 'block_account_ids': False, 'block_local_paths': False}
+CFG = {'allow_paths': [], 'allow_emails': [], 'allow_csv': [], 'accepted_history': [], 'block_account_ids': False, 'block_local_paths': False}
 try:
     CFG.update(json.load(open(os.path.join(ROOT, '.secret-scan.json'))))
 except FileNotFoundError:
@@ -138,7 +138,8 @@ def main():
         for p, ln, text in added_lines(sh('git', 'log', '--all', '-p', '-U0', '--no-color')):
             if not path_allowed(p):
                 findings += [(p, ln, r, w) for r, w in line_findings(p, text)]
-        findings = sorted(set(findings))
+        accepted = {tuple(a.split(':', 1)) for a in CFG['accepted_history']}   # known old findings the owner has decided to live with: "path:rule"
+        findings = sorted(f for f in set(findings) if (f[0], f[2]) not in accepted)
     else:
         sys.exit(__doc__)
     if findings:
