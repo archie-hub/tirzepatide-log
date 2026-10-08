@@ -1360,10 +1360,10 @@
   }
   // Least-squares slope (lbs per day) over the last 28 days of weigh-ins
   // Least-squares slope (lbs/day) of the weigh-ins in the 28 days up to w[endIdx]; null when there is too little data
-  function slopeUpTo(w, endIdx) {
+  function slopeUpTo(w, endIdx, minPts, minSpan) {
     var end = w[endIdx].date, pts = [];
     for (var j = endIdx; j >= 0 && dayDiff(w[j].date, end) <= 28; j--) pts.unshift(w[j]);
-    if (pts.length < 4 || dayDiff(pts[0].date, end) < 10) return null;
+    if (pts.length < (minPts || 4) || dayDiff(pts[0].date, end) < (minSpan === undefined ? 10 : minSpan)) return null;
     var n = pts.length, sx = 0, sy = 0, sxx = 0, sxy = 0;
     pts.forEach(function (e) { var x = dayDiff(pts[0].date, e.date); sx += x; sy += e.weight; sxx += x * x; sxy += x * e.weight; });
     var den = n * sxx - sx * sx;
@@ -1600,7 +1600,7 @@
     // weight and BMI: where the 28-day pace would take you by the end of the window (web `forecastWeight`, iOS Progress)
     var proj = null;
     if (ext && (m.key === 'weight' || m.key === 'bmi')) {
-      var wl = sorted().filter(function (e) { return e.weight !== null; }), psl = wl.length ? recentSlope(wl) : null;
+      var wl = sorted().filter(function (e) { return e.weight !== null; }), psl = wl.length ? slopeUpTo(wl, wl.length - 1, 3, 4) : null;   // looser than the goal forecast so a first week or two already shows a line
       if (psl !== null) {
         var plbs = Math.max(wl[wl.length - 1].weight + psl * dayDiff(wl[wl.length - 1].date, tN), 0);
         proj = { lbs: plbs, v: m.key === 'bmi' ? bmiOf(plbs, settings.heightIn) : isUK() ? plbs / 14 : isMetric() ? plbs * KG : plbs };

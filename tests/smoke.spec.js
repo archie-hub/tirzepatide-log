@@ -768,6 +768,13 @@ test('chart range longer than the data keeps its full axis, with a dashed projec
   await expect(page.locator('#chart')).toBeVisible();
 });
 
+test('projection also shows with only a week of weigh-ins', async ({ page }) => {
+  await pasteCsv(page, 'Date,Dosage (mg),Weight (lbs)\n2026-10-01,2.5,208\n2026-10-03,2.5,205\n2026-10-05,2.5,203\n2026-10-07,2.5,201');
+  await page.locator('#range [data-days="30"]').click();
+  await expect(page.locator('#chart svg path[stroke-dasharray="7 6"]')).toHaveCount(1);
+  await expect(page.locator('#chart svg')).toContainText('At this pace');
+});
+
 test('body measures: import, table, waist chart with the half-height line and combined series', async ({ page }) => {
   await pasteCsv(page, BODY_CSV);
   await page.fill('#bmiHeight', "5'10\"");          // 70 in
