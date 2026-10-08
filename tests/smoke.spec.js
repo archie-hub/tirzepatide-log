@@ -103,7 +103,7 @@ test('short date ranges do not repeat x-axis labels', async ({ page }) => {
     const bottom = Math.max(...texts.map((t) => +t.getAttribute('y')));
     return texts.filter((t) => +t.getAttribute('y') === bottom).map((t) => t.textContent);
   });
-  expect(labels.length).toBe(3);
+  expect(labels.length).toBeGreaterThanOrEqual(3);   // the 3 month window keeps its full axis now
   expect(new Set(labels).size).toBe(labels.length);
 });
 
@@ -751,6 +751,21 @@ test('next dose: an injection site logged today counts as the injection', async 
   await page.locator('#setSave').click();
   await expect(page.locator('#plan')).not.toContainText('Today');
   await expect(page.locator('#plan')).toContainText('In 7 days');
+});
+
+test('chart range longer than the data keeps its full axis, with a dashed projection on weight', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());           // 57 days, 0.5 lb/day, 200 -> 172
+  await page.locator('#range [data-days="365"]').first().click();
+  const svg = page.locator('#chart svg');
+  await expect(svg.locator('path[stroke-dasharray="7 6"]')).toHaveCount(1);
+  // 0.5 lb/day for the 309 days left of the year, from 172: 172 - 154.5 = 17.5
+  await expect(svg).toContainText('At this pace: 17.5 lbs');
+  // the last dot sits well left of the right edge (data 57 of 365 days)
+  const dots = svg.locator('circle[opacity]');
+  const xs = await dots.evaluateAll(els => els.map(e => +e.getAttribute('cx')));
+  expect(Math.max(...xs)).toBeLessThan(250);
+  await page.locator('#tab-sugar').click();
+  await expect(page.locator('#chart')).toBeVisible();
 });
 
 test('body measures: import, table, waist chart with the half-height line and combined series', async ({ page }) => {

@@ -1592,13 +1592,27 @@
     var pts = idxs.map(function (i) { return { e: series[i], v: series[i][vk], a: avg[i], d: bp ? series[i].dia : null, a2: bp ? avg2[i] : null }; });
     var single = pts.length === 1;
     // an exact window (custom range) spans the whole of it on the axis, even where readings are sparse
-    var t0 = o.from || pts[0].e.date, tN = o.to || pts[pts.length - 1].e.date, span = Math.max(dayDiff(t0, tN), 1);
+    var t0 = o.from || pts[0].e.date, tN = o.to || pts[pts.length - 1].e.date;
+    // a trailing window longer than the data keeps its full length: readings on the left, empty axis to the right
+    var ext = !o.from && !o.to && !single && o.days && dayDiff(t0, tN) < o.days;
+    if (ext) tN = addDays(t0, o.days);
+    var span = Math.max(dayDiff(t0, tN), 1);
+    // weight and BMI: where the 28-day pace would take you by the end of the window (web `forecastWeight`, iOS Progress)
+    var proj = null;
+    if (ext && (m.key === 'weight' || m.key === 'bmi')) {
+      var wl = sorted().filter(function (e) { return e.weight !== null; }), psl = wl.length ? recentSlope(wl) : null;
+      if (psl !== null) {
+        var plbs = Math.max(wl[wl.length - 1].weight + psl * dayDiff(wl[wl.length - 1].date, tN), 0);
+        proj = { lbs: plbs, v: m.key === 'bmi' ? bmiOf(plbs, settings.heightIn) : isUK() ? plbs / 14 : isMetric() ? plbs * KG : plbs };
+      }
+    }
 
     var W = 900, H = o.print ? 300 : 320, L = 48, R = 16, T = o.title ? 32 : 14, B = 34, gid = 'ag' + (++chartSeq);
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
     // Glucose dots carry the range colours, so its average line stays neutral
     var lc = (m.key === 'sugar' || m.key === 'bmi' || bp) ? '#64748b' : m.color;
     var vals = []; pts.forEach(function (p) { vals.push(p.v, p.a); if (bp) vals.push(p.d, p.a2); });
+    if (proj) vals.push(proj.v);
     if (m.key === 'sugar') vals.push(100);   // always show the prediabetes threshold
     if (bp) vals.push(80, 120);              // and the normal limits for both numbers
     if (m.key === 'rate') vals.push(0, -rateThr);   // zero line and the fast-loss line
@@ -1692,6 +1706,14 @@
       lineStroke = 'url(#' + tg + ')';
     }
     if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lineStroke + '" stroke-width="' + (bp ? 2 : 3.2) + '" stroke-linecap="round" stroke-linejoin="round" d="' + runsPath(pts, avgXY) + '"/>';
+    var projText = '';
+    if (proj) {
+      var pl = pts[pts.length - 1], px0 = X(pl.e.date), px1 = X(tN), py1 = Y(proj.v);
+      projText = (m.key === 'bmi' ? proj.v.toFixed(1) : fwu(proj.lbs)) + ' by ' + shortDate(tN, yearSpan);
+      g += '<path fill="none" stroke="' + lc + '" stroke-width="2.4" stroke-dasharray="7 6" stroke-linecap="round" opacity="0.8" d="M' + px0.toFixed(1) + ',' + Y(pl.v).toFixed(1) + 'L' + px1.toFixed(1) + ',' + py1.toFixed(1) + '"/>' +
+        '<circle cx="' + px1.toFixed(1) + '" cy="' + py1.toFixed(1) + '" r="4.5" fill="' + C.panel + '" stroke="' + lc + '" stroke-width="2.4"/>' +
+        '<text x="' + (px1 - 8).toFixed(1) + '" y="' + Math.max(py1 + (py1 > T + 24 ? -10 : 18), T + 10).toFixed(1) + '" text-anchor="end" style="fill:' + lc + ';font-weight:700;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + esc('At this pace: ' + projText) + '</text>';
+    }
     if (bp && !single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="2" stroke-opacity="0.55" stroke-linecap="round" stroke-linejoin="round" d="' +
       runsPath(pts, function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a2).toFixed(1); }) + '"/>';
     if (!o.print) g += '<line id="xh" y1="' + T + '" y2="' + (H - B) + '" stroke="' + C.muted + '" stroke-dasharray="3 4" style="display:none"/>' +
@@ -1699,7 +1721,7 @@
 
     var svg = '<svg' + (o.print ? ' xmlns="http://www.w3.org/2000/svg" class="psvg" width="' + W + '" height="' + H + '"' : '') +
       ' viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(m.label) + ' over time">' + g + '</svg>';
-    return { svg: svg, shown: shown, pts: pts, xs: pts.map(function (p) { return X(p.e.date); }), Y: Y, W: W, H: H, single: single, m: m };
+    return { svg: svg, shown: shown, pts: pts, xs: pts.map(function (p) { return X(p.e.date); }), Y: Y, W: W, H: H, single: single, m: m, proj: projText };
   }
 
   // Combined chart: the chosen series, each scaled between its own lowest and highest value in view (shape, not size)
@@ -1724,7 +1746,9 @@
     if (!lines.length) return null;
     var dates = [];
     rows.forEach(function (e) { if (lines.some(function (l) { return l.s.val(e) !== null && l.s.val(e) !== undefined; })) dates.push(e); });
-    var t0 = o.from || dates[0].date, tN = o.to || dates[dates.length - 1].date, span = Math.max(dayDiff(t0, tN), 1), single = dates.length === 1;
+    var t0 = o.from || dates[0].date, tN = o.to || dates[dates.length - 1].date, single = dates.length === 1;
+    if (!o.from && !o.to && !single && o.days && dayDiff(t0, tN) < o.days) tN = addDays(t0, o.days);   // keep the full window, data on the left
+    var span = Math.max(dayDiff(t0, tN), 1);
     var W = 900, H = o.print ? 320 : 320, L = 48, R = 16, T = o.print ? 50 : 14, B = 34;
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
     function X(d) { return single ? L + (W - L - R) / 2 : L + (dayDiff(t0, d) / span) * (W - L - R); }
@@ -1872,7 +1896,8 @@
       : currentMetric === 'rate' ? 'Each dot is the weight trend over the 4 weeks up to that day (below the zero line = losing). Orange dots are faster than ' + FAST_PCT + '% of body weight a week. Hover or touch the chart for details.'
       : currentMetric === 'weight' && !single ? 'Dots are daily values. The line is the trailing 7-day average, coloured by trend: ' +
         '<span class="chip" style="--c:#059669">falling</span> <span class="chip" style="--c:#6366f1">steady</span> <span class="chip" style="--c:#ef4444">rising</span> Hover or touch the chart for details.'
-      : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') + '</span>';
+      : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') +
+      (res.proj ? ' The dashed line carries your last 4 weeks\u2019 pace to the end of the range (an estimate, not a prediction).' : '') + '</span>';
 
     var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), xc = svg.querySelector('#xc'), cur = -1;
     tip.setAttribute('aria-live', 'polite');
