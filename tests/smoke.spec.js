@@ -740,6 +740,19 @@ test('insights: weight by injection day shows once there are four weeks of data'
   await expect(page.locator('#insights')).toContainText('lightest on injection day');
 });
 
+test('next dose: an injection site logged today counts as the injection', async ({ page }) => {
+  const now = new Date(), p2 = n => String(n).padStart(2, '0');
+  const iso = d => d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  const past = new Date(now.getTime() - 7 * 86400000);
+  const hdr = 'Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site\n';
+  await pasteCsv(page, hdr + iso(past) + ',2.5,200,,,,,Abdomen (Left)\n' + iso(now) + ',2.5,,,,,,Abdomen (Right)');
+  await page.locator('#plan [data-settings]').first().click();
+  await page.selectOption('#sDay', String(now.getDay()));
+  await page.locator('#setSave').click();
+  await expect(page.locator('#plan')).not.toContainText('Today');
+  await expect(page.locator('#plan')).toContainText('In 7 days');
+});
+
 test('body measures: import, table, waist chart with the half-height line and combined series', async ({ page }) => {
   await pasteCsv(page, BODY_CSV);
   await page.fill('#bmiHeight', "5'10\"");          // 70 in

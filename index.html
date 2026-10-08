@@ -1353,6 +1353,8 @@
     if (hasDoseDay()) dow = settings.doseDay;
     else dow = weekday(ls ? ls.date : since);
     var t = today(), diff = (dow - weekday(t) + 7) % 7;
+    // an injection site logged today counts as today's injection, so the next one is a week away
+    if (diff === 0 && s.some(function (e) { return e.date === t && e.site; })) diff = 7;
     return { dose: cur, since: since, dow: dow, diff: diff, next: addDays(t, diff),
       week: Math.max(1, Math.floor(dayDiff(since, t) / 7) + 1), lastEntry: s[s.length - 1].date };
   }
