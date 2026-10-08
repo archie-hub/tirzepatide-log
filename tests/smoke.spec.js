@@ -773,6 +773,7 @@ test('projection also shows with only a week of weigh-ins', async ({ page }) => 
   await page.locator('#range [data-days="30"]').click();
   await expect(page.locator('#chart svg path[stroke-dasharray="7 6"]')).toHaveCount(1);
   await expect(page.locator('#chart svg')).toContainText('At this pace');
+  await expect(page.locator('#chart svg mask')).toHaveCount(1);   // the fill fades out at the last reading
 });
 
 test('body measures: import, table, waist chart with the half-height line and combined series', async ({ page }) => {

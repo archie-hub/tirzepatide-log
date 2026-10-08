@@ -1645,7 +1645,10 @@
     });
 
     var g = (o.print ? '<style>.psvg text{fill:#5a6b7c;font:11px "Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif}</style>' : '') +
-      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + lc + '" stop-opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.2' : '0.38') + '"/><stop offset="1" stop-color="' + lc + '" stop-opacity="0.02"/></linearGradient></defs>';
+      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + lc + '" stop-opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.2' : '0.38') + '"/><stop offset="1" stop-color="' + lc + '" stop-opacity="0.02"/></linearGradient>' +
+      // when the range is longer than the data, the fill fades out over the last stretch of readings instead of ending in a hard edge
+      (ext && !bp && X(pts[pts.length - 1].e.date) - X(pts[0].e.date) > 1 ? '<linearGradient id="' + gid + 'f" gradientUnits="userSpaceOnUse" x1="' + X(pts[0].e.date).toFixed(1) + '" x2="' + X(pts[pts.length - 1].e.date).toFixed(1) + '" y1="0" y2="0"><stop offset="0.55" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>' +
+        '<mask id="' + gid + 'm" maskUnits="userSpaceOnUse" x="0" y="0" width="' + W + '" height="' + H + '"><rect x="0" y="0" width="' + W + '" height="' + H + '" fill="url(#' + gid + 'f)"/></mask>' : '') + '</defs>';
     if (o.title) g += '<text x="' + L + '" y="14" style="fill:#12202e;font-weight:700;font-size:13px">' + esc(o.title) + '</text>';
     g += bands;
     for (var i = 0; i <= 4; i++) {
@@ -1685,7 +1688,7 @@
     var avgXY = function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a).toFixed(1); };
     if (!single && !bp) {
       runs(pts).filter(function (r) { return r.length > 1; }).forEach(function (r) {
-        g += '<path' + fade + ' fill="url(#' + gid + ')" d="M' + r.map(avgXY).join('L') + 'L' + X(r[r.length - 1].e.date).toFixed(1) + ',' + (H - B) + 'L' + X(r[0].e.date).toFixed(1) + ',' + (H - B) + 'Z"/>';
+        g += '<path' + fade + ' fill="url(#' + gid + ')"' + (ext ? ' mask="url(#' + gid + 'm)"' : '') + ' d="M' + r.map(avgXY).join('L') + 'L' + X(r[r.length - 1].e.date).toFixed(1) + ',' + (H - B) + 'L' + X(r[0].e.date).toFixed(1) + ',' + (H - B) + 'Z"/>';
       });
     }
     var r = pts.length > 120 ? 2 : (pts.length > 45 ? 2.8 : 4.2);
@@ -1712,7 +1715,7 @@
       projText = (m.key === 'bmi' ? proj.v.toFixed(1) : fwu(proj.lbs)) + ' by ' + shortDate(tN, yearSpan);
       g += '<path fill="none" stroke="' + lc + '" stroke-width="2.4" stroke-dasharray="7 6" stroke-linecap="round" opacity="0.8" d="M' + px0.toFixed(1) + ',' + Y(pl.v).toFixed(1) + 'L' + px1.toFixed(1) + ',' + py1.toFixed(1) + '"/>' +
         '<circle cx="' + px1.toFixed(1) + '" cy="' + py1.toFixed(1) + '" r="4.5" fill="' + C.panel + '" stroke="' + lc + '" stroke-width="2.4"/>' +
-        '<text x="' + (px1 - 8).toFixed(1) + '" y="' + Math.max(py1 + (py1 > T + 24 ? -10 : 18), T + 10).toFixed(1) + '" text-anchor="end" style="fill:' + lc + ';font-weight:700;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + esc('At this pace: ' + projText) + '</text>';
+        '<text x="' + (px1 - 14).toFixed(1) + '" y="' + (py1 < Y(pl.v) - 1 ? Math.max(py1 - 12, T + 10) : Math.min(py1 + 16, H - B - 6)).toFixed(1) + '" text-anchor="end" style="fill:' + lc + ';font-weight:700;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + esc('At this pace: ' + projText) + '</text>';
     }
     if (bp && !single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lc + '" stroke-width="2" stroke-opacity="0.55" stroke-linecap="round" stroke-linejoin="round" d="' +
       runsPath(pts, function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a2).toFixed(1); }) + '"/>';
