@@ -1718,8 +1718,8 @@
         '<text x="' + (px1 - 14).toFixed(1) + '" y="' + (py1 < Y(pl.v) - 1 ? Math.max(py1 - 12, T + 10) : Math.min(py1 + 16, H - B - 6)).toFixed(1) + '" text-anchor="end" style="fill:' + lc + ';font-weight:700;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + esc('At this pace: ' + projText) + '</text>';
       var quip = paceQuip(proj.lbs, proj.last);
       if (quip) {
-        var qy = (py1 < Y(pl.v) - 1 ? Math.max(py1 - 12, T + 10) : Math.min(py1 + 16, H - B - 6)) + (py1 < Y(pl.v) - 1 ? -16 : 16);
-        qy = Math.min(Math.max(qy, T + 10), H - B - 6);
+        var ly = py1 < Y(pl.v) - 1 ? Math.max(py1 - 12, T + 10) : Math.min(py1 + 16, H - B - 6),
+          qy = ly + 16 <= H - B - 6 && py1 >= Y(pl.v) - 1 ? ly + 16 : (ly - 16 >= T + 10 ? ly - 16 : ly + 16);   // the other side of the label from the line, never on top of it
         g += '<text x="' + (px1 - 14).toFixed(1) + '" y="' + qy.toFixed(1) + '" text-anchor="end" style="fill:' + lc + ';font-weight:600;font-size:12px;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + esc(quip) + '</text>';
       }
     }

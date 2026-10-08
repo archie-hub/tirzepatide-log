@@ -780,6 +780,10 @@ test('pace label: brown bread at 0.0 lbs, doctor nudge below normal BMI, overwei
   await page.locator('#setSave').click();
   await page.locator('#range [data-days="365"]').first().click();   // 17.5 lbs at 69 in: below normal BMI, but the 0 lbs case is gone
   await expect(page.locator('#chart svg')).toContainText('doctor');
+  // the two lines must not sit on top of each other
+  const ys = await page.locator('#chart svg text').evaluateAll(els => els.filter(e => /At this pace|doctor/.test(e.textContent)).map(e => +e.getAttribute('y')));
+  expect(ys.length).toBe(2);
+  expect(Math.abs(ys[0] - ys[1])).toBeGreaterThan(12);
 });
 
 test('projection also shows with only a week of weigh-ins', async ({ page }) => {
