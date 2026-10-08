@@ -768,6 +768,20 @@ test('chart range longer than the data keeps its full axis, with a dashed projec
   await expect(page.locator('#chart')).toBeVisible();
 });
 
+test('pace label: brown bread at 0.0 lbs, doctor nudge below normal BMI, overweight remark', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());           // 200 -> 172, 0.5 lb/day
+  await page.locator('#range [data-days="365"]').first().click();
+  await expect(page.locator('#chart svg')).not.toContainText('brown bread');
+  await page.locator('#range [data-days="1095"]').first().click();   // 3 yr: pace reaches 0
+  await expect(page.locator('#chart svg')).toContainText('At this pace: 0.0 lbs');
+  await expect(page.locator('#chart svg')).toContainText('brown bread');
+  await page.locator('#plan [data-settings]').first().click();
+  await page.fill('#sHeight', '69');
+  await page.locator('#setSave').click();
+  await page.locator('#range [data-days="365"]').first().click();   // 17.5 lbs at 69 in: below normal BMI, but the 0 lbs case is gone
+  await expect(page.locator('#chart svg')).toContainText('doctor');
+});
+
 test('projection also shows with only a week of weigh-ins', async ({ page }) => {
   await pasteCsv(page, 'Date,Dosage (mg),Weight (lbs)\n2026-10-01,2.5,208\n2026-10-03,2.5,205\n2026-10-05,2.5,203\n2026-10-07,2.5,201');
   await page.locator('#range [data-days="30"]').click();
