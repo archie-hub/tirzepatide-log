@@ -163,23 +163,34 @@ test('a user who has not been invited sees a clear message and nothing is stored
   expect((await storedEntries(page)).length).toBe(1);   // local data untouched
 });
 
-test('Clear all data signs out and leaves the cloud copy alone; signing out keeps local data', async ({ page }) => {
+test('Clear all data deletes this account\'s cloud copy and local data, stays signed in; signing out keeps local data', async ({ page }) => {
   const b = backend(); await b.install(page);
   await seedLocal(page, [row('2026-03-01', 200), row('2026-03-08', 199)]);
   await page.goto(APP);
   await signIn(page);
   await expect.poll(() => b.entries.size).toBe(2);
-  page.once('dialog', (d) => d.accept());
+  page.once('dialog', (d) => { expect(d.message()).toContain('cloud account'); d.accept(); });
   await page.locator('#resetBtn').click();
-  await expect(page.locator('#landing')).toBeVisible();                  // signed out, so the landing page
-  await page.waitForTimeout(2200);                          // longer than the sync debounce
-  expect(b.entries.size).toBe(2);
-  expect([...b.entries.values()].every((e) => !e.deleted)).toBe(true);
+  await expect(page.locator('#msg')).toContainText('cloud account');
+  expect([...b.entries.values()].every((e) => e.deleted)).toBe(true);    // tombstones for both days
   expect((await storedEntries(page)).length).toBe(0);
-  // signing in again brings everything back
+  expect(await page.evaluate(() => localStorage.getItem('tirzepatide-log-v1-before-sync'))).toBeNull();
+  // signing out and in again brings nothing back
+  await openSettings(page);
+  await page.locator('#cloudOut').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#landing')).toBeVisible();
   await page.locator('#landingSignIn').click();
-  await expect(page.locator('#subtitle')).toContainText('2 entries');
-  // sign out keeps what is on the device
+  await expect(page.locator('#subtitle')).not.toContainText('2 entries');
+  expect((await storedEntries(page)).length).toBe(0);
+});
+
+test('signing out keeps local data', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200), row('2026-03-08', 199)]);
+  await page.goto(APP);
+  await signIn(page);
+  await expect.poll(() => b.entries.size).toBe(2);
   await openSettings(page);
   await page.locator('#cloudOut').click();
   await expect(page.locator('#landing')).toBeVisible();

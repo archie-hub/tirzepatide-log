@@ -2456,12 +2456,25 @@
   }
   $('exportBtn').addEventListener('click', exportAll);
   $('resetBtn').addEventListener('click', function () {
-    if (!entries.length) { say('There is no data to clear.'); return; }
-    var cloud = cloudSignedIn();
-    if (!confirm('Delete all ' + entries.length + ' entries from this browser' + (cloud ? ' and sign out of cloud sync (your cloud copy is kept)' : '') + '? Export a CSV first if you want a backup.')) return;
-    if (cloud) cloudSignOut('Signed out of cloud sync. Your cloud copy is kept.');
-    entries = [];
-    save(); render(); resetForm(); say('All data cleared.');
+    var cloud = cloudSignedIn() && cloudAvailable();
+    if (!entries.length && !cloud) { say('There is no data to clear.'); return; }
+    if (!confirm('Delete all ' + entries.length + ' entries from this browser' + (cloud ? ' and from your cloud account (only your own data; other accounts are not touched, and your doctor links stay)' : '') + '? This cannot be undone. Export a CSV first if you want a backup.')) return;
+    function wipe() {
+      entries = [];
+      try { localStorage.removeItem(STORE_KEY + '-before-sync'); } catch (e) {}   // the pre-sync copy holds the same data
+      save(); render(); resetForm();
+      if (!cloud) { say('All data cleared.'); return; }
+      // Signed in: the deletes travel as tombstones through the normal sync, and we say so only once the server has them
+      say('Clearing your cloud copy...');
+      clearTimeout(syncTimer);
+      syncNow().then(function () {
+        var left = Object.keys(sync.dirty || {}).length;
+        if (!syncErr && !left) say('All data cleared, on this device and in your cloud account.');
+        else say('Cleared on this device, but your cloud copy is not cleared yet' + (syncErr ? ': ' + syncErr : '') + ' Use Sync now in Settings to retry; do not sign in on another device until it says synced.');
+      });
+    }
+    // let a sync that is already running finish first, so it cannot bring entries back mid-clear
+    (function waitIdle() { if (syncing) setTimeout(waitIdle, 200); else wipe(); })();
   });
 
   /* ---------- import wizard ---------- */
