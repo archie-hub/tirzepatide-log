@@ -52,6 +52,7 @@ Legend: yes, no, partial.
 | App lock (Face ID) | no | yes | |
 | Light/dark | yes | yes | |
 | Install as app / PWA | yes | n/a | |
+| Overlay another period on the chart (lined up by days since each start) | yes | no | Web only by the owner's decision (2026-10-09), not a device gap; the iOS app was deliberately left alone. Port it when asked |
 
 ## Deliberate gaps
 

@@ -1025,3 +1025,38 @@ test('chart range: eight choices from 1 week to 3 years, 3 months by default, re
   await page.locator('#range button[data-days="7"]').click();
   await expect(page.locator('#range button[aria-pressed="true"]')).toHaveText('1 wk');
 });
+
+test('overlay another period: lined up by days since each start, tooltip shows both', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await expect(page.locator('#overlayBar')).toBeVisible();
+  await expect(page.locator('#ovFields')).toBeHidden();
+  await customRange(page, '2026-08-20', '2026-09-10');                  // day 0 = 190.5
+  await page.locator('#ovOn').check();
+  await expect(page.locator('#ovFields')).toBeVisible();
+  await page.locator('#ovFrom').fill('2026-08-01'); await page.locator('#ovTo').fill('2026-08-22');   // day 0 = 200.0
+  await expect(page.locator('#chart svg[role="img"]')).toContainText('Day 0');
+  await expect(page.locator('#legend .chip[style*="8b5cf6"]')).toHaveCount(1);
+  const svg = page.locator('#chart svg[role="img"]');
+  await svg.focus();
+  await page.keyboard.press('Home');
+  await expect(page.locator('#tip')).toContainText('190.5');
+  await expect(page.locator('#tip')).toContainText('200.0');
+  await expect(page.locator('#tip')).toContainText('Day 0');
+  await page.locator('#ovFrom').fill('2026-12-01'); await page.locator('#ovTo').fill('2026-12-05');   // no readings there
+  await expect(page.locator('#ovNote')).toContainText('No Weight');
+  await page.locator('#ovOn').uncheck();
+  await expect(page.locator('#chart svg[role="img"]')).not.toContainText('Day 0');
+});
+
+test('overlay another period: turning it on finds the earlier course before a long gap', async ({ page }) => {
+  const rows = ['Date,Dosage (mg),Weight (lbs)'];
+  for (let i = 0; i < 30; i++) rows.push(new Date(Date.UTC(2026, 0, 1) + i * 86400000).toISOString().slice(0, 10) + ',2.5,' + (220 - i).toFixed(1));   // Jan 1 - Jan 30
+  for (let i = 0; i < 30; i++) rows.push(new Date(Date.UTC(2026, 5, 1) + i * 86400000).toISOString().slice(0, 10) + ',2.5,' + (210 - i * 0.5).toFixed(1)); // Jun 1 - Jun 30
+  await pasteCsv(page, rows.join('\n'));
+  await page.locator('#ovOn').check();
+  await expect(page.locator('#ovFrom')).toHaveValue('2026-01-01');
+  await expect(page.locator('#ovTo')).toHaveValue('2026-01-30');
+  await expect(page.locator('#cFrom')).toHaveValue('2026-06-01');
+  await expect(page.locator('#cTo')).toHaveValue('2026-06-30');
+  await expect(page.locator('#legend .chip[style*="8b5cf6"]')).toHaveCount(1);
+});

@@ -552,6 +552,14 @@
       <button type="button" class="small" id="cNext" aria-label="Show the later period of the same length">Later &#9654;</button>
       <span class="note" id="customNote" role="status"></span>
     </div>
+    <div class="custom-range" id="overlayBar" role="group" aria-label="Overlay another period" hidden>
+      <label><input type="checkbox" id="ovOn"> Overlay another period (lined up by days since each start)</label>
+      <span id="ovFields" hidden>
+        <label>From <input type="date" id="ovFrom"></label>
+        <label>To <input type="date" id="ovTo"></label>
+      </span>
+      <span class="note" id="ovNote" role="status"></span>
+    </div>
     <div class="legend cmp-pick" id="cmpPick" role="group" aria-label="Values to show on the combined chart" hidden></div>
     <div id="chart" role="tabpanel" aria-labelledby="tab-weight"></div>
     <div class="legend" id="legend"></div>
@@ -1457,6 +1465,7 @@
   // "Custom" lets the person pick exact From and To dates (and step earlier or later by the same length) to look at history closely.
   var RANGE_DAYS = [7, 30, 90, 180, 365, 548, 730, 1095], DEFAULT_RANGE = 90, RANGE_KEY = 'tirzepatide-chart-range';
   var customFrom = null, customTo = null;   // ISO dates while the range is 'custom'
+  var ovOn = false, ovFrom = null, ovTo = null, OV_COLOR = '#8b5cf6';   // overlay of a second period, in memory only
   function isoDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(v || '') && !isNaN(new Date(v + 'T00:00:00').getTime()); }
   function loadRange() {
     if (SHARE_TOKEN || DEMO) return DEFAULT_RANGE;
@@ -1591,12 +1600,20 @@
     if (!idxs.length) { if (o.print || o.from || o.to) return null; idxs = [series.length - 1]; }
     var pts = idxs.map(function (i) { return { e: series[i], v: series[i][vk], a: avg[i], d: bp ? series[i].dia : null, a2: bp ? avg2[i] : null }; });
     var single = pts.length === 1;
+    // overlay of a second period: its readings, placed by days since its own From date
+    var ovPts = null;
+    if (o.ov && !bp && !single) {
+      ovPts = [];
+      series.forEach(function (e, i) { if (e.date >= o.ov.from && e.date <= o.ov.to) ovPts.push({ e: e, v: e[vk], a: avg[i] }); });
+      if (!ovPts.length) ovPts = null;
+    }
     // an exact window (custom range) spans the whole of it on the axis, even where readings are sparse
     var t0 = o.from || pts[0].e.date, tN = o.to || pts[pts.length - 1].e.date;
     // a trailing window longer than the data keeps its full length: readings on the left, empty axis to the right
-    var ext = !o.from && !o.to && !single && o.days && dayDiff(t0, tN) < o.days;
+    var ext = !o.from && !o.to && !single && o.days && dayDiff(t0, tN) < o.days && !ovPts;
     if (ext) tN = addDays(t0, o.days);
     var span = Math.max(dayDiff(t0, tN), 1);
+    if (ovPts) span = Math.max(span, dayDiff(o.ov.from, ovPts[ovPts.length - 1].e.date), 1);
     // weight and BMI: where the 28-day pace would take you by the end of the window (web `forecastWeight`, iOS Progress)
     var proj = null;
     if (ext && (m.key === 'weight' || m.key === 'bmi')) {
@@ -1612,6 +1629,7 @@
     // Glucose dots carry the range colours, so its average line stays neutral
     var lc = (m.key === 'sugar' || m.key === 'bmi' || bp) ? '#64748b' : m.color;
     var vals = []; pts.forEach(function (p) { vals.push(p.v, p.a); if (bp) vals.push(p.d, p.a2); });
+    if (ovPts) ovPts.forEach(function (p) { vals.push(p.v, p.a); });
     if (proj) vals.push(proj.v);
     if (m.key === 'sugar') vals.push(100);   // always show the prediabetes threshold
     if (bp) vals.push(80, 120);              // and the normal limits for both numbers
@@ -1627,13 +1645,14 @@
     hi = lo + Math.ceil((hi - lo) / 4 / unit) * unit * 4;
     function X(d) { return single ? L + (W - L - R) / 2 : L + (dayDiff(t0, d) / span) * (W - L - R); }
     function Y(v) { return T + (1 - (v - lo) / (hi - lo)) * (H - T - B); }
+    function XO(d) { return L + (dayDiff(o.ov.from, d) / span) * (W - L - R); }
 
     var segs = [], bands = '', shown = {};
     all.forEach(function (e) {
       if (e.dose === null) return;
       if (!segs.length || segs[segs.length - 1].dose !== e.dose) segs.push({ dose: e.dose, start: e.date });
     });
-    if (!single) segs.forEach(function (sg, i) {
+    if (!single && !ovPts) segs.forEach(function (sg, i) {
       var end = i + 1 < segs.length ? segs[i + 1].start : tN;
       var s0 = dayDiff(t0, sg.start) < 0 ? t0 : sg.start;
       var s1 = dayDiff(end, tN) < 0 ? tN : end;
@@ -1681,7 +1700,7 @@
         if (ticks.indexOf(dt) < 0) ticks.push(dt);
       }
       ticks.forEach(function (dt, k) {
-        g += '<text x="' + X(dt).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="' + (k === 0 ? 'start' : (k === ticks.length - 1 ? 'end' : 'middle')) + '">' + esc(shortDate(dt, yearSpan)) + '</text>';
+        g += '<text x="' + X(dt).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="' + (k === 0 ? 'start' : (k === ticks.length - 1 ? 'end' : 'middle')) + '">' + esc(ovPts ? 'Day ' + dayDiff(t0, dt) : shortDate(dt, yearSpan)) + '</text>';
       });
     }
     var fade = o.print ? '' : ' class="fade"', draw = o.print ? '' : ' class="draw"';
@@ -1709,6 +1728,15 @@
       lineStroke = 'url(#' + tg + ')';
     }
     if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lineStroke + '" stroke-width="' + (bp ? 2 : 3.2) + '" stroke-linecap="round" stroke-linejoin="round" d="' + runsPath(pts, avgXY) + '"/>';
+    var ovXs = null;
+    if (ovPts) {
+      var oXY = function (p) { return XO(p.e.date).toFixed(1) + ',' + Y(p.a).toFixed(1); }, orr = ovPts.length > 120 ? 2 : (ovPts.length > 45 ? 2.8 : 4.2);
+      ovXs = ovPts.map(function (p) { return XO(p.e.date); });
+      ovPts.forEach(function (p) {
+        g += '<circle' + fade + ' cx="' + XO(p.e.date).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + orr + '" fill="' + OV_COLOR + '" opacity="' + (ovPts.length > 45 ? '0.45' : '0.85') + '"/>';
+      });
+      g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + OV_COLOR + '" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="' + runsPath(ovPts, oXY) + '"/>';
+    }
     var projText = '';
     if (proj) {
       var pl = pts[pts.length - 1], px0 = X(pl.e.date), px1 = X(tN), py1 = Y(proj.v);
@@ -1730,7 +1758,7 @@
 
     var svg = '<svg' + (o.print ? ' xmlns="http://www.w3.org/2000/svg" class="psvg" width="' + W + '" height="' + H + '"' : '') +
       ' viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(m.label) + ' over time">' + g + '</svg>';
-    return { svg: svg, shown: shown, pts: pts, xs: pts.map(function (p) { return X(p.e.date); }), Y: Y, W: W, H: H, single: single, m: m, proj: projText };
+    return { svg: svg, shown: shown, pts: pts, xs: pts.map(function (p) { return X(p.e.date); }), ovPts: ovPts, ovXs: ovXs, t0: t0, Y: Y, W: W, H: H, single: single, m: m, proj: projText };
   }
 
   // Combined chart: the chosen series, each scaled between its own lowest and highest value in view (shape, not size)
@@ -1876,16 +1904,20 @@
 
   function renderChart() {
     $('cmpPick').hidden = currentMetric !== 'compare';
+    $('overlayBar').hidden = currentMetric === 'compare' || currentMetric === 'bp';
     if (currentMetric === 'compare') { renderCompare(); return; }
     $('tab-bmi').hidden = !settings.heightIn;
     if (currentMetric === 'bmi' && !settings.heightIn) { selectTab($('tab-weight')); return; }
-    var m = METRICS[currentMetric], res = buildChart(currentMetric, rangeOpts());
+    var m = METRICS[currentMetric], ro = rangeOpts();
+    if (ovOn && currentMetric !== 'bp' && ovFrom && ovTo && ovFrom <= ovTo) ro.ov = { from: ovFrom, to: ovTo };
+    var res = buildChart(currentMetric, ro);
     if (!res) {
       $('chart').innerHTML = '<div class="empty">' + (currentRange === 'custom' ? 'No ' + esc(m.label) + ' readings between ' + esc(fmtDate(customFrom)) + ' and ' + esc(fmtDate(customTo)) + '.' : 'No ' + esc(m.label) + ' values to plot yet.') + '</div>';
       $('legend').innerHTML = '';
       return;
     }
-    var pts = res.pts, xs = res.xs, Y = res.Y, W = res.W, single = res.single;
+    var pts = res.pts, xs = res.xs, Y = res.Y, W = res.W, single = res.single, ovp = res.ovPts, oxs = res.ovXs;
+    $('ovNote').textContent = ovOn && !ovp ? (ovFrom && ovTo ? 'No ' + m.label + ' readings between ' + fmtDate(ovFrom) + ' and ' + fmtDate(ovTo) + ' to overlay.' : 'Choose the From and To dates of the other period.') : '';
     $('chart').innerHTML = '<div class="tip" id="tip"></div>' + res.svg;
 
     var lg = Object.keys(res.shown).map(Number).sort(function (a, b) { return a - b; }).map(function (d) {
@@ -1900,6 +1932,8 @@
     if (currentMetric === 'bmi') lg = BMI_STAGES.map(function (g) {
       return '<span class="chip" style="--c:' + g.color + '">' + esc(g.name) + ' ' + bmiRange(g) + '</span>';
     }).join('') + lg;
+    if (ovp) lg = '<span class="chip" style="--c:' + m.color + '">' + esc(fmtDate(pts[0].e.date)) + ' \u2013 ' + esc(fmtDate(pts[pts.length - 1].e.date)) + '</span>' +
+      '<span class="chip" style="--c:' + OV_COLOR + '">' + esc(fmtDate(ovFrom)) + ' \u2013 ' + esc(fmtDate(ovTo)) + '</span>';
     $('legend').innerHTML = lg + '<span>' + (single ? '' : currentMetric === 'bp'
       ? 'Each bar runs from diastolic (hollow dot) up to systolic (solid dot). Grey lines are 7-day averages (systolic above, diastolic below). Hover or touch the chart for details.'
       : currentMetric === 'rate' ? 'Each dot is the weight trend over the 4 weeks up to that day (below the zero line = losing). Orange dots are faster than ' + FAST_PCT + '% of body weight a week. Hover or touch the chart for details.'
@@ -1912,16 +1946,29 @@
     tip.setAttribute('aria-live', 'polite');
     svg.setAttribute('tabindex', '0');
     svg.setAttribute('aria-label', m.label + ' over time. Use the left and right arrow keys to read each point; Home and End jump to the first and last.');
+    function nearest(list, x) {
+      var best = 0, bd = Infinity;
+      list.forEach(function (px, i) { var dd = Math.abs(px - x); if (dd < bd) { bd = dd; best = i; } });
+      return best;
+    }
     function move(ev) {
-      var rc = svg.getBoundingClientRect(), x = (ev.clientX - rc.left) * (W / rc.width), best = 0, bd = Infinity;
-      xs.forEach(function (px, i) { var dd = Math.abs(px - x); if (dd < bd) { bd = dd; best = i; } });
+      var rc = svg.getBoundingClientRect(), x = (ev.clientX - rc.left) * (W / rc.width), best = nearest(xs, x);
+      if (oxs) {   // an overlaid reading can be the closest one
+        var oi = nearest(oxs, x);
+        if (Math.abs(oxs[oi] - x) < Math.abs(xs[best] - x)) { show(best, oi); return; }
+      }
       show(best);
     }
-    function show(best) {
+    function show(best, oi) {
       cur = best;
-      var p = pts[best], px = xs[best];
+      var p = pts[best], px = xs[best], cy = Y(p.v), ov = null;
+      if (oxs) {
+        if (oi === undefined) oi = nearest(oxs, px);
+        ov = ovp[oi];
+        if (oi !== undefined && arguments.length > 1) { px = oxs[oi]; cy = Y(ov.v); p = pts[nearest(xs, px)]; }
+      }
       xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.style.display = '';
-      xc.setAttribute('cx', px); xc.setAttribute('cy', Y(p.v)); xc.style.display = '';
+      xc.setAttribute('cx', px); xc.setAttribute('cy', cy); xc.style.display = '';
       var h = '<b>' + esc(fmtDate(p.e.date)) + '</b><br>' + esc(m.label) + ': ' + (m.key === 'bp' ? bpText(p.e) : (m.key === 'weight' && isUK()) ? stLb(p.e.lbs) : p.v.toFixed(m.dec));
       if (m.key === 'bp') h += ' (' + bpZone(p.v, p.d).label.toLowerCase() + ')';
       if (m.key === 'sugar') h += ' (' + sugarZone(p.v).label.toLowerCase() + ')';
@@ -1929,6 +1976,11 @@
       if (!single) h += '<br>7-day average: ' + (m.key === 'bp' ? Math.round(p.a) + '/' + Math.round(p.a2) : (m.key === 'weight' && isUK()) ? stLb(p.a * 14) : p.a.toFixed(m.dec));
       if (p.e.dose !== null) h += '<br>Dose: ' + p.e.dose + ' mg';
       if (p.e.comments) h += '<br><i>' + esc(p.e.comments.length > 80 ? p.e.comments.slice(0, 80) + '\u2026' : p.e.comments) + '</i>';
+      if (ov) {
+        h = '<span style="color:' + m.color + '">\u25CF</span> Day ' + dayDiff(res.t0, p.e.date) + ': ' + h;
+        h += '<hr style="border:0;border-top:1px solid var(--line);margin:6px 0"><span style="color:' + OV_COLOR + '">\u25CF</span> Day ' + dayDiff(ovFrom, ov.e.date) + ': <b>' + esc(fmtDate(ov.e.date)) + '</b><br>' +
+          esc(m.label) + ': ' + ((m.key === 'weight' && isUK()) ? stLb(ov.e.lbs) : ov.v.toFixed(m.dec)) + (ov.e.dose !== null ? '<br>Dose: ' + ov.e.dose + ' mg' : '');
+      }
       tip.innerHTML = h; tip.classList.add('on');
       var pct = px / W * 100;
       tip.style.left = pct + '%';
@@ -2356,6 +2408,38 @@
   $('cPrev').addEventListener('click', function () { stepCustom(-1); });
   $('cNext').addEventListener('click', function () { stepCustom(1); });
   syncRangeUi();
+  // Overlay another period: its own From/To, lined up with the chart by days since each start. Turning it on with no dates
+  // fills in the course before the last silence of more than LINE_GAP_DAYS (if the log has one), else the same length from the first entry.
+  function ovGuess() {
+    var all = sorted(), cut = -1;
+    for (var i = all.length - 1; i > 0; i--) if (dayDiff(all[i - 1].date, all[i].date) > LINE_GAP_DAYS) { cut = i; break; }
+    if (cut > 0) return { from: all[0].date, to: all[cut - 1].date, start: all[cut].date, end: all[all.length - 1].date };
+    return all.length ? { from: all[0].date, to: addDays(all[0].date, 89) } : null;
+  }
+  function syncOv() {
+    $('ovOn').checked = ovOn; $('ovFields').hidden = !ovOn;
+    $('ovFrom').value = ovFrom || ''; $('ovTo').value = ovTo || '';
+  }
+  $('ovOn').addEventListener('change', function () {
+    ovOn = this.checked;
+    if (ovOn && !(ovFrom && ovTo)) {
+      var g = ovGuess();
+      if (g) {
+        ovFrom = g.from; ovTo = g.to;
+        if (g.start) { customFrom = g.start; customTo = g.end; currentRange = 'custom'; saveRange(); syncRangeUi(); }   // line the current course up from its first day
+      }
+    }
+    syncOv(); renderChart();
+  });
+  ['ovFrom', 'ovTo'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      var f = $('ovFrom').value, t = $('ovTo').value;
+      if (isoDate(f) && isoDate(t) && f > t) { $('ovNote').textContent = 'The From date must not be after the To date.'; return; }
+      ovFrom = isoDate(f) ? f : null; ovTo = isoDate(t) ? t : null;
+      renderChart();
+    });
+  });
+  syncOv();
   $('pager').addEventListener('click', function (ev) {
     var b = ev.target.closest('button[data-page]');
     if (!b || b.disabled) return;
