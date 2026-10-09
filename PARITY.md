@@ -50,10 +50,11 @@ Legend: yes, no, partial.
 | Doctor report (PDF, summary, charts) | no (removed on purpose) | no (removed on purpose) | Neither app has a report any more: to share, create a doctor link (account required); the doctor sees the web dashboard read-only. The web "Share with doctor" button opens a dialog; the iPhone has the same in Settings > Cloud Sync. Intentional |
 | Progress photos and gallery | no | yes | |
 | App lock (Face ID) | no | yes | |
+| Read weight from a photo of a dial scale | no | yes | Device camera plus Vision OCR, on the phone only (`DialReader.swift`, `DialReadSheet.swift`, `DialReaderTests`); the photo is not kept or uploaded and the result lands in the ordinary weight field |
 | Light/dark | yes | yes | |
 | Install as app / PWA | yes | n/a | |
 | Overlay another period on the chart (lined up by days since each start) | yes | no | Web only by the owner's decision (2026-10-09), not a device gap; the iOS app was deliberately left alone. Port it when asked |
 
 ## Deliberate gaps
 
-Photos, app lock and JSON backup stay iOS-only and PWA install stays web-only (device features). There is nothing else outstanding: every other feature is in both apps. Anything new goes in both in the same session, without asking.
+Photos, scale-photo reading, app lock and JSON backup stay iOS-only and PWA install stays web-only (device features). There is nothing else outstanding: every other feature is in both apps. Anything new goes in both in the same session, without asking.
