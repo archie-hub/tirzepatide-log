@@ -271,8 +271,7 @@ test('owner: a doctor link can start from a date, so older entries are never sha
   await expect(page.locator('#shList li')).toContainText('entries from');
   expect(b.posts[b.posts.length - 1].from).toBe('2026-03-05');
   const token = [...b.shares.keys()][0];
-  await page.goto(APP + '#share=' + token);
-  await page.reload();
+  await page.goto(APP + '#share=' + token);   // same tab: only the hash changes, the app must switch itself to the shared view
   await expect(page.locator('#subtitle')).toContainText('1 entries, Mar 8, 2026');
 });
 

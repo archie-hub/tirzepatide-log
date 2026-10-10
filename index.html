@@ -756,6 +756,11 @@
   // browser's own log, settings or sync state, even if the doctor uses the app themselves.
   function topHash() { try { if (window.top !== window) return window.top.location.hash; } catch (e) {} return location.hash; }
   var SHARE_TOKEN = (/^#share=([A-Za-z0-9_-]{43})$/.exec(topHash()) || [])[1] || null;
+  // A doctor link pasted into a tab that already has the app open only changes the hash: reload so it shows the shared view, not this log
+  window.addEventListener('hashchange', function () {
+    var t = (/^#share=([A-Za-z0-9_-]{43})$/.exec(topHash()) || [])[1] || null;
+    if (t !== SHARE_TOKEN) location.reload();
+  });
   // https://tirzepatide.phoe.be/demo is the whole app filled with made-up data, open to anyone. Like the doctor view it never reads or writes
   // this browser's own log, settings or sign-in; edits there live in memory only and vanish on reload.
   var DEMO = !SHARE_TOKEN && /^\/demo(\.html)?\/?$/.test(location.pathname);
