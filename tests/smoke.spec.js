@@ -564,6 +564,23 @@ test('progress: percent lost and the week on treatment on the Change card', asyn
   await expect(page.locator('#progress')).toHaveCount(0);    // there is no separate progress panel
 });
 
+test('progress: the Change card can be measured from a chosen date (Edit link)', async ({ page }) => {
+  await pasteProgress(page);
+  const card = page.locator('#stats .stat', { hasText: 'Change since' });
+  await card.locator('[data-settings]').click();
+  await expect(page.locator('#sChangeFrom')).toBeFocused();
+  await page.fill('#sChangeFrom', '2026-08-15');   // first weigh-in on or after is 09-01 (179 lbs)
+  await page.locator('#setSave').click();
+  const c2 = page.locator('#stats .stat', { hasText: 'Change since' });
+  await expect(c2).toContainText('Sep 1');
+  await expect(c2).toContainText('-4.0');            // 179 -> 175
+  await expect(c2).toContainText('2.2% lost');
+  await card.locator('[data-settings]').click();
+  await page.fill('#sChangeFrom', '');
+  await page.locator('#setSave').click();
+  await expect(page.locator('#stats .stat', { hasText: 'Change since' })).toContainText('12.5% lost');
+});
+
 test('progress: milestones and lost at week 12 are also in More insights', async ({ page }) => {
   await pasteProgress(page);
   await page.locator('#insightsPanel > summary').click();
