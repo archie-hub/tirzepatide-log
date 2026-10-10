@@ -3079,7 +3079,7 @@
   /* doctor links: create, copy, revoke (the doctor's view is the read-only mode of this same page, see loadShare) */
   function shareUrl(token) { return redirectUri() + '#share=' + token; }
   function renderShares(list) {
-    $('shList').innerHTML = list.map(function (x) {
+    $('shList').innerHTML = list.slice().sort(function (p, q) { return q.createdAt - p.createdAt; }).map(function (x) {   // newest first
       return '<li><span>Created ' + esc(new Date(x.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })) + (x.notes ? ', with notes' : ', without notes') + (x.from ? ', entries from ' + esc(fmtDate(x.from)) : ', all entries') + '</span>' +
         '<button type="button" class="small" data-copy="' + esc(x.token) + '">Copy link</button>' +
         '<button type="button" class="small danger" data-revoke="' + esc(x.token) + '">Revoke</button>' +

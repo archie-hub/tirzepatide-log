@@ -253,9 +253,9 @@ test('owner: create a doctor link (copied), see it listed, revoke it', async ({ 
   await page.locator('#shNotes').check();
   await page.locator('#shCreate').click();
   await expect(page.locator('#shList li')).toHaveCount(2);
-  await expect(page.locator('#shList li').nth(1)).toContainText('with notes');
+  await expect(page.locator('#shList li').first()).toContainText('with notes');   // newest first
   page.once('dialog', (d) => d.accept());
-  await page.locator('#shList li').first().getByRole('button', { name: 'Revoke' }).click();
+  await page.locator('#shList li').nth(1).getByRole('button', { name: 'Revoke' }).click();
   await expect(page.locator('#shList li')).toHaveCount(1);
   expect(b.shares.has(SHARE_TOKEN)).toBe(false);
 });
