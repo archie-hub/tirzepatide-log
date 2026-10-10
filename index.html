@@ -694,7 +694,9 @@
     <h2 id="shTitle">Share with your doctor</h2>
     <button type="button" class="small" id="shClose">Close</button>
   </div>
-  <p class="note" style="margin-top:0">Create a link and send it to your doctor. They open it in any browser, with no account, and see your log read-only on a web page. It always shows your latest entries and never expires. Revoke it to stop it working.</p>
+  <p class="note" style="margin-top:0">Create a link and send it to your doctor. They open it in any browser, with no account, and see your log read-only on a web page. It always shows your latest entries (from the date you choose) and never expires. Revoke it to stop it working.</p>
+  <label><span>Show entries from (date), optional</span><input type="date" id="shFrom"></label>
+  <p class="note" style="margin-top:0">Earlier entries are never sent to your doctor. Your goal weight and start weight (if set in Settings) are shown. Blank = everything.</p>
   <label class="radio"><input type="checkbox" id="shNotes"> <span>Include my notes (comments and food notes)</span></label>
   <div class="actions"><button type="button" class="primary" id="shCreate">Create doctor link</button></div>
   <p class="note" id="shMsg" role="status"></p>
@@ -3073,7 +3075,7 @@
   function shareUrl(token) { return redirectUri() + '#share=' + token; }
   function renderShares(list) {
     $('shList').innerHTML = list.map(function (x) {
-      return '<li><span>Created ' + esc(new Date(x.createdAt).toLocaleDateString()) + (x.notes ? ', with notes' : ', without notes') + '</span>' +
+      return '<li><span>Created ' + esc(new Date(x.createdAt).toLocaleDateString()) + (x.notes ? ', with notes' : ', without notes') + (x.from ? ', entries from ' + esc(fmtDate(x.from)) : ', all entries') + '</span>' +
         '<button type="button" class="small" data-copy="' + esc(x.token) + '">Copy link</button>' +
         '<button type="button" class="small danger" data-revoke="' + esc(x.token) + '">Revoke</button>' +
         '<code>' + esc(shareUrl(x.token)) + '</code></li>';
@@ -3086,7 +3088,10 @@
   }
   function shSay(t) { $('shMsg').textContent = t || ''; }   // messages inside the share dialog (the page behind it is covered)
   var shareDlg = $('shareDlg');
-  $('shareOpen').addEventListener('click', function () { shSay(''); renderShares([]); refreshShares(); if (!shareDlg.open) shareDlg.showModal(); });
+  $('shareOpen').addEventListener('click', function () { shSay('');
+    // start from the Change card's date
+    $('shFrom').value = /^\d{4}-\d{2}-\d{2}$/.test(settings.changeFrom || '') ? settings.changeFrom : '';
+    renderShares([]); refreshShares(); if (!shareDlg.open) shareDlg.showModal(); });
   $('shClose').addEventListener('click', function () { if (shareDlg.open) shareDlg.close(); });
   $('settingsOpen').addEventListener('click', function () { openSettings(); });
   function copyText(t) {
@@ -3094,7 +3099,10 @@
     return Promise.resolve(false);
   }
   $('shCreate').addEventListener('click', function () {
-    cloudApi('POST', '/shares', { notes: $('shNotes').checked }).then(function (r) {
+    var body = { notes: $('shNotes').checked }, from = $('shFrom').value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(from)) body.from = from;
+    else if (from) { shSay('Date not understood. Pick a date or leave it blank.'); return; }
+    cloudApi('POST', '/shares', body).then(function (r) {
       return copyText(shareUrl(r.token)).then(function (ok) {
         shSay(ok ? 'Doctor link created and copied. Paste it into an email or message.' : 'Doctor link created. Use Copy link below.');
         return refreshShares();

@@ -260,6 +260,22 @@ test('owner: create a doctor link (copied), see it listed, revoke it', async ({ 
   expect(b.shares.has(SHARE_TOKEN)).toBe(false);
 });
 
+test('owner: a doctor link can start from a date, so older entries are never shared', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  sampleLog(b);   // entries on 2026-03-01 and 2026-03-08 (a third day is deleted)
+  await page.goto(APP);
+  await signIn(page);
+  await page.locator('#shareOpen').click();
+  await page.fill('#shFrom', '2026-03-05');
+  await page.locator('#shCreate').click();
+  await expect(page.locator('#shList li')).toContainText('entries from');
+  expect(b.posts[b.posts.length - 1].from).toBe('2026-03-05');
+  const token = [...b.shares.keys()][0];
+  await page.goto(APP + '#share=' + token);
+  await page.reload();
+  await expect(page.locator('#subtitle')).toContainText('1 entries, Mar 8, 2026');
+});
+
 test('a signed-out visitor never sees the doctor link controls', async ({ page }) => {
   const b = backend(); await b.install(page);
   await page.goto(APP);

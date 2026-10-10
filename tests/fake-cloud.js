@@ -53,7 +53,7 @@ function backend({ invited = true, dist = false } = {}) {
       if (tokenIn) {   // the public route: no login, the token is the credential (same rules as the Lambda)
         const sh = s.shares.get(tokenIn[1]);
         if (!sh || !invited) return send(404, { error: 'not found' });
-        const entries = [...s.entries.values()].filter((e) => !e.deleted).sort((a, b) => (a.date < b.date ? -1 : 1)).map((e) => {
+        const entries = [...s.entries.values()].filter((e) => !e.deleted && (!sh.from || e.date >= sh.from)).sort((a, b) => (a.date < b.date ? -1 : 1)).map((e) => {
           const { updatedAt, syncedAt, comments, foodNotes, deleted, ...rest } = e;
           return sh.notes ? { ...rest, ...(comments ? { comments } : {}), ...(foodNotes ? { foodNotes } : {}) } : rest;
         });
@@ -65,7 +65,9 @@ function backend({ invited = true, dist = false } = {}) {
       if (u.pathname === '/shares' && req.method() === 'GET') return send(200, { shares: [...s.shares.entries()].map(([token, v]) => ({ token, ...v })) });
       if (u.pathname === '/shares' && req.method() === 'POST') {
         const token = 'T' + String(s.shares.size + 1).padStart(2, '0') + 'x'.repeat(40);
-        s.shares.set(token, { createdAt: Date.now(), notes: !!JSON.parse(req.postData() || '{}').notes });
+        const pb = JSON.parse(req.postData() || '{}');
+        s.posts = (s.posts || []).concat([pb]);
+        s.shares.set(token, { createdAt: Date.now(), notes: !!pb.notes, ...(pb.from ? { from: pb.from } : {}) });
         return send(200, { token, ...s.shares.get(token) });
       }
       const del = u.pathname.match(/^\/shares\/(.+)$/);
