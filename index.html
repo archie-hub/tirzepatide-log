@@ -1425,6 +1425,15 @@
     placeCards();
   }
 
+  // Weigh-ins inside the chart's selected range (same window rule as buildChart), for the sparkline
+  function inChartRange(w) {
+    var o = rangeOpts(), lastAll = w.length ? w[w.length - 1].date : null;
+    return w.filter(function (e) {
+      return (o.from || o.to) ? ((!o.from || e.date >= o.from) && (!o.to || e.date <= o.to))
+                              : (!o.days || dayDiff(e.date, lastAll) <= o.days);
+    });
+  }
+
   function renderStats() {
     var s = sorted(), cards = [];
     var w = s.filter(function (e) { return e.weight !== null; });
@@ -1432,7 +1441,7 @@
     var sug = s.filter(function (e) { return e.sugar !== null; });
     if (w.length) {
       var first = changeRef(w), last = w[w.length - 1], d = last.weight - first.weight, gi = goalInfo(w);
-      var wtCard = { id: 'wt', label: 'Latest weight (' + WUA() + ')', color: '#0ea5a4', extra: spark(w.slice(-40).map(function (e) { return dw(e.weight); })) };
+      var wtCard = { id: 'wt', label: 'Latest weight (' + WUA() + ')', color: '#0ea5a4', extra: spark(inChartRange(w).map(function (e) { return dw(e.weight); })) };
       if (isUK()) wtCard.text = stLb(last.weight, 1, true); else { wtCard.val = dw(last.weight); wtCard.dec = 1; }
       cards.push(wtCard);
       if (!gi) {
@@ -2791,7 +2800,7 @@
           currentRange = 'custom';
         }
       } else currentRange = parseInt(b.dataset.days, 10);
-      saveRange(); syncRangeUi(); renderChart();
+      saveRange(); syncRangeUi(); renderChart(); renderStats();
     });
   });
   // From/To dates and the step buttons; the window may not be backwards
@@ -2800,7 +2809,7 @@
     if (from > to) { $('customNote').textContent = 'The From date must not be after the To date.'; return false; }
     customFrom = from; customTo = to; currentRange = 'custom';
     $('customNote').textContent = '';
-    saveRange(); syncRangeUi(); renderChart();
+    saveRange(); syncRangeUi(); renderChart(); renderStats();
     return true;
   }
   ['cFrom', 'cTo'].forEach(function (id) {
@@ -2833,7 +2842,7 @@
       var g = ovGuess();
       if (g) {
         ovFrom = g.from; ovTo = g.to;
-        if (g.start) { customFrom = g.start; customTo = g.end; currentRange = 'custom'; saveRange(); syncRangeUi(); }   // line the current course up from its first day
+        if (g.start) { customFrom = g.start; customTo = g.end; currentRange = 'custom'; saveRange(); syncRangeUi(); renderStats(); }   // line the current course up from its first day
       }
     }
     syncOv(); renderChart();
