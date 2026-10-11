@@ -114,6 +114,18 @@
   #insights h3 { margin: 16px 0 6px; font-size: 14px; }
   #insights svg.bars { width: 100%; max-width: 480px; height: auto; display: block; }
   #insights svg.bars text { fill: var(--muted); font-size: 11px; }
+  #calPanel h2 { margin: 0 0 10px; }
+  .cal-wrap { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 18px; align-items: end; }
+  .cal-sum .big { font-size: 30px; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; color: #8b5cf6; }
+  .cal-sum .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .cal-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; }
+  .cal-col { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+  .cal-col .n { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 14px; }
+  .cal-col .track { height: 84px; width: 100%; max-width: 44px; display: flex; align-items: flex-end; background: var(--line); border-radius: 6px; overflow: hidden; opacity: .9; }
+  .cal-col .bar { width: 100%; background: #8b5cf6; border-radius: 6px 6px 0 0; }
+  .cal-col .d { font-size: 11px; color: var(--muted); }
+  .cal-col.today .d { color: var(--ink); font-weight: 700; }
+  @media (max-width: 560px) { .cal-wrap { grid-template-columns: 1fr; } }
   .fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; border-radius: 8px; }
   .fold > summary::-webkit-details-marker { display: none; }
   .fold > summary h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
@@ -520,6 +532,8 @@
   <div class="notice warn" id="fastNote" role="status" hidden></div>
 
   <section class="plan" id="plan" aria-label="Next dose and BMI"></section>
+
+  <section class="panel" id="calPanel" aria-label="Calories, last 7 days" hidden></section>
 
   <section class="panel" id="chartPanel">
     <div class="chart-top">
@@ -1165,6 +1179,19 @@
     function avg(x) { return x.reduce(function (p, q) { return p + q; }, 0) / x.length; }
     return { now: avg(a), before: avg(b), change: avg(a) - avg(b) };
   }
+  // Calories over the 7 days ending `end` (iOS: Progress.swift calorieWeek); avg is per logged day
+  function calorieWeek(list, end) {
+    var by = {}, any = false, days = [], tot = 0, n = 0, ptot = 0, pn = 0, i, d;
+    list.forEach(function (e) { if (e.cal !== null && e.cal !== undefined) { by[e.date] = e.cal; any = true; } });
+    for (i = 6; i >= 0; i--) {
+      d = addDays(end, -i);
+      var c = by.hasOwnProperty(d) ? by[d] : null;
+      days.push({ date: d, cal: c });
+      if (c !== null) { tot += c; n++; }
+    }
+    for (i = 7; i <= 13; i++) { d = addDays(end, -i); if (by.hasOwnProperty(d)) { ptot += by[d]; pn++; } }
+    return { any: any, days: days, n: n, total: tot, avg: n ? tot / n : null, prevAvg: pn ? ptot / pn : null };
+  }
   function consistency(w) {
     if (!w.length) return null;
     var gaps = [], longest = null, dates = {};
@@ -1287,6 +1314,34 @@
     });
     return '<svg class="bars" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Average weight by days since injection, relative to the 7-day average">' +
       '<line x1="8" x2="' + (W - 8) + '" y1="' + mid + '" y2="' + mid + '" stroke="var(--line)"/>' + g + '</svg>';
+  }
+  function renderCalories() {
+    var el = $('calPanel'), t = today(), cw = calorieWeek(sorted(), t);
+    el.hidden = !cw.any;
+    if (!cw.any) return;
+    function num(v) { return Math.round(v).toLocaleString(); }
+    var max = 1;
+    cw.days.forEach(function (d) { if (d.cal !== null && d.cal > max) max = d.cal; });
+    var sum;
+    if (cw.n) {
+      var vs = '';
+      if (cw.prevAvg !== null) {
+        var df = Math.round(cw.avg - cw.prevAvg);
+        vs = df === 0 ? 'Same as the 7 days before' : num(Math.abs(df)) + ' ' + (df < 0 ? 'less' : 'more') + ' a day than the 7 days before';
+      }
+      sum = '<div class="big">' + num(cw.avg) + '</div><div class="sub">average per logged day</div>' +
+        '<div class="sub">' + num(cw.total) + ' total over ' + cw.n + (cw.n === 1 ? ' day' : ' days') + ' logged</div>' + (vs ? '<div class="sub">' + esc(vs) + '</div>' : '');
+    } else {
+      sum = '<div class="big">&ndash;</div><div class="sub">No calories logged in the last 7 days</div>';
+    }
+    var bars = cw.days.map(function (d) {
+      var isT = d.date === t, nm = isT ? 'Today' : DAY_NAMES[weekday(d.date)].slice(0, 3);
+      return '<div class="cal-col' + (isT ? ' today' : '') + '" title="' + esc(fmtDate(d.date) + ': ' + (d.cal === null ? 'not logged' : num(d.cal) + ' kcal')) + '">' +
+        '<span class="n">' + (d.cal === null ? '' : num(d.cal)) + '</span>' +
+        '<div class="track"><div class="bar" style="height:' + (d.cal === null ? 0 : Math.max(3, Math.round(d.cal / max * 100))) + '%"></div></div>' +
+        '<span class="d">' + esc(nm) + '</span></div>';
+    }).join('');
+    el.innerHTML = '<h2>Calories, last 7 days</h2><div class="cal-wrap"><div class="cal-sum">' + sum + '</div><div class="cal-bars">' + bars + '</div></div>';
   }
   function renderInsights() {
     var all = sorted(), w = all.filter(function (e) { return e.weight !== null; }), el = $('insightsPanel');
@@ -2232,8 +2287,8 @@
     $('ratePanel').hidden = empty;
     $('entriesPanel').hidden = empty;
     renderHero();
-    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderInsights(); }
-    else { $('plateau').hidden = true; $('fastNote').hidden = true; $('insightsPanel').hidden = true; }
+    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderCalories(); renderInsights(); }
+    else { $('calPanel').hidden = true; $('plateau').hidden = true; $('fastNote').hidden = true; $('insightsPanel').hidden = true; }
   }
 
   /* ---------- form ---------- */

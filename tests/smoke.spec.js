@@ -1077,3 +1077,24 @@ test('overlay another period: turning it on finds the earlier course before a lo
   await expect(page.locator('#cTo')).toHaveValue('2026-06-30');
   await expect(page.locator('#legend .chip[style*="8b5cf6"]')).toHaveCount(1);
 });
+
+test('calories panel: last 7 days, average per logged day, change on the 7 days before', async ({ page }) => {
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  // today 2000, 1 day ago 1800, 3 days ago 2200 -> avg 2000, total 6000 over 3 days; 8 days ago 1500, 10 days ago 1700 -> before avg 1600
+  const rows = ['Date,Dosage (mg),Weight (lbs),Calories'];
+  [[12, 200, ''], [10, 199, 1700], [8, 198, 1500], [3, 197, 2200], [1, 196, 1800], [0, 195, 2000]].forEach(([n, w, c]) => rows.push(iso(n) + ',2.5,' + w + ',' + c));
+  await pasteCsv(page, rows.join('\n'));
+  const p = page.locator('#calPanel');
+  await expect(p).toBeVisible();
+  await expect(p).toContainText('Calories, last 7 days');
+  await expect(p.locator('.big')).toHaveText('2,000');
+  await expect(p).toContainText('6,000 total over 3 days logged');
+  await expect(p).toContainText('400 more a day than the 7 days before');
+  await expect(p.locator('.cal-col')).toHaveCount(7);
+  await expect(p.locator('.cal-col.today .n')).toHaveText('2,000');
+});
+
+test('calories panel: hidden until some calories are logged', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await expect(page.locator('#calPanel')).toBeHidden();
+});
