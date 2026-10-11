@@ -1125,7 +1125,9 @@
     var pts = vals.map(function (v, i) { return (2 + i / (vals.length - 1) * 92).toFixed(1) + ',' + (30 - (v - lo) / r * 26).toFixed(1); });
     var last = pts[pts.length - 1].split(',');
     return '<svg class="spark" viewBox="0 0 96 34" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" points="' +
-      pts.join(' ') + '"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="currentColor"/></svg>';
+      pts.join(' ') + '"/>' +
+      pts.slice(0, -1).map(function (p) { var c = p.split(','); return '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="1.6" fill="currentColor"/>'; }).join('') +
+      '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="currentColor"/></svg>';
   }
   // Goal progress and projection text for weights w (sorted, with weight); null when no goal is set
   /* ---------- progress maths ---------- */
