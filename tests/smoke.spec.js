@@ -1087,6 +1087,10 @@ test('calories panel: last 7 days, average per logged day, change on the 7 days 
   const p = page.locator('#calPanel');
   await expect(p).toBeVisible();
   await expect(p).toContainText('Calories, last 7 days');
+  // minimised: only the average shows; the arrow opens the bars
+  await expect(p.locator('.cal-avg')).toContainText('2,000');
+  await expect(p.locator('.cal-wrap')).toBeHidden();
+  await p.locator('summary').click();
   await expect(p.locator('.big')).toHaveText('2,000');
   await expect(p).toContainText('6,000 total over 3 days logged');
   await expect(p).toContainText('400 more a day than the 7 days before');

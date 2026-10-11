@@ -114,7 +114,8 @@
   #insights h3 { margin: 16px 0 6px; font-size: 14px; }
   #insights svg.bars { width: 100%; max-width: 480px; height: auto; display: block; }
   #insights svg.bars text { fill: var(--muted); font-size: 11px; }
-  #calPanel h2 { margin: 0 0 10px; }
+  #calPanel .cal-avg { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #calPanel .cal-avg b { color: #8b5cf6; font-size: 15px; }
   .cal-wrap { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 18px; align-items: end; }
   .cal-sum .big { font-size: 30px; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; color: #8b5cf6; }
   .cal-sum .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
@@ -533,7 +534,10 @@
 
   <section class="plan" id="plan" aria-label="Next dose and BMI"></section>
 
-  <section class="panel" id="calPanel" aria-label="Calories, last 7 days" hidden></section>
+  <details class="panel fold" id="calPanel" hidden>
+    <summary><h2>Calories, last 7 days</h2><span class="cal-avg"></span><span class="fold-hint"></span></summary>
+    <div id="calBody"></div>
+  </details>
 
   <section class="panel" id="chartPanel">
     <div class="chart-top">
@@ -1341,7 +1345,8 @@
         '<div class="track"><div class="bar" style="height:' + (d.cal === null ? 0 : Math.max(3, Math.round(d.cal / max * 100))) + '%"></div></div>' +
         '<span class="d">' + esc(nm) + '</span></div>';
     }).join('');
-    el.innerHTML = '<h2>Calories, last 7 days</h2><div class="cal-wrap"><div class="cal-sum">' + sum + '</div><div class="cal-bars">' + bars + '</div></div>';
+    $('calBody').innerHTML = '<div class="cal-wrap"><div class="cal-sum">' + sum + '</div><div class="cal-bars">' + bars + '</div></div>';
+    el.querySelector('.cal-avg').innerHTML = cw.n ? '<b>' + num(cw.avg) + '</b> avg per logged day' : 'none logged';
   }
   function renderInsights() {
     var all = sorted(), w = all.filter(function (e) { return e.weight !== null; }), el = $('insightsPanel');
