@@ -280,20 +280,20 @@ test('BMI chart tab appears once height is set', async ({ page }) => {
   await expect(page.locator('#tab-bmi')).toBeHidden();
 });
 
-test('entries table shows 5 per page with a pager', async ({ page }) => {
+test('entries table shows 7 per page with a pager', async ({ page }) => {
   await importSample(page);
   await expandPanels(page);
-  await expect(page.locator('#rows tr')).toHaveCount(5);
+  await expect(page.locator('#rows tr')).toHaveCount(7);
   await expect(page.locator('#pager')).toBeVisible();
   const first = await page.locator('#rows tr').first().innerText();
   await expect(page.locator('#pager [data-page]').filter({ hasText: 'Previous' })).toBeDisabled();
   await page.locator('#pager button', { hasText: 'Next' }).click();
-  await expect(page.locator('#rows tr')).toHaveCount(5);
+  await expect(page.locator('#rows tr')).toHaveCount(7);
   expect(await page.locator('#rows tr').first().innerText()).not.toBe(first);
   await expect(page.locator('#pager [aria-current="page"]')).toHaveText('2');
   await page.locator('#pager button[aria-label^="Page "]').last().click();
   await expect(page.locator('#pager button', { hasText: 'Next' })).toBeDisabled();
-  expect(await page.locator('#rows tr').count()).toBeLessThanOrEqual(5);
+  expect(await page.locator('#rows tr').count()).toBeLessThanOrEqual(7);
 });
 
 test('backup note, undo delete and keyboard chart reading', async ({ page }) => {
