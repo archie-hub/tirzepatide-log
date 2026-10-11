@@ -1151,3 +1151,34 @@ test('layout: sections can be dragged into place by their grips', async ({ page 
   await page.reload();
   expect((await ids())[0]).toBe('ratePanel');
 });
+
+test('layout: cards can be dragged between the two card rows, hidden, and survive a reload and a re-render', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await page.locator('#layoutOpen').click();
+  await page.locator('#layDrag').click();
+  const grip = page.locator('#plan .stat.bmi > .card-ctl .grip');
+  await grip.scrollIntoViewIfNeeded();
+  const g = await grip.boundingBox();
+  const first = await page.locator('#stats [data-card="wt"]').boundingBox();
+  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(first.x + 20, first.y + first.height / 2, { steps: 12 });
+  await page.mouse.move(first.x + 10, first.y + first.height / 2, { steps: 3 });
+  await page.mouse.up();
+  await expect(page.locator('#stats .stat.bmi')).toHaveCount(1);
+  await expect(page.locator('#plan .stat.bmi')).toHaveCount(0);
+  // hide the glucose-free "goal" card
+  await page.locator('#stats [data-card="goal"] > .card-ctl .card-toggle').click();
+  await expect(page.locator('#stats [data-card="goal"]')).toHaveClass(/user-hidden/);
+  await page.locator('#arrDone').click();
+  await expect(page.locator('#stats [data-card="goal"]')).toBeHidden();
+  // a re-render (changing units) keeps the cards where they are
+  await page.reload();
+  await expect(page.locator('#stats .stat.bmi')).toHaveCount(1);
+  await expect(page.locator('#stats [data-card="goal"]')).toBeHidden();
+  await page.locator('#layoutOpen').click();
+  await page.locator('#layReset').click();
+  await page.locator('#layClose').click();
+  await expect(page.locator('#plan .stat.bmi')).toHaveCount(1);
+  await expect(page.locator('#stats [data-card="goal"]')).toBeVisible();
+});

@@ -178,13 +178,13 @@
 
   /* ---- plan row: current dose, next dose, days covered, BMI (same cards as the stats row) ---- */
   .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-  .plan .stat .l { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .plan .stat { container-type: inline-size; }
-  .plan .stat .l { white-space: nowrap; }
+  .stat.pc .l { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .stat.pc { container-type: inline-size; }
+  .stat.pc .l { white-space: nowrap; }
   .linkish { background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
   .linkish:hover { border: 0; color: var(--ink); }
-  .stack-box { container-type: inline-size; min-width: 0; }
-  .plan .stat.mini { container-type: normal; }   /* the tiles answer to the slot's width, not their own */
+  .stack-box { container-type: inline-size; min-width: 0; position: relative; }
+  .stat.pc.mini { container-type: normal; }   /* the tiles answer to the slot's width, not their own */
   .stack { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; height: 100%; }
   .stat.mini { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 14px; min-height: 0; }
   .stat.mini .l { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -368,6 +368,15 @@
     width: calc(100% - 32px); max-width: 760px; max-height: calc(100vh - 32px); padding: 18px; overflow: auto; box-shadow: var(--shadow); }
   dialog::backdrop { background: rgba(8,15,28,.55); backdrop-filter: blur(2px); }
   .user-hidden { display: none !important; }
+  .stats:empty, .plan:empty { display: none; }
+  body.arranging #stats:empty:not([hidden]), body.arranging #plan:empty:not([hidden]) { display: block; min-height: 56px; border: 2px dashed var(--line); border-radius: 12px; }
+  .card-ctl { display: none; }
+  body.arranging .card-ctl { display: flex; position: absolute; top: 6px; right: 6px; gap: 4px; z-index: 3; }
+  body.arranging [data-card] { outline: 2px dashed var(--accent); outline-offset: 2px; }
+  body.arranging [data-card].user-hidden { display: block !important; opacity: .4; }
+  body.arranging [data-card].card-drag { opacity: .7; box-shadow: 0 8px 22px rgba(0,0,0,.3); }
+  .card-ctl button { padding: 1px 7px; font-size: 13px; line-height: 1.5; touch-action: none; }
+  .card-ctl .grip { cursor: grab; }
   .arr-handle { display: none; align-items: center; gap: 10px; padding: 8px 12px; border: 2px dashed var(--accent); border-radius: 12px; background: var(--panel, #fff); font-weight: 650; touch-action: none; user-select: none; }
   body.arranging .arr-handle { display: flex; }
   .arr-handle.na { display: none !important; }
@@ -526,7 +535,7 @@
     <button type="button" id="heroOut" hidden>Sign out</button>
   </header>
   <div id="msg" role="status"></div>
-  <div id="arrBar" role="status"><span>Drag the ☰ grips to reorder sections. Hidden ones can be shown again.</span><button type="button" id="arrDone">Done</button></div>
+  <div id="arrBar" role="status"><span>Drag the ☰ grips to move sections and cards, even from one card row to the other. Hidden ones can be shown again.</span><button type="button" id="arrDone">Done</button></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" id="toastUndo">Undo</button></div>
 
   <section class="panel" id="emptyPanel" hidden>
@@ -1400,6 +1409,22 @@
     $('fastNote').hidden = !ff;
     if (ff) $('fastNote').textContent = fastText(ff);
   }
+  // Cards (the tiles of both card rows) can be dragged between the two rows, so a render never owns a row:
+  // it replaces only its own cards (by data-card key) and placeCards() puts every card where the layout says.
+  var STAT_KEYS = ['wt', 'goal', 'chg', 'bs'], PLAN_KEYS = ['cur', 'next', 'stack', 'days', 'bp', 'bmi'];
+  function tag(key, html) { return html.replace('<div', '<div data-card="' + key + '"'); }
+  function onCards(type, fn) { $('stats').addEventListener(type, fn); $('plan').addEventListener(type, fn); }
+  function setCards(host, keys, html) {
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    Array.prototype.slice.call(document.querySelectorAll('#stats > [data-card], #plan > [data-card]')).forEach(function (el) {
+      if (keys.indexOf(el.getAttribute('data-card')) >= 0) el.parentNode.removeChild(el);
+    });
+    Array.prototype.slice.call(host.children).forEach(function (c) { if (!c.hasAttribute('data-card')) host.removeChild(c); });
+    Array.prototype.slice.call(tmp.children).forEach(function (c) { host.appendChild(c); });
+    placeCards();
+  }
+
   function renderStats() {
     var s = sorted(), cards = [];
     var w = s.filter(function (e) { return e.weight !== null; });
@@ -1427,14 +1452,14 @@
         extra: '<span style="position:absolute;right:12px;bottom:12px;line-height:0">' + sugarFace(z, 30) + '</span>' });
     }
 
-    $('stats').innerHTML = cards.length ? cards.map(function (c) {
+    setCards($('stats'), STAT_KEYS, cards.length ? cards.map(function (c) {
       var body = c.text !== undefined ? esc(c.text)
         : '<span data-id="' + c.id + '" data-val="' + c.val + '" data-dec="' + c.dec + '" data-sign="' + (c.sign ? 1 : 0) + '">' + fmtVal(c.val, c.dec, c.sign) + '</span>';
-      return '<div class="stat' + (c.ring !== undefined ? ' has-ring' : '') + '" style="--c:' + c.color + '">' + (c.ring !== undefined ? '<span class="stat-ring">' + ring(c.ring) + '</span>' : '') + (c.extra && c.id !== 'goal' ? c.extra : '') + '<div class="l">' + esc(c.label) + (c.edit ? ' <button type="button" class="linkish" data-settings' + (c.focus ? '="' + c.focus + '"' : '') + ' aria-label="Edit ' + esc(c.editLabel || 'goal') + '">Edit</button>' : '') + '</div>' +
+      return '<div data-card="' + c.id + '" class="stat' + (c.ring !== undefined ? ' has-ring' : '') + '" style="--c:' + c.color + '">' + (c.ring !== undefined ? '<span class="stat-ring">' + ring(c.ring) + '</span>' : '') + (c.extra && c.id !== 'goal' ? c.extra : '') + '<div class="l">' + esc(c.label) + (c.edit ? ' <button type="button" class="linkish" data-settings' + (c.focus ? '="' + c.focus + '"' : '') + ' aria-label="Edit ' + esc(c.editLabel || 'goal') + '">Edit</button>' : '') + '</div>' +
         '<div class="v' + (c.text !== undefined ? ' txt' : '') + '">' + (c.arrow || '') + body + '</div>' + (c.sub ? '<div class="sub">' + esc(c.sub) + '</div>' : '') + (c.id === 'goal' && c.extra ? c.extra : '') + '</div>';
-    }).join('') : '<div class="empty" style="grid-column:1/-1">No data yet.</div>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1">No data yet.</div>');
 
-    Array.prototype.forEach.call($('stats').querySelectorAll('span[data-id]'), function (el) {
+    Array.prototype.forEach.call(document.querySelectorAll('.stats span[data-id], .plan span[data-id]'), function (el) {
       var id = el.dataset.id, to = parseFloat(el.dataset.val), dec = +el.dataset.dec, sign = el.dataset.sign === '1';
       var from = statCache.hasOwnProperty(id) ? statCache[id] : 0;
       statCache[id] = to;
@@ -1503,10 +1528,10 @@
     var cards = [], d = doseInfo(), allE = sorted(), days = '', bpMini = '';
     // Small panel: a compact strip in narrow cells, a near-square tile (label, value, note) when there is room
     function mini(c, label, note, val, tip) {
-      return '<div class="stat mini" style="--c:' + c + '"' + (tip ? ' title="' + esc(tip) + '"' : '') + '><div class="l"><span>' + esc(label) + '</span></div><div class="v">' + esc(val) + '</div><div class="sub">' + esc(note) + '</div></div>';
+      return '<div class="stat pc mini" style="--c:' + c + '"' + (tip ? ' title="' + esc(tip) + '"' : '') + '><div class="l"><span>' + esc(label) + '</span></div><div class="v">' + esc(val) + '</div><div class="sub">' + esc(note) + '</div></div>';
     }
     function card(c, label, link, val, sub, extra) {
-      return '<div class="stat" style="--c:' + c + '"><div class="l"><span>' + esc(label) + '</span>' + (link || '') + '</div>' +
+      return '<div class="stat pc" style="--c:' + c + '"><div class="l"><span>' + esc(label) + '</span>' + (link || '') + '</div>' +
         '<div class="v' + (label === 'Next dose' ? ' day' : '') + '">' + esc(val) + '</div>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + (extra || '') + '</div>';
     }
     if (d) {
@@ -1516,10 +1541,10 @@
       for (var i = 0; i < 7; i++) strip += '<span' + (i < filled ? ' class="on" style="background:hsl(' + Math.round(140 - i * 140 / 6) + ',72%,45%)"' : '') + '></span>';
       var stale = dayDiff(d.lastEntry, today()) > 14, dc = doseColor(d.dose);
       var sameYr = d.since.slice(0, 4) === today().slice(0, 4);
-      cards.push(card(dc, 'Current dose', '', d.dose + ' mg', 'Week ' + d.week + ' since ' + (sameYr ? shortDate(d.since, false) : fmtDate(d.since))));
-      cards.push(card(dc, 'Next dose', '<button type="button" class="linkish" data-settings aria-label="Change injection day">Change</button>', when,
+      cards.push(tag('cur', card(dc, 'Current dose', '', d.dose + ' mg', 'Week ' + d.week + ' since ' + (sameYr ? shortDate(d.since, false) : fmtDate(d.since)))));
+      cards.push(tag('next', card(dc, 'Next dose', '<button type="button" class="linkish" data-settings aria-label="Change injection day">Change</button>', when,
         stale ? 'Last entry ' + fmtDate(d.lastEntry) + '. Add today\'s.' : (d.diff > 1 ? 'In ' + d.diff + ' days · ' : '') + fmtDate(d.next),
-        stale ? '' : '<div class="strip" role="img" aria-label="' + (d.diff === 0 ? 'Dose day is today' : d.diff + ' days until the next dose') + '">' + strip + '</div>'));
+        stale ? '' : '<div class="strip" role="img" aria-label="' + (d.diff === 0 ? 'Dose day is today' : d.diff + ' days until the next dose') + '">' + strip + '</div>')));
       days = mini('#64748b', 'Days covered', allE.length + ' entries', String(dayDiff(allE[0].date, d.lastEntry) + 1));
     }
     var bpAll = allE.filter(hasBp), lb = bpAll[bpAll.length - 1];
@@ -1527,12 +1552,13 @@
       var bz = bpZone(lb.sys, lb.dia);
       bpMini = mini(bz.color, 'Latest BP', bz.short || bz.label, bpText(lb), shortDate(lb.date, false) + ', ' + bz.label);
     }
-    if (days && bpMini) cards.push('<div class="stack-box"><div class="stack">' + days + bpMini + '</div></div>');   // two small panels share one slot
-    else if (days || bpMini) cards.push(days || bpMini);
+    if (days && bpMini) cards.push('<div class="stack-box" data-card="stack"><div class="stack">' + days + bpMini + '</div></div>');   // two small panels share one slot
+    else if (days) cards.push(tag('days', days));
+    else if (bpMini) cards.push(tag('bp', bpMini));
 
     var w = sorted().filter(function (e) { return e.weight !== null; });
-    if (w.length) cards.push(bmiCard(w));
-    $('plan').innerHTML = cards.join('');
+    if (w.length) cards.push(tag('bmi', bmiCard(w)));
+    setCards($('plan'), PLAN_KEYS, cards.join(''));
   }
   $('plan').addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return;
@@ -2240,7 +2266,7 @@
     var t = ev.target.closest ? ev.target : null, seg = t && t.closest('.bmi-seg'), mid = t && t.closest('.bmi-c'), tip = $('bmiBubble');
     if (!tip || !(seg || mid)) return;
     if (on) {
-      var r = $('plan').querySelector('.bmi-ring').getBoundingClientRect();
+      var r = document.querySelector('.bmi-ring').getBoundingClientRect();
       if (seg) {
         tip.innerHTML = '<b style="color:' + seg.dataset.c + '">' + esc(seg.dataset.name) + '</b><span>' + esc(seg.dataset.desc) + '</span>';
         var sr = seg.getBoundingClientRect();
@@ -2258,12 +2284,12 @@
     }
     tip.classList.toggle('on', on);
   }
-  ['mouseover', 'focusin', 'click'].forEach(function (t) { $('plan').addEventListener(t, function (ev) { bmiDetail(ev, true); }); });
-  ['mouseout', 'focusout'].forEach(function (t) { $('plan').addEventListener(t, function (ev) { bmiDetail(ev, false); }); });
+  ['mouseover', 'focusin', 'click'].forEach(function (t) { onCards(t, function (ev) { bmiDetail(ev, true); }); });
+  ['mouseout', 'focusout'].forEach(function (t) { onCards(t, function (ev) { bmiDetail(ev, false); }); });
   function bmiCard(w) {
     var h = settings.heightIn;
     if (!h) {
-      return '<div class="stat bmi" style="--c:#0ea5a4"><div class="l"><span>BMI</span></div>' +
+      return '<div class="stat pc bmi" style="--c:#0ea5a4"><div class="l"><span>BMI</span></div>' +
         '<form class="bmi-ask" id="bmiAsk" autocomplete="off"><input id="bmiHeight" type="text" inputmode="text" aria-label="Height" placeholder="Height, e.g. 5\'9&quot;"></form>' +
         '<div class="sub">Not set. Enter your height once.</div><div class="bmi-err" id="bmiErr" role="alert"></div></div>';
     }
@@ -2306,14 +2332,14 @@
     if (!h) { $('bmiErr').textContent = 'Try a height like 5\'9", 5 9, 69 in or 175 cm.'; return; }
     settings.heightIn = h; saveSettings(); render();
   }
-  $('plan').addEventListener('change', function (ev) { if (ev.target.id === 'bmiHeight') saveBmiHeight(); });
-  $('plan').addEventListener('submit', function (ev) { if (ev.target.id === 'bmiAsk') { ev.preventDefault(); saveBmiHeight(); } });
+  onCards('change', function (ev) { if (ev.target.id === 'bmiHeight') saveBmiHeight(); });
+  onCards('submit', function (ev) { if (ev.target.id === 'bmiAsk') { ev.preventDefault(); saveBmiHeight(); } });
 
   // Page layout: order and visibility of the dashboard sections, kept on this device only (never synced)
   var LAYOUT_KEY = 'tirzepatide-layout';
   var SECTIONS = [
-    { id: 'stats', name: 'Summary cards', ids: ['stats', 'plateau', 'fastNote'] },
-    { id: 'plan', name: 'Dose, BMI and coverage', ids: ['plan'] },
+    { id: 'stats', name: 'Cards, first row', ids: ['stats', 'plateau', 'fastNote'] },
+    { id: 'plan', name: 'Cards, second row', ids: ['plan'] },
     { id: 'calPanel', name: 'Calories, last 7 days', ids: ['calPanel'] },
     { id: 'chartPanel', name: 'Charts', ids: ['chartPanel'] },
     { id: 'insightsPanel', name: 'More insights', ids: ['insightsPanel'] },
@@ -2321,7 +2347,8 @@
     { id: 'entriesPanel', name: 'Entries', ids: ['entriesPanel'] },
     { id: 'formPanel', name: 'Add entry', ids: ['formPanel'], keep: true }   // always shown, so entries can always be added
   ];
-  var layout = { order: SECTIONS.map(function (x) { return x.id; }), hidden: [] };
+  var layout = defaultLayout();
+  function defaultLayout() { return { order: SECTIONS.map(function (x) { return x.id; }), hidden: [], cards: { stats: STAT_KEYS.slice(), plan: PLAN_KEYS.slice() }, cardHidden: [] }; }
   function secById(id) { return SECTIONS.filter(function (x) { return x.id === id; })[0]; }
   function loadLayout() {
     if (SHARE_TOKEN || DEMO) return;
@@ -2333,6 +2360,9 @@
       SECTIONS.forEach(function (x) { if (!seen[x.id]) order.push(x.id); });
       layout.order = order;
       layout.hidden = (Array.isArray(raw.hidden) ? raw.hidden : []).filter(function (id) { return secById(id) && !secById(id).keep; });
+      function keys(a) { return (Array.isArray(a) ? a : []).filter(function (k) { return STAT_KEYS.indexOf(k) >= 0 || PLAN_KEYS.indexOf(k) >= 0; }); }
+      if (raw.cards) layout.cards = { stats: keys(raw.cards.stats), plan: keys(raw.cards.plan) };
+      layout.cardHidden = keys(raw.cardHidden);
     } catch (e) {}
   }
   function saveLayout() {
@@ -2422,6 +2452,102 @@
   });
   $('layDrag').addEventListener('click', function () { $('layoutDlg').close(); setArranging(true); });
   $('arrDone').addEventListener('click', function () { setArranging(false); });
+  // Put every card in the row and place the layout says; cards not yet in the layout go to their own row, at the end.
+  function placeCards() {
+    var rows = { stats: $('stats'), plan: $('plan') }, present = {}, all = [];
+    ['stats', 'plan'].forEach(function (r) {
+      Array.prototype.slice.call(rows[r].children).forEach(function (c) { if (c.hasAttribute('data-card')) { present[c.getAttribute('data-card')] = c; all.push(c); } });
+    });
+    var placed = {};
+    ['stats', 'plan'].forEach(function (r) {
+      layout.cards[r].forEach(function (k) {
+        if (!present[k] || placed[k]) return;
+        placed[k] = true;
+        rows[r].appendChild(present[k]);
+      });
+    });
+    all.forEach(function (c) {
+      var k = c.getAttribute('data-card');
+      if (!placed[k]) { placed[k] = true; rows[STAT_KEYS.indexOf(k) >= 0 ? 'stats' : 'plan'].appendChild(c); }
+      c.classList.toggle('user-hidden', layout.cardHidden.indexOf(k) >= 0);
+      if (!c.querySelector(':scope > .card-ctl')) {
+        var ctl = document.createElement('span');
+        ctl.className = 'card-ctl';
+        ctl.innerHTML = '<button type="button" class="grip" aria-label="Move this card (drag, or use the arrow keys)">\u2630</button><button type="button" class="card-toggle" aria-label="Hide or show this card"></button>';
+        c.appendChild(ctl);
+      }
+      c.querySelector(':scope > .card-ctl .card-toggle').textContent = layout.cardHidden.indexOf(k) >= 0 ? 'Show' : 'Hide';
+    });
+    markHandles();
+  }
+  function saveCardLayout() {
+    layout.cards = { stats: [], plan: [] };
+    ['stats', 'plan'].forEach(function (r) {
+      Array.prototype.slice.call($(r).children).forEach(function (c) { if (c.hasAttribute('data-card')) layout.cards[r].push(c.getAttribute('data-card')); });
+    });
+    saveLayout();
+  }
+  var cardDrag = null;
+  document.addEventListener('pointerdown', function (ev) {
+    var g = ev.target.closest && ev.target.closest('.card-ctl .grip');
+    if (!g) return;
+    cardDrag = g.closest('[data-card]');
+    cardDrag.classList.add('card-drag');
+    try { g.setPointerCapture(ev.pointerId); } catch (e) {}
+    ev.preventDefault();
+  });
+  document.addEventListener('pointermove', function (ev) {
+    if (!cardDrag) return;
+    var x = ev.clientX, y = ev.clientY;
+    if (y < 70) window.scrollBy(0, -14); else if (y > window.innerHeight - 70) window.scrollBy(0, 14);
+    var under = null;
+    document.elementsFromPoint(x, y).some(function (el) {
+      var c = el.closest && el.closest('[data-card]');
+      if (c && c !== cardDrag && (c.parentNode.id === 'stats' || c.parentNode.id === 'plan')) { under = c; return true; }
+      return false;
+    });
+    if (under) {
+      var t = under.getBoundingClientRect(), m = cardDrag.getBoundingClientRect();
+      var sameRow = t.top < m.bottom && t.bottom > m.top;
+      var before = sameRow ? x < t.left + t.width / 2 : y < t.top + t.height / 2;
+      var ref = before ? under : under.nextSibling;
+      if (ref !== cardDrag && cardDrag.nextSibling !== ref || cardDrag.parentNode !== under.parentNode) under.parentNode.insertBefore(cardDrag, ref);
+      return;
+    }
+    ['stats', 'plan'].forEach(function (r) {
+      var row = $(r), b = row.getBoundingClientRect();
+      if (row.hidden || row.classList.contains('user-hidden') || y < b.top || y > b.bottom || x < b.left || x > b.right) return;
+      if (cardDrag.parentNode !== row) row.appendChild(cardDrag);
+    });
+  });
+  function endCardDrag() {
+    if (!cardDrag) return;
+    cardDrag.classList.remove('card-drag');
+    cardDrag = null;
+    saveCardLayout();
+    markHandles();
+  }
+  document.addEventListener('pointerup', endCardDrag);
+  document.addEventListener('pointercancel', endCardDrag);
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest && ev.target.closest('.card-toggle');
+    if (!t) return;
+    var k = t.closest('[data-card]').getAttribute('data-card'), i = layout.cardHidden.indexOf(k);
+    if (i >= 0) layout.cardHidden.splice(i, 1); else layout.cardHidden.push(k);
+    saveLayout(); placeCards();
+  });
+  document.addEventListener('keydown', function (ev) {
+    var g = ev.target.closest && ev.target.closest('.card-ctl .grip');
+    if (!g || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(ev.key) < 0) return;
+    ev.preventDefault();
+    var c = g.closest('[data-card]'), row = c.parentNode;
+    if (ev.key === 'ArrowLeft' && c.previousElementSibling && c.previousElementSibling.hasAttribute('data-card')) row.insertBefore(c, c.previousElementSibling);
+    else if (ev.key === 'ArrowRight' && c.nextElementSibling) row.insertBefore(c.nextElementSibling, c);
+    else if (ev.key === 'ArrowUp' && row.id === 'plan') $('stats').appendChild(c);
+    else if (ev.key === 'ArrowDown' && row.id === 'stats') $('plan').appendChild(c);
+    saveCardLayout();
+    g.focus();
+  });
   function applyLayout() {
     var anchor = document.querySelector('main > .page-bar');
     layout.order.forEach(function (id) {
@@ -2459,8 +2585,8 @@
   $('layoutOpen').addEventListener('click', function () { renderLayoutList(); $('layoutDlg').showModal(); });
   $('layClose').addEventListener('click', function () { $('layoutDlg').close(); });
   $('layReset').addEventListener('click', function () {
-    layout = { order: SECTIONS.map(function (x) { return x.id; }), hidden: [] };
-    saveLayout(); applyLayout(); renderLayoutList();
+    layout = defaultLayout();
+    saveLayout(); applyLayout(); placeCards(); renderLayoutList();
   });
   $('layList').addEventListener('click', function (ev) {
     var b = ev.target.closest('button');
