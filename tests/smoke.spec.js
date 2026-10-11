@@ -1102,3 +1102,28 @@ test('calories panel: hidden until some calories are logged', async ({ page }) =
   await pasteCsv(page, steadyLossCsv());
   await expect(page.locator('#calPanel')).toBeHidden();
 });
+
+test('layout: sections can be moved and hidden, kept on this device, Add entry always stays', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  const ids = () => page.evaluate(() => Array.from(document.querySelectorAll('main > *')).map((e) => e.id).filter((i) => ['chartPanel', 'ratePanel', 'entriesPanel', 'formPanel', 'insightsPanel'].includes(i)));
+  expect((await ids()).indexOf('chartPanel')).toBeLessThan((await ids()).indexOf('ratePanel'));
+  await page.locator('#layoutOpen').click();
+  await expect(page.locator('#layoutDlg')).toBeVisible();
+  // Results by dose up past More insights and the chart
+  await page.locator('[data-lay-up]').nth(5).click();
+  await page.locator('[data-lay-up]').nth(4).click();
+  await page.locator('[data-lay-up]').nth(3).click();
+  expect((await ids()).indexOf('ratePanel')).toBeLessThan((await ids()).indexOf('chartPanel'));
+  // hide the entries
+  await page.locator('[data-lay-show="entriesPanel"]').uncheck();
+  await expect(page.locator('#entriesPanel')).toBeHidden();
+  await expect(page.locator('[data-lay-show="formPanel"]')).toHaveCount(0);
+  await page.locator('#layClose').click();
+  await page.reload();
+  await expect(page.locator('#entriesPanel')).toBeHidden();
+  expect((await ids()).indexOf('ratePanel')).toBeLessThan((await ids()).indexOf('chartPanel'));
+  await page.locator('#layoutOpen').click();
+  await page.locator('#layReset').click();
+  await expect(page.locator('#entriesPanel')).toBeVisible();
+  expect((await ids()).indexOf('chartPanel')).toBeLessThan((await ids()).indexOf('ratePanel'));
+});

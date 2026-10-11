@@ -367,6 +367,12 @@
   dialog { border: 1px solid var(--line); border-radius: var(--card); background: var(--panel); color: var(--ink);
     width: calc(100% - 32px); max-width: 760px; max-height: calc(100vh - 32px); padding: 18px; overflow: auto; box-shadow: var(--shadow); }
   dialog::backdrop { background: rgba(8,15,28,.55); backdrop-filter: blur(2px); }
+  .user-hidden { display: none !important; }
+  .lay-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+  .lay-list li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; }
+  .lay-list li.off .lay-name { color: var(--muted); text-decoration: line-through; }
+  .lay-list .lay-name { flex: 1; min-width: 0; font-weight: 600; }
+  .lay-list label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
   .dlg-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .dlg-head h2 { margin: 0; }
   .drop { border: 2px dashed var(--line); border-radius: 14px; padding: 22px; text-align: center; color: var(--muted); transition: border-color .15s, background .15s; }
@@ -418,7 +424,7 @@
   .lp-fine { text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 8px; }
   @media (max-width: 640px) { .lp-hero { padding: 22px 18px 24px; } .lp-hero h1 { font-size: 32px; } }
   /* a doctor opening a patient's link: read-only, so every editing control is gone */
-  body.share #formPanel, body.share #openImport, body.share #resetBtn, body.share #shareOpen, body.share #settingsOpen, body.share #installBtn, body.share #backupNote,
+  body.share #formPanel, body.share #openImport, body.share #resetBtn, body.share #shareOpen, body.share #settingsOpen, body.share #layoutOpen, body.share #installBtn, body.share #backupNote,
   body.share #emptyPanel, body.share #heroOut, body.share #exportBtn, body.share #backupExport, body.share [data-settings], body.share [data-edit], body.share [data-del] { display: none !important; }
   .share-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
   .share-list li { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line, #d7dee6); border-radius: 10px; }
@@ -646,6 +652,7 @@
     <button id="shareOpen" class="primary" hidden>Share with doctor</button>
     <button id="openImport">Import data</button>
     <button id="exportBtn">Export CSV</button>
+    <button id="layoutOpen">Customise layout</button>
     <button id="settingsOpen">Settings</button>
     <button id="resetBtn" class="danger">Clear all data</button>
   </div>
@@ -705,6 +712,16 @@
       <button type="button" id="dlgCancel">Cancel</button>
     </div>
   </div>
+</dialog>
+
+<dialog id="layoutDlg" aria-labelledby="layTitle" style="max-width:520px">
+  <div class="dlg-head">
+    <h2 id="layTitle">Customise layout</h2>
+    <button type="button" class="small" id="layClose">Done</button>
+  </div>
+  <p class="note" style="margin-top:0">Move sections up or down, and untick the ones you do not want on the page. Nothing is deleted: your data stays, and you can show a section again any time. This is saved on this device only.</p>
+  <ul class="lay-list" id="layList"></ul>
+  <button type="button" id="layReset">Reset to default</button>
 </dialog>
 
 <dialog id="shareDlg" aria-labelledby="shTitle" style="max-width:560px">
@@ -2280,6 +2297,90 @@
   }
   $('plan').addEventListener('change', function (ev) { if (ev.target.id === 'bmiHeight') saveBmiHeight(); });
   $('plan').addEventListener('submit', function (ev) { if (ev.target.id === 'bmiAsk') { ev.preventDefault(); saveBmiHeight(); } });
+
+  // Page layout: order and visibility of the dashboard sections, kept on this device only (never synced)
+  var LAYOUT_KEY = 'tirzepatide-layout';
+  var SECTIONS = [
+    { id: 'stats', name: 'Summary cards', ids: ['stats', 'plateau', 'fastNote'] },
+    { id: 'plan', name: 'Dose, BMI and coverage', ids: ['plan'] },
+    { id: 'calPanel', name: 'Calories, last 7 days', ids: ['calPanel'] },
+    { id: 'chartPanel', name: 'Charts', ids: ['chartPanel'] },
+    { id: 'insightsPanel', name: 'More insights', ids: ['insightsPanel'] },
+    { id: 'ratePanel', name: 'Results by dose', ids: ['ratePanel'] },
+    { id: 'entriesPanel', name: 'Entries', ids: ['entriesPanel'] },
+    { id: 'formPanel', name: 'Add entry', ids: ['formPanel'], keep: true }   // always shown, so entries can always be added
+  ];
+  var layout = { order: SECTIONS.map(function (x) { return x.id; }), hidden: [] };
+  function secById(id) { return SECTIONS.filter(function (x) { return x.id === id; })[0]; }
+  function loadLayout() {
+    if (SHARE_TOKEN || DEMO) return;
+    try {
+      var raw = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
+      if (!raw || !Array.isArray(raw.order)) return;
+      var seen = {}, order = [];
+      raw.order.forEach(function (id) { if (secById(id) && !seen[id]) { seen[id] = 1; order.push(id); } });
+      SECTIONS.forEach(function (x) { if (!seen[x.id]) order.push(x.id); });
+      layout.order = order;
+      layout.hidden = (Array.isArray(raw.hidden) ? raw.hidden : []).filter(function (id) { return secById(id) && !secById(id).keep; });
+    } catch (e) {}
+  }
+  function saveLayout() {
+    if (SHARE_TOKEN || DEMO) return;
+    try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (e) {}
+  }
+  function applyLayout() {
+    var anchor = document.querySelector('main > .page-bar');
+    layout.order.forEach(function (id) {
+      var sec = secById(id), off = layout.hidden.indexOf(id) >= 0;
+      sec.ids.forEach(function (eid) {
+        var el = $(eid);
+        if (!el) return;
+        anchor.parentNode.insertBefore(el, anchor);
+        el.classList.toggle('user-hidden', off);
+      });
+    });
+  }
+  function renderLayoutList() {
+    var ul = $('layList');
+    ul.innerHTML = layout.order.map(function (id, i) {
+      var sec = secById(id), off = layout.hidden.indexOf(id) >= 0;
+      return '<li class="' + (off ? 'off' : '') + '"><span class="lay-name">' + esc(sec.name) + '</span>' +
+        '<button type="button" class="small" data-lay-up="' + i + '" aria-label="Move ' + esc(sec.name) + ' up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+        '<button type="button" class="small" data-lay-down="' + i + '" aria-label="Move ' + esc(sec.name) + ' down"' + (i === layout.order.length - 1 ? ' disabled' : '') + '>↓</button>' +
+        (sec.keep ? '<label><span>Always shown</span></label>' :
+          '<label><input type="checkbox" data-lay-show="' + esc(id) + '"' + (off ? '' : ' checked') + ' aria-label="Show ' + esc(sec.name) + '"> <span>Show</span></label>') + '</li>';
+    }).join('');
+  }
+  function moveSection(i, d) {
+    var j = i + d;
+    if (j < 0 || j >= layout.order.length) return;
+    var t = layout.order[i]; layout.order[i] = layout.order[j]; layout.order[j] = t;
+    saveLayout(); applyLayout(); renderLayoutList();
+  }
+  $('layoutOpen').addEventListener('click', function () { renderLayoutList(); $('layoutDlg').showModal(); });
+  $('layClose').addEventListener('click', function () { $('layoutDlg').close(); });
+  $('layReset').addEventListener('click', function () {
+    layout = { order: SECTIONS.map(function (x) { return x.id; }), hidden: [] };
+    saveLayout(); applyLayout(); renderLayoutList();
+  });
+  $('layList').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button');
+    if (!b) return;
+    var u = b.getAttribute('data-lay-up'), d = b.getAttribute('data-lay-down');
+    if (u !== null) { moveSection(parseInt(u, 10), -1); var nb = $('layList').querySelector('[data-lay-up="' + (parseInt(u, 10) - 1) + '"]'); if (nb) nb.focus(); }
+    else if (d !== null) { moveSection(parseInt(d, 10), 1); var nb2 = $('layList').querySelector('[data-lay-down="' + (parseInt(d, 10) + 1) + '"]'); if (nb2) nb2.focus(); }
+  });
+  $('layList').addEventListener('change', function (ev) {
+    var id = ev.target.getAttribute('data-lay-show');
+    if (!id) return;
+    var i = layout.hidden.indexOf(id);
+    if (ev.target.checked && i >= 0) layout.hidden.splice(i, 1);
+    else if (!ev.target.checked && i < 0) layout.hidden.push(id);
+    saveLayout(); applyLayout(); renderLayoutList();
+    var cb = $('layList').querySelector('[data-lay-show="' + id + '"]'); if (cb) cb.focus();
+  });
+  loadLayout();
+  applyLayout();
 
   function render() {
     renderUnits();

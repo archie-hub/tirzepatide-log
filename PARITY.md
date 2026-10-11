@@ -56,6 +56,7 @@ Legend: yes, no, partial.
 | Light/dark | yes | yes | |
 | Install as app / PWA | yes | n/a | |
 | Overlay another period on the chart (lined up by days since each start) | yes | no | Web only by the owner's decision (2026-10-09), not a device gap; the iOS app was deliberately left alone. Port it when asked |
+| Customise layout (move dashboard sections up/down, hide the ones not wanted; `#layoutDlg`, `tirzepatide-layout`, device-only) | yes | no | Not yet ported: the iOS Trends screen needs a reorder/hide screen of its own (SwiftUI). Add entry always stays shown |
 
 ## Deliberate gaps
 
