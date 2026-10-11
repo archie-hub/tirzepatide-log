@@ -1179,11 +1179,13 @@
   function fastThreshold(lbs) { return lbs * FAST_PCT / 100; }
   function fastLoss(w) {
     var sl = recentSlope(w); if (sl === null) return null;
-    var rate = sl * 7, last = w[w.length - 1].weight;
-    return -rate > fastThreshold(last) ? { rate: rate, thr: fastThreshold(last) } : null;
+    var rate = sl * 7, last = w[w.length - 1].weight, endD = w[w.length - 1].date, j = w.length - 1;
+    while (j > 0 && dayDiff(w[j - 1].date, endD) <= 28) j--;   // the weigh-ins slopeUpTo() used
+    var span = dayDiff(w[j].date, endD);
+    return -rate > fastThreshold(last) ? { rate: rate, thr: fastThreshold(last), days: span, from: w[j].date, to: endD } : null;
   }
   function fastText(f) {
-    return 'Weight has been dropping about ' + fw(-f.rate) + ' ' + WU() + ' a week over the last 4 weeks, faster than ' + FAST_PCT + '% of body weight a week (' + fw(f.thr) + ' ' + WU() + '). That pace is often treated as rapid, so it is worth mentioning to your clinician.';
+    return 'Weight has been dropping about ' + fw(-f.rate) + ' ' + WU() + ' a week between ' + fmtDate(f.from) + ' and ' + fmtDate(f.to) + ' (' + f.days + ' days), faster than ' + FAST_PCT + '% of body weight a week (' + fw(f.thr) + ' ' + WU() + '). That pace is often treated as rapid, so it is worth mentioning to your clinician.';
   }
   // Seven-day buckets numbered like "week on treatment"; change is against the previous week when it has data too
   function weeklyAverages(all) {
