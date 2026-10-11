@@ -1127,3 +1127,27 @@ test('layout: sections can be moved and hidden, kept on this device, Add entry a
   await expect(page.locator('#entriesPanel')).toBeVisible();
   expect((await ids()).indexOf('chartPanel')).toBeLessThan((await ids()).indexOf('ratePanel'));
 });
+
+test('layout: sections can be dragged into place by their grips', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  const ids = () => page.evaluate(() => Array.from(document.querySelectorAll('main > *')).map((e) => e.id).filter((i) => ['chartPanel', 'ratePanel'].includes(i)));
+  await page.locator('#layoutOpen').click();
+  await page.locator('#layDrag').click();
+  await expect(page.locator('#arrBar')).toBeVisible();
+  const grip = page.locator('.arr-handle[data-sec="ratePanel"] .grip');
+  const target = page.locator('.arr-handle[data-sec="chartPanel"]');
+  await grip.scrollIntoViewIfNeeded();
+  const g = await grip.boundingBox();
+  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+  await page.mouse.down();
+  for (let i = 0; i < 40; i++) {
+    await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2 - i * 20);
+    const t = await target.boundingBox();
+    if ((await ids())[0] === 'ratePanel') break;
+  }
+  await page.mouse.up();
+  expect((await ids())[0]).toBe('ratePanel');
+  await page.locator('#arrDone').click();
+  await page.reload();
+  expect((await ids())[0]).toBe('ratePanel');
+});

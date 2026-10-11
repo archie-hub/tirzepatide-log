@@ -368,6 +368,15 @@
     width: calc(100% - 32px); max-width: 760px; max-height: calc(100vh - 32px); padding: 18px; overflow: auto; box-shadow: var(--shadow); }
   dialog::backdrop { background: rgba(8,15,28,.55); backdrop-filter: blur(2px); }
   .user-hidden { display: none !important; }
+  .arr-handle { display: none; align-items: center; gap: 10px; padding: 8px 12px; border: 2px dashed var(--accent); border-radius: 12px; background: var(--panel, #fff); font-weight: 650; touch-action: none; user-select: none; }
+  body.arranging .arr-handle { display: flex; }
+  .arr-handle.na { display: none !important; }
+  .arr-handle .grip { cursor: grab; font-size: 18px; line-height: 1; padding: 2px 6px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); touch-action: none; }
+  .arr-handle.drag { box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+  .arr-handle .arr-name { flex: 1; min-width: 0; }
+  .arr-handle .arr-state { font-weight: 500; font-size: 13px; color: var(--muted); }
+  #arrBar { position: sticky; top: 0; z-index: 30; display: none; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 600; }
+  body.arranging #arrBar { display: flex; }
   .lay-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
   .lay-list li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; }
   .lay-list li.off .lay-name { color: var(--muted); text-decoration: line-through; }
@@ -517,6 +526,7 @@
     <button type="button" id="heroOut" hidden>Sign out</button>
   </header>
   <div id="msg" role="status"></div>
+  <div id="arrBar" role="status"><span>Drag the ☰ grips to reorder sections. Hidden ones can be shown again.</span><button type="button" id="arrDone">Done</button></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" id="toastUndo">Undo</button></div>
 
   <section class="panel" id="emptyPanel" hidden>
@@ -719,7 +729,8 @@
     <h2 id="layTitle">Customise layout</h2>
     <button type="button" class="small" id="layClose">Done</button>
   </div>
-  <p class="note" style="margin-top:0">Move sections up or down, and untick the ones you do not want on the page. Nothing is deleted: your data stays, and you can show a section again any time. This is saved on this device only.</p>
+  <p class="note" style="margin-top:0"><button type="button" class="primary" id="layDrag">Drag sections on the page</button></p>
+  <p class="note" style="margin-top:0">Or move sections up or down here, and untick the ones you do not want on the page. Nothing is deleted: your data stays, and you can show a section again any time. This is saved on this device only.</p>
   <ul class="lay-list" id="layList"></ul>
   <button type="button" id="layReset">Reset to default</button>
 </dialog>
@@ -2328,10 +2339,98 @@
     if (SHARE_TOKEN || DEMO) return;
     try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (e) {}
   }
+  var handles = {};
+  function handleFor(sec) {
+    if (handles[sec.id]) return handles[sec.id];
+    var h = document.createElement('div');
+    h.className = 'arr-handle';
+    h.setAttribute('data-sec', sec.id);
+    h.innerHTML = '<button type="button" class="grip" aria-label="Move ' + esc(sec.name) + ' (drag, or use the up and down arrow keys)">\u2630</button>' +
+      '<span class="arr-name">' + esc(sec.name) + '</span><span class="arr-state"></span><button type="button" class="small arr-toggle"></button>';
+    handles[sec.id] = h;
+    return h;
+  }
+  function markHandles() {
+    SECTIONS.forEach(function (sec) {
+      var el = $(sec.ids[0]), h = handles[sec.id];
+      if (h && el) h.classList.toggle('na', el.hidden === true);
+    });
+  }
+  function secBounds(id) {
+    var sec = secById(id), top = handles[id].getBoundingClientRect().top, bottom = handles[id].getBoundingClientRect().bottom;
+    sec.ids.forEach(function (eid) {
+      var el = $(eid);
+      if (!el || el.hidden || el.classList.contains('user-hidden')) return;
+      var r = el.getBoundingClientRect();
+      if (r.height) bottom = Math.max(bottom, r.bottom);
+    });
+    return { top: top, bottom: bottom };
+  }
+  function setArranging(on) {
+    document.body.classList.toggle('arranging', on);
+    if (on) { markHandles(); window.scrollTo(0, 0); }
+  }
+  var dragId = null;
+  document.addEventListener('pointerdown', function (ev) {
+    var g = ev.target.closest && ev.target.closest('.arr-handle .grip');
+    if (!g) return;
+    dragId = g.closest('.arr-handle').getAttribute('data-sec');
+    handles[dragId].classList.add('drag');
+    try { g.setPointerCapture(ev.pointerId); } catch (e) {}
+    ev.preventDefault();
+  });
+  document.addEventListener('pointermove', function (ev) {
+    if (!dragId) return;
+    var y = ev.clientY;
+    if (y < 70) window.scrollBy(0, -14); else if (y > window.innerHeight - 70) window.scrollBy(0, 14);
+    var i = layout.order.indexOf(dragId), mine = secBounds(dragId);
+    for (var j = 0; j < layout.order.length; j++) {
+      var oid = layout.order[j];
+      if (oid === dragId || handles[oid].classList.contains('na')) continue;
+      var b = secBounds(oid), mid = (b.top + b.bottom) / 2;
+      if ((j > i && y > mid && y > mine.bottom - 1) || (j < i && y < mid && y < mine.top + 1)) {
+        layout.order.splice(i, 1);
+        layout.order.splice(j, 0, dragId);
+        applyLayout();
+        break;
+      }
+    }
+  });
+  function endDrag() {
+    if (!dragId) return;
+    handles[dragId].classList.remove('drag');
+    dragId = null;
+    saveLayout();
+  }
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest && ev.target.closest('.arr-toggle');
+    if (!t) return;
+    var id = t.closest('.arr-handle').getAttribute('data-sec'), i = layout.hidden.indexOf(id);
+    if (i >= 0) layout.hidden.splice(i, 1); else layout.hidden.push(id);
+    saveLayout(); applyLayout();
+  });
+  document.addEventListener('keydown', function (ev) {
+    var g = ev.target.closest && ev.target.closest('.arr-handle .grip');
+    if (!g || (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown')) return;
+    ev.preventDefault();
+    var id = g.closest('.arr-handle').getAttribute('data-sec'), i = layout.order.indexOf(id), j = i + (ev.key === 'ArrowUp' ? -1 : 1);
+    if (j < 0 || j >= layout.order.length) return;
+    layout.order.splice(i, 1); layout.order.splice(j, 0, id);
+    saveLayout(); applyLayout(); g.focus();
+  });
+  $('layDrag').addEventListener('click', function () { $('layoutDlg').close(); setArranging(true); });
+  $('arrDone').addEventListener('click', function () { setArranging(false); });
   function applyLayout() {
     var anchor = document.querySelector('main > .page-bar');
     layout.order.forEach(function (id) {
-      var sec = secById(id), off = layout.hidden.indexOf(id) >= 0;
+      var sec = secById(id), off = layout.hidden.indexOf(id) >= 0, hd = handleFor(sec);
+      anchor.parentNode.insertBefore(hd, anchor);
+      hd.querySelector('.arr-state').textContent = off ? 'Hidden' : '';
+      var tg = hd.querySelector('.arr-toggle');
+      tg.textContent = off ? 'Show' : 'Hide';
+      tg.hidden = !!sec.keep;
       sec.ids.forEach(function (eid) {
         var el = $(eid);
         if (!el) return;
@@ -2395,6 +2494,7 @@
     renderHero();
     if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderCalories(); renderInsights(); }
     else { $('calPanel').hidden = true; $('plateau').hidden = true; $('fastNote').hidden = true; $('insightsPanel').hidden = true; }
+    markHandles();
   }
 
   /* ---------- form ---------- */
