@@ -4,7 +4,7 @@ const fs = require('fs');
 const { backend, APP } = require('./fake-cloud');
 
 const DEMO = APP + 'demo';
-const HEADER = 'Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg),Waist (in),Body Fat (%),Muscle Mass (lbs)';
+const HEADER = 'Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg),Waist (in),Body Fat (%),Muscle Mass (lbs),Heart Rate (bpm),HbA1c (%),Protein (g),Appetite (1-5),Symptoms,Symptom Severity (0-3)';
 
 test('the demo opens with no sign-in, shows the full app and the demo banner, and never calls the API', async ({ page }) => {
   const b = backend(); await b.install(page);
@@ -37,7 +37,7 @@ test('the demo fills every field and has the shapes the app shows off', async ({
   const rows = csv.slice(1).map((l) => { const out = []; let cur = '', q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === ',' && !q) { out.push(cur); cur = ''; } else cur += ch; } out.push(cur); return out; });
   expect(rows.length).toBeGreaterThan(180); expect(rows.length).toBeLessThan(290);
   const col = (i) => rows.map((r) => r[i]).filter((v) => v !== '');
-  for (let i = 0; i < 13; i++) expect(col(i).length, HEADER.split(',')[i]).toBeGreaterThan(8);          // every one of the 13 fields is used
+  for (let i = 0; i < 19; i++) expect(col(i).length, HEADER.split(',')[i]).toBeGreaterThan(8);          // every one of the 19 fields is used
   const dates = rows.map((r) => r[0]);
   expect([...dates].sort()).toEqual(dates);                                                                 // oldest first, no repeats
   expect(new Set(dates).size).toBe(dates.length);

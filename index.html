@@ -216,6 +216,23 @@
     .rate .bar { display: none; }
     #ratePanel .best { display: block; margin: 4px 0 0; }
   }
+
+  /* ---- polish: card text contrast, narrow screens ---- */
+  @supports (background: color-mix(in srgb, red 10%, blue)) {
+    .stat .v, .bmi-stage, .bmi-c, .chip { color: color-mix(in srgb, var(--c) 74%, var(--ink)); }
+  }
+  .custom-range input[type="checkbox"] { width: auto; flex: none; margin: 0; }
+  @container (max-width: 190px) { .stat.pc .v { font-size: min(30px, 14cqi); } }
+  @media (max-width: 520px) {
+    .plan .stat.bmi, .plan .stack-box { grid-column: 1 / -1; }
+  }
+  .sx-set { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px 10px; margin: 0; min-width: 0; }
+  .sx-set legend { color: var(--muted); font-size: 13px; padding: 0 6px; }
+  .sx-tags { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+  .sx-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink); padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
+  .sx-tag input { width: auto; margin: 0; }
+  .sx-tag:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .sx-sev { margin-top: 10px; max-width: 220px; }
   /* ---- BMI card ---- */
   .stat.bmi { overflow: visible; }
   .stat.bmi:has(.bmi-ring) .l, .stat.bmi:has(.bmi-ring) .bmi-stage, .stat.bmi:has(.bmi-ring) .sub { max-width: calc(100cqi - 96px); }
@@ -352,7 +369,30 @@
   tbody tr { --c: var(--accent); }
   tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--c); padding-left: 14px; white-space: nowrap; }
   tbody tr:hover td { background: color-mix(in srgb, var(--c) 8%, transparent); }
-  td.food { min-width: 130px; }
+  td.food, .food { color: var(--muted); }
+  #insights .table-wrap td, #insights .table-wrap th { white-space: nowrap; }
+  td.notes { min-width: 150px; max-width: 260px; }
+  #rows td { padding: 8px 7px; }
+  #rows .calcell { width: 66px; padding: 1px 6px; }
+  #rows td:last-child { padding-right: 4px; }
+  @media (max-width: 700px) {
+    .table-wrap:has(#rows) thead { display: none; }
+    .table-wrap:has(#rows) table, #rows { display: block; }
+    #rows tr { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 4px; padding: 10px 0 12px; border-bottom: 1px solid var(--line); border-left: 4px solid var(--c); padding-left: 10px; margin-bottom: 2px; }
+    #rows td { border: 0; padding: 0 4px; text-align: left; min-width: 0; }
+    #rows td:first-child { box-shadow: none; padding-left: 4px; }
+    #rows td.num { text-align: left; }
+    #rows td[data-l]::before { content: attr(data-l); display: block; font-size: 11.5px; color: var(--muted); }
+    #rows td.d, #rows td.notes, #rows td.act { grid-column: 1 / -1; max-width: none; }
+    #rows td.d { font-weight: 650; }
+    #rows .calcell { margin-left: 0; width: 76px; }
+    #rows td.act { padding-top: 2px; }
+    #rows td.num:has(> .dim:only-child) { display: none; }
+  }
+  .sx-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .sx-chip { font-size: 12px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--c) 8%, transparent); }
+  .chip.sev0 { --c: #16a34a; } .chip.sev1 { --c: #d4a106; } .chip.sev2 { --c: #f97316; } .chip.sev3 { --c: #dc2626; }
+  .chip[class*="sev"] { font-size: 11.5px; padding: 0 8px; }
   .calcell { position: relative; width: 84px; margin-left: auto; padding: 1px 7px; text-align: right; }
   .calcell i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: rgba(139,92,246,.4); }
   @supports (background: color-mix(in srgb, red 10%, blue)) { .calcell i { background: color-mix(in srgb, #8b5cf6 30%, transparent); } }
@@ -633,7 +673,7 @@
         <thead>
           <tr>
             <th>Date</th><th class="num">Dose (mg)</th><th class="num">Weight (<span class="wua">lbs</span>)</th><th class="num">Change</th>
-            <th>Comments</th><th class="num">Calories</th><th>Food notes</th><th class="num">Glucose</th><th class="num">BP</th><th class="num">Waist (<span class="lu">in</span>)</th><th></th>
+            <th class="num">Calories</th><th class="num">Glucose</th><th class="num">BP</th><th class="num">Body</th><th>Notes</th><th></th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -655,7 +695,15 @@
       <label><span>Waist (<span class="lu">in</span>)</span><input type="number" id="fWaist" step="0.1" min="0" inputmode="decimal"></label>
       <label>Body fat (%)<input type="number" id="fFat" step="0.1" min="0" max="100" inputmode="decimal"></label>
       <label><span>Muscle mass (<span class="wu">lbs</span>)</span><input type="number" id="fMuscle" step="0.1" min="0" inputmode="decimal"></label>
+      <label>Resting heart rate (bpm)<input type="number" id="fHr" step="1" min="0" max="300" inputmode="numeric"></label>
+      <label>HbA1c (%)<input type="number" id="fA1c" step="0.1" min="0" max="20" inputmode="decimal"></label>
+      <label>Protein (g)<input type="number" id="fProt" step="1" min="0" inputmode="numeric"></label>
+      <label>Appetite<select id="fApp"><option value="">Not logged</option><option value="1">1 · none at all</option><option value="2">2 · low</option><option value="3">3 · normal</option><option value="4">4 · high</option><option value="5">5 · very hungry</option></select></label>
       <label>Injection site<select id="fSite"></select></label>
+      <fieldset class="wide sx-set"><legend>Symptoms today</legend>
+        <div class="sx-tags" id="fSx"></div>
+        <label class="sx-sev">Overall severity<select id="fSxs"><option value="">Not logged</option><option value="0">None</option><option value="1">Mild</option><option value="2">Moderate</option><option value="3">Severe</option></select></label>
+      </fieldset>
       <label class="wide">Food notes<input type="text" id="fFood"></label>
       <label class="wide">Comments<textarea id="fComments"></textarea></label>
       <div class="actions wide">
@@ -794,7 +842,13 @@
   var SETTINGS_KEY = 'tirzepatide-settings';
   var SITE_URL = 'https://tirzepatide.phoe.be/';
   // Keep in sync with the value array built in toCSV() below when adding a field.
-  var COLUMNS = ['Date', 'Dosage (mg)', 'Weight (lbs)', 'Comments', 'Calories', 'Food Notes', 'Blood Sugar (mg/dL)', 'Injection Site', 'Systolic (mmHg)', 'Diastolic (mmHg)', 'Waist (in)', 'Body Fat (%)', 'Muscle Mass (lbs)'];
+  var COLUMNS = ['Date', 'Dosage (mg)', 'Weight (lbs)', 'Comments', 'Calories', 'Food Notes', 'Blood Sugar (mg/dL)', 'Injection Site', 'Systolic (mmHg)', 'Diastolic (mmHg)', 'Waist (in)', 'Body Fat (%)', 'Muscle Mass (lbs)',
+    'Heart Rate (bpm)', 'HbA1c (%)', 'Protein (g)', 'Appetite (1-5)', 'Symptoms', 'Symptom Severity (0-3)'];
+  // Logged extras beyond the 13 original columns (web only for now, see PARITY.md): resting heart rate, HbA1c, protein, appetite and symptoms
+  var SYMPTOMS = ['Nausea', 'Vomiting', 'Diarrhea', 'Constipation', 'Reflux', 'Abdominal pain', 'Fatigue', 'Dizziness', 'Injection site reaction'];
+  var SX_SEV = ['None', 'Mild', 'Moderate', 'Severe'];
+  function sxList(e) { return typeof e.sx === 'string' && e.sx ? e.sx.split(';').map(function (t) { return t.trim(); }).filter(Boolean) : []; }
+  function hasExtra(e) { return e.hr != null || e.a1c != null || e.prot != null || e.app != null || !!e.sx || e.sxs != null; }
   // Rotation order for the "next site" hint
   var SITES = ['Stomach (left)', 'Stomach (right)', 'Thigh (left)', 'Thigh (right)', 'Arm (left)', 'Arm (right)'];
   var DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -843,7 +897,8 @@
       if (!last && dow !== 0 && rnd() < 0.12) continue;           // the odd missed day
       var dose = 2.5; DOSE_AT.forEach(function (x) { if (wk >= x[0]) dose = x[1]; });
       var e = { date: d, dose: dose, weight: r1(base(wk) + (rnd() - 0.5) * 1.4 + (dow >= 3 && dow <= 5 ? 0.4 : 0)),
-        comments: '', cal: null, food: '', sugar: null, site: '', sys: null, dia: null, waist: null, fat: null, muscle: null };
+        comments: '', cal: null, food: '', sugar: null, site: '', sys: null, dia: null, waist: null, fat: null, muscle: null,
+        hr: null, a1c: null, prot: null, app: null, sx: '', sxs: null };
       if (dow === 0) {
         e.site = SITES[siteN++ % SITES.length];
         e.comments = DOSE_AT.some(function (x) { return x[0] > 0 && Math.floor(wk) === x[0]; }) ? 'Dose increased to ' + dose + ' mg.' : (wk < 1 ? 'First dose.' : (rnd() < 0.55 ? pick(NOTES) : ''));
@@ -855,6 +910,22 @@
       if (dow === 1 && rnd() < 0.9) { e.waist = r1(41.5 - wk * 0.15 + (rnd() - 0.5) * 0.4); e.fat = r1(36 - wk * 0.13 + (rnd() - 0.5) * 0.4); e.muscle = r1(96.5 - wk * 0.05 + (rnd() - 0.5) * 0.5); }
       list.push(e);
     }
+    // later fields from their own generator so the series above stay exactly as they were
+    var seed2 = 7041, SXS = ['Nausea', 'Fatigue', 'Constipation', 'Reflux', 'Dizziness', 'Diarrhea'];
+    function rnd2() { seed2 |= 0; seed2 = seed2 + 0x6D2B79F5 | 0; var t = Math.imul(seed2 ^ seed2 >>> 15, 1 | seed2); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+    list.forEach(function (e, idx) {
+      var wk = dayDiff(start, e.date) / 7, dow = (weekday(e.date) - inj + 7) % 7, step = DOSE_AT.some(function (x) { return x[0] > 0 && Math.floor(wk) === x[0]; });
+      if (rnd2() < 0.5) e.hr = Math.round(74 - wk * 0.12 + (rnd2() - 0.5) * 8);
+      if (rnd2() < 0.6) e.prot = Math.round(70 + rnd2() * 60);
+      if (rnd2() < 0.4) e.app = Math.max(1, Math.min(5, Math.round(3 - Math.min(wk, 8) / 6 + (rnd2() - 0.5) * 1.6)));
+      if (dow === 3 && Math.floor(wk) % 4 === 0) e.a1c = Math.round((6.1 - wk * 0.015 + (rnd2() - 0.5) * 0.1) * 10) / 10;
+      if ((dow === 1 || dow === 2) && (rnd2() < 0.45 || step)) {
+        var n = 1 + (rnd2() < 0.4 ? 1 : 0), tags = [];
+        for (var k = 0; k < n; k++) { var t = SXS[Math.floor(rnd2() * (step ? 3 : SXS.length))]; if (tags.indexOf(t) < 0) tags.push(t); }
+        e.sx = tags.join('; '); e.sxs = step ? 2 : 1;
+      } else if (dow === 4 && rnd2() < 0.3) { e.sxs = 0; }
+      if (hasExtra(e)) e.ext = 1;
+    });
     return list;
   }
 
@@ -927,7 +998,7 @@
     if (DEMO) return demoEntries();
     try {
       var raw = localStorage.getItem(STORE_KEY);
-      if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) { p.forEach(function (e) { if (e.sys === undefined) e.sys = null; if (e.dia === undefined) e.dia = null; if (e.waist === undefined) e.waist = null; if (e.fat === undefined) e.fat = null; if (e.muscle === undefined) e.muscle = null; }); return p; } }
+      if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) { p.forEach(function (e) { if (e.sys === undefined) e.sys = null; if (e.dia === undefined) e.dia = null; if (e.waist === undefined) e.waist = null; if (e.fat === undefined) e.fat = null; if (e.muscle === undefined) e.muscle = null; ['hr', 'a1c', 'prot', 'app', 'sxs'].forEach(function (k) { if (e[k] === undefined) e[k] = null; }); if (typeof e.sx !== 'string') e.sx = ''; }); return p; } }
     } catch (e) {}
     return [];
   }
@@ -1017,13 +1088,15 @@
         e.date,
         e.dose === null ? '' : e.dose.toFixed(2),
         e.weight === null ? '' : e.weight.toFixed(1),
-        e.comments, e.cal, e.food, e.sugar, e.site || '', e.sys, e.dia, e.waist, e.fat, e.muscle
+        e.comments, e.cal, e.food, e.sugar, e.site || '', e.sys, e.dia, e.waist, e.fat, e.muscle,
+        e.hr, e.a1c, e.prot, e.app, e.sx || '', e.sxs
       ].map(csvCell).join(','));
     });
     return lines.join('\r\n');
   }
   /* ---------- colors ---------- */
   var DOSE_COLORS = { 2.5: '#3b82f6', 5: '#10b981', 7.5: '#eab308', 10: '#f97316', 12.5: '#ec4899', 15: '#8b5cf6' };
+  function fmtDose(d) { return String(Math.round(d * 100) / 100); }
   function doseColor(d) {
     if (d === null || d === undefined) return '#94a3b8';
     if (DOSE_COLORS[d]) return DOSE_COLORS[d];
@@ -1706,6 +1779,18 @@
   function runsPath(pts, f) {
     return runs(pts).filter(function (r) { return r.length > 1; }).map(function (r) { return 'M' + r.map(f).join('L'); }).join('');
   }
+  // Chart user space follows the panel's width (never below 320 or above 900) so axis text and dots keep their size on a phone
+  var lastChartW = 900;
+  function chartW() { var el = $('chart'), w = el && el.clientWidth; lastChartW = w ? Math.max(320, Math.min(900, Math.round(w))) : 900; return lastChartW; }
+  var resizeT = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(function () {
+      var el = $('chart'), w = el && el.clientWidth;
+      if (w && Math.max(320, Math.min(900, Math.round(w))) !== lastChartW && typeof renderChart === 'function') renderChart();
+    }, 150);
+  });
+  function chartH(W) { return W < 520 ? 250 : 320; }
   function buildChart(mkey, o) {
     o = o || {};
     if (mkey === 'compare') return buildCompare(o);
@@ -1771,7 +1856,7 @@
       }
     }
 
-    var W = 900, H = o.print ? 300 : 320, L = 48, R = 16, T = o.title ? 32 : 14, B = 34, gid = 'ag' + (++chartSeq);
+    var W = o.print ? 900 : chartW(), H = o.print ? 300 : chartH(W), L = 48, R = 16, T = o.title ? 32 : 14, B = 34, gid = 'ag' + (++chartSeq);
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
     // Glucose dots carry the range colours, so its average line stays neutral
     var lc = (m.key === 'sugar' || m.key === 'bmi' || bp) ? '#64748b' : m.color;
@@ -1933,7 +2018,7 @@
     var t0 = o.from || dates[0].date, tN = o.to || dates[dates.length - 1].date, single = dates.length === 1;
     if (!o.from && !o.to && !single && o.days && dayDiff(t0, tN) < o.days) tN = addDays(t0, o.days);   // keep the full window, data on the left
     var span = Math.max(dayDiff(t0, tN), 1);
-    var W = 900, H = o.print ? 320 : 320, L = 48, R = 16, T = o.print ? 50 : 14, B = 34;
+    var W = o.print ? 900 : chartW(), H = o.print ? 320 : chartH(W), L = 48, R = 16, T = o.print ? 50 : 14, B = 34;
     var C = o.print ? { line: '#dbe4ec', muted: '#5a6b7c', panel: '#ffffff' } : { line: 'var(--line)', muted: 'var(--muted)', panel: 'var(--panel)' };
     function X(d) { return single ? L + (W - L - R) / 2 : L + (dayDiff(t0, d) / span) * (W - L - R); }
     function Y(l, v) { var f = l.hi === l.lo ? 0.5 : (v - l.lo) / (l.hi - l.lo); return T + (1 - (0.06 + 0.88 * f)) * (H - T - B); }
@@ -2187,20 +2272,26 @@
         if (dw(Math.abs(d)) < 0.05) dTxt = '<span class="dim">0.0</span>';
         else dTxt = '<span class="delta ' + (d < 0 ? 'down' : 'up') + '">' + (d < 0 ? '\u25BC ' : '\u25B2 ') + fw(Math.abs(d)) + '</span>';
       }
-      var dose = e.dose === null ? '<span class="dim">\u2014</span>' : '<span class="chip" style="--c:' + doseColor(e.dose) + '">' + e.dose.toFixed(2) + '</span>';
+      var dose = e.dose === null ? '<span class="dim">\u2014</span>' : '<span class="chip" style="--c:' + doseColor(e.dose) + '">' + fmtDose(e.dose) + '</span>';
       var pct = (e.cal !== null && maxCal) ? Math.round(e.cal / maxCal * 100) : 0;
+      function sub(t) { return t ? '<div class="site-t">' + t + '</div>' : ''; }
+      var bodyBits = [e.fat != null ? 'fat ' + e.fat + '%' : '', e.muscle != null ? 'muscle ' + fw(e.muscle) : ''].filter(Boolean).join(' \u00b7 ');
+      var sx = sxList(e), notes = '';
+      if (e.comments) notes += '<div>' + esc(e.comments) + '</div>';
+      if (e.food) notes += '<div class="food">' + esc(e.food) + '</div>';
+      if (sx.length || e.sxs != null) notes += '<div class="sx-row">' + (e.sxs ? '<span class="chip sev' + e.sxs + '">' + SX_SEV[e.sxs] + '</span> ' : '') + sx.map(function (t) { return '<span class="sx-chip">' + esc(t) + '</span>'; }).join('') + '</div>';
+      if (e.app != null || e.prot != null) notes += sub([e.app != null ? 'appetite ' + e.app + '/5' : '', e.prot != null ? 'protein ' + e.prot + ' g' : ''].filter(Boolean).join(' \u00b7 '));
       return '<tr style="--c:' + doseColor(e.dose) + '">' +
-        '<td>' + esc(fmtDate(e.date)) + '</td>' +
-        '<td class="num">' + dose + (e.site ? '<div class="site-t">' + esc(e.site) + '</div>' : '') + '</td>' +
-        '<td class="num">' + (e.weight === null ? c(null) : fwa(e.weight)) + '</td>' +
-        '<td class="num">' + dTxt + '</td>' +
-        '<td class="notes">' + (e.comments ? esc(e.comments) : '<span class="dim">\u2014</span>') + '</td>' +
-        '<td class="num">' + (e.cal === null ? '<span class="dim">\u2014</span>' : '<div class="calcell"><i style="width:' + pct + '%"></i><span>' + e.cal + '</span></div>') + '</td>' +
-        '<td class="food">' + (e.food ? esc(e.food) : '<span class="dim">\u2014</span>') + '</td>' +
-        '<td class="num">' + (e.sugar === null ? c(null) : '<span class="chip" style="--c:' + sugarZone(e.sugar).color + '" title="' + sugarZone(e.sugar).label + '">' + e.sugar + '</span>') + '</td>' +
-        '<td class="num">' + (hasBp(e) ? bpChip(e) : c(null)) + '</td>' +
-        '<td class="num">' + (e.waist == null ? c(null) : flen(e.waist)) + ((e.fat != null || e.muscle != null) ? '<div class="site-t">' + [e.fat != null ? 'fat ' + e.fat + '%' : '', e.muscle != null ? 'muscle ' + fw(e.muscle) : ''].filter(Boolean).join(' \u00b7 ') + '</div>' : '') + '</td>' +
-        '<td style="white-space:nowrap"><button class="small" data-edit="' + esc(e.date) + '" aria-label="Edit entry for ' + esc(fmtDate(e.date)) + '">Edit</button> ' +
+        '<td class="d">' + esc(fmtDate(e.date)) + '</td>' +
+        '<td class="num" data-l="Dose">' + dose + (e.site ? '<div class="site-t">' + esc(e.site) + '</div>' : '') + '</td>' +
+        '<td class="num" data-l="Weight">' + (e.weight === null ? c(null) : fwa(e.weight)) + '</td>' +
+        '<td class="num" data-l="Change">' + dTxt + '</td>' +
+        '<td class="num" data-l="Calories">' + (e.cal === null ? '<span class="dim">\u2014</span>' : '<div class="calcell"><i style="width:' + pct + '%"></i><span>' + e.cal.toLocaleString('en-US') + '</span></div>') + '</td>' +
+        '<td class="num" data-l="Glucose">' + (e.sugar === null ? c(null) : '<span class="chip" style="--c:' + sugarZone(e.sugar).color + '" title="' + sugarZone(e.sugar).label + '">' + e.sugar + '</span>') + sub(e.a1c != null ? 'HbA1c ' + e.a1c + '%' : '') + '</td>' +
+        '<td class="num" data-l="BP">' + (hasBp(e) ? bpChip(e) : c(null)) + sub(e.hr != null ? e.hr + ' bpm' : '') + '</td>' +
+        '<td class="num" data-l="Waist">' + (e.waist == null ? c(null) : flen(e.waist) + ' ' + LU()) + sub(bodyBits) + '</td>' +
+        '<td class="notes">' + (notes || '<span class="dim">\u2014</span>') + '</td>' +
+        '<td class="act" style="white-space:nowrap"><button class="small" data-edit="' + esc(e.date) + '" aria-label="Edit entry for ' + esc(fmtDate(e.date)) + '">Edit</button> ' +
         '<button class="small danger" data-del="' + esc(e.date) + '" aria-label="Delete entry for ' + esc(fmtDate(e.date)) + '">Delete</button></td>' +
         '</tr>';
     }).join('');
@@ -2651,6 +2742,9 @@
     var s = sorted().filter(function (e) { return e.dose !== null; });
     return s.length ? s[s.length - 1].dose : '';
   }
+  $('fSx').innerHTML = SYMPTOMS.map(function (n, i) {
+    return '<label class="sx-tag"><input type="checkbox" value="' + esc(n) + '" id="sx' + i + '"><span>' + esc(n) + '</span></label>';
+  }).join('');
   function resetForm() {
     editingDate = null; weightShown = weightOrig = null; convOrig = {};
     $('entryForm').reset();
@@ -2697,8 +2791,13 @@
       dia: bp ? bp.dia : null,
       waist: readConv('fWaist', fromDl),
       fat: num($('fFat').value),
-      muscle: readConv('fMuscle', function (v) { return toLbs(v, isMetric()); })
+      muscle: readConv('fMuscle', function (v) { return toLbs(v, isMetric()); }),
+      hr: num($('fHr').value), a1c: num($('fA1c').value), prot: num($('fProt').value), app: num($('fApp').value),
+      sx: Array.prototype.slice.call(document.querySelectorAll('#fSx input:checked')).map(function (c) { return c.value; }).join('; '),
+      sxs: num($('fSxs').value)
     };
+    var prevE = entries.find(function (x) { return x.date === (editingDate || e.date); });
+    if (hasExtra(e) || (prevE && prevE.ext)) e.ext = 1;
     if (!e.date) return;
     if (editingDate && editingDate !== e.date) {
       entries = entries.filter(function (x) { return x.date !== editingDate; });
@@ -2751,6 +2850,9 @@
       setConv('fMuscle', e.muscle, e.muscle == null ? '' : (isMetric() ? fw(e.muscle) : String(e.muscle)));
       $('fFood').value = e.food || '';
       $('fComments').value = e.comments || '';
+      $('fHr').value = e.hr == null ? '' : e.hr; $('fA1c').value = e.a1c == null ? '' : e.a1c; $('fProt').value = e.prot == null ? '' : e.prot;
+      $('fApp').value = e.app == null ? '' : String(e.app); $('fSxs').value = e.sxs == null ? '' : String(e.sxs);
+      var have = sxList(e); Array.prototype.forEach.call(document.querySelectorAll('#fSx input'), function (c) { c.checked = have.indexOf(c.value) >= 0; });
       setSiteValue(e.site || '');
       $('formTitle').textContent = 'Edit entry: ' + fmtDate(e.date);
       $('saveBtn').textContent = 'Update entry';
@@ -2901,6 +3003,12 @@
   var FIELDS = [
     { k: 'date', label: 'Date', req: true, words: ['date', 'day'] },
     { k: 'waist', label: 'Waist (in)', words: ['waist'] },
+    { k: 'sxs', label: 'Symptom severity (0-3)', words: ['severity'] },
+    { k: 'sx', label: 'Symptoms', words: ['symptom', 'side effect'] },
+    { k: 'hr', label: 'Resting heart rate (bpm)', words: ['heart', 'pulse', 'bpm'] },
+    { k: 'a1c', label: 'HbA1c (%)', words: ['a1c'] },
+    { k: 'prot', label: 'Protein (g)', words: ['protein'] },
+    { k: 'app', label: 'Appetite (1-5)', words: ['appetite', 'hunger'] },
     { k: 'fat', label: 'Body fat (%)', words: ['body fat', 'bodyfat', 'fat %', 'fat'] },
     { k: 'muscle', label: 'Muscle mass (lbs)', words: ['muscle', 'lean'] },
     { k: 'dose', label: 'Dosage (mg)', words: ['dos', 'tirz', 'medication'] },
@@ -2927,7 +3035,7 @@
   }
   function downloadTemplate() {
     download('TirzepatideLog-template.csv',
-      COLUMNS.join(',') + '\r\n2026-01-05,2.50,210.0,"First dose, felt fine",2100,Chicken salad,105,Stomach (left),122,78,38.5,34.0,96.0');
+      COLUMNS.join(',') + '\r\n2026-01-05,2.50,210.0,"First dose, felt fine",2100,Chicken salad,105,Stomach (left),122,78,38.5,34.0,96.0,64,5.6,95,3,Nausea; Fatigue,1');
   }
 
   function openImport() {
@@ -2995,8 +3103,15 @@
         date: date, dose: num(cell(r, 'dose')), weight: w, comments: cell(r, 'comments'),
         cal: num(cell(r, 'cal')), food: cell(r, 'food'), sugar: num(cell(r, 'sugar')), site: cell(r, 'site').trim(),
         sys: num(cell(r, 'sys')), dia: num(cell(r, 'dia')),
-        waist: num(cell(r, 'waist')), fat: num(cell(r, 'fat')), muscle: num(cell(r, 'muscle'))
+        waist: num(cell(r, 'waist')), fat: num(cell(r, 'fat')), muscle: num(cell(r, 'muscle')),
+        hr: num(cell(r, 'hr')), a1c: num(cell(r, 'a1c')), prot: num(cell(r, 'prot')), app: num(cell(r, 'app')),
+        sx: cell(r, 'sx').split(/[;,]/).map(function (t) { return t.trim(); }).filter(Boolean).map(function (t) {
+          var m = SYMPTOMS.filter(function (n) { return n.toLowerCase() === t.toLowerCase(); })[0]; return m || null;
+        }).filter(Boolean).join('; '),
+        sxs: num(cell(r, 'sxs'))
       });
+      var lastIn = out[out.length - 1];
+      if (hasExtra(lastIn)) lastIn.ext = 1;
       var cb = parseBp(cell(r, 'bp'), 0), last = out[out.length - 1];
       if (cb && last.sys === null && last.dia === null) { last.sys = cb.sys; last.dia = cb.dia; }
     });
@@ -3326,12 +3441,26 @@
     [['comments', 'comments'], ['foodNotes', 'food'], ['site', 'site']].forEach(function (m) {
       var v = e[m[1]]; if (typeof v === 'string' && v !== '') o[m[0]] = v.slice(0, STR_MAX[m[0]]);
     });
+    // later fields: sent only for entries that carry them; v: 2 tells every device the server version is the whole truth for them
+    if (e.ext || hasExtra(e)) {
+      o.v = 2;
+      [['hr', 'hr'], ['a1c', 'a1c'], ['protein', 'prot'], ['appetite', 'app'], ['sxs', 'sxs']].forEach(function (m) {
+        var v = e[m[1]]; if (typeof v === 'number' && isFinite(v)) o[m[0]] = v;
+      });
+      if (typeof e.sx === 'string' && e.sx) o.sx = e.sx.slice(0, 200);
+    }
     return o;
   }
-  function fromCloud(r) {
+  function fromCloud(r, prev) {
     function n(v) { return typeof v === 'number' ? v : null; }
-    return { date: r.date, dose: n(r.dose), weight: n(r.weight), comments: r.comments || '', cal: n(r.calories), food: r.foodNotes || '',
+    var e = { date: r.date, dose: n(r.dose), weight: n(r.weight), comments: r.comments || '', cal: n(r.calories), food: r.foodNotes || '',
       sugar: n(r.glucose), site: r.site || '', sys: n(r.sys), dia: n(r.dia), waist: n(r.waist), fat: n(r.fat), muscle: n(r.muscle) };
+    if (r.v >= 2) {   // written by a build that knows the later fields: the server copy is complete
+      e.hr = n(r.hr); e.a1c = n(r.a1c); e.prot = n(r.protein); e.app = n(r.appetite); e.sxs = n(r.sxs); e.sx = r.sx || ''; e.ext = 1;
+    } else if (prev) {   // an older copy (or a server that drops them): keep what this device already has
+      e.hr = n(prev.hr); e.a1c = n(prev.a1c); e.prot = n(prev.prot); e.app = n(prev.app); e.sxs = n(prev.sxs); e.sx = prev.sx || ''; if (prev.ext) e.ext = 1;
+    }
+    return e;
   }
   function canonE(e) { return JSON.stringify(toCloud(e)); }
   function cloudSettings(st) {
@@ -3367,13 +3496,13 @@
     try { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); } catch (e) {}
   }
   function applyRemote(r) {
-    var d = r.date, rj = r.deleted ? null : canonE(fromCloud(r));
-    var at = entries.findIndex(function (x) { return x.date === d; });
+    var d = r.date, at = entries.findIndex(function (x) { return x.date === d; });
+    var rj = r.deleted ? null : canonE(fromCloud(r, at >= 0 ? entries[at] : null));
     var c = at >= 0 ? canonE(entries[at]) : null;
     if (rj === c) { sync.base[d] = { j: rj, u: r.updatedAt }; sync.seen[d] = c; delete sync.dirty[d]; return false; }
     if (sync.dirty[d] !== undefined && sync.dirty[d] > r.updatedAt) return false;   // the local edit is newer, it will be pushed
     if (rj === null) entries.splice(at, 1);
-    else if (at >= 0) entries[at] = fromCloud(r);
+    else if (at >= 0) entries[at] = fromCloud(r, entries[at]);
     else entries.push(fromCloud(r));
     sync.base[d] = { j: rj, u: r.updatedAt }; sync.seen[d] = rj; delete sync.dirty[d];
     return true;

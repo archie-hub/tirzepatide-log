@@ -126,7 +126,7 @@ test('fasting glucose is coloured green, amber and red by range', async ({ page 
 
   // Entries table (newest first). 125.6 shows as 126, so it must be red too.
   const tableColors = await page.locator('#rows tr').evaluateAll((rows) =>
-    rows.map((r) => r.querySelector('td:nth-child(8) .chip').style.getPropertyValue('--c')));
+    rows.map((r) => r.querySelector('td:nth-child(6) .chip').style.getPropertyValue('--c')));
   expect(tableColors).toEqual([RED, RED, AMBER, GREEN]);
 
   // Latest-reading stat card.
@@ -146,7 +146,7 @@ test('blood pressure is coloured by AHA category in the table, plan-row panel an
 
   // Newest first: 126/92 stage 2 (diastolic decides), 134/79 stage 1, 128/84 stage 1 (diastolic decides), 125/78 elevated, 118/76 normal.
   const rows = await page.locator('#rows tr').evaluateAll((trs) =>
-    trs.map((r) => { const c = r.querySelector('.bp-cell .chip, td:nth-child(9) .chip'); return [c.textContent, c.style.getPropertyValue('--c')]; }));
+    trs.map((r) => { const c = r.querySelector('.bp-cell .chip, td:nth-child(7) .chip'); return [c.textContent, c.style.getPropertyValue('--c')]; }));
   expect(rows).toEqual([['126/92', RED], ['134/79', ORANGE], ['128/84', ORANGE], ['125/78', AMBER], ['118/76', GREEN]]);
 
   const card = page.locator('#plan .stat.mini', { hasText: 'Latest BP' });
@@ -172,8 +172,8 @@ test('blood pressure round-trips through the form and the CSV export', async ({ 
 
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
   const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
-  expect(csv[0]).toBe('Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg),Waist (in),Body Fat (%),Muscle Mass (lbs)');
-  expect(csv[1]).toBe('2026-10-01,,,,,,,,145,76,,,');
+  expect(csv[0]).toBe('Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg),Waist (in),Body Fat (%),Muscle Mass (lbs),Heart Rate (bpm),HbA1c (%),Protein (g),Appetite (1-5),Symptoms,Symptom Severity (0-3)');
+  expect(csv[1]).toBe('2026-10-01,,,,,,,,145,76,,,,,,,,,');
 
   await expect(page.locator('#plan .stat.mini', { hasText: 'Latest BP' })).toContainText('126/92');
 });
@@ -438,7 +438,7 @@ test('blood pressure is one field like 119/79; bad input is rejected; combined C
   await page.locator('#pasteBox').fill('Date,Blood Pressure\n2026-10-01,119/79\n2026-10-02,"141/91"');
   await page.locator('#pasteBtn').click();
   await page.locator('#doImport').click();
-  await expect(page.locator('#rows tr').first().locator('td:nth-child(9) .chip')).toHaveText('141/91');
+  await expect(page.locator('#rows tr').first().locator('td:nth-child(7) .chip')).toHaveText('141/91');
 
   await expandPanels(page);
   await page.locator('#fDate').fill('2026-10-03');
@@ -448,7 +448,7 @@ test('blood pressure is one field like 119/79; bad input is rejected; combined C
   expect(await page.locator('#fBp').evaluate((el) => el.validationMessage)).toContain('119/79');
   await page.locator('#fBp').fill('119/79');
   await page.locator('#saveBtn').click();
-  await expect(page.locator('#rows tr').first().locator('td:nth-child(9) .chip')).toHaveText('119/79');
+  await expect(page.locator('#rows tr').first().locator('td:nth-child(7) .chip')).toHaveText('119/79');
 });
 
 test('combined chart: pick which values to plot, hover shows real values, choice is remembered', async ({ page }) => {
@@ -510,7 +510,7 @@ test('Entries and Add entry panels start minimised and expand on click', async (
   await expect(page.locator('#fDate')).toBeVisible();
 });
 
-test('plan row: Days covered and Latest BP are near-square tiles side by side, compact strips on a phone', async ({ page }) => {
+test('plan row: Days covered and Latest BP are near-square tiles side by side, full-width slot on a phone', async ({ page }) => {
   await importSample(page);
   const stack = page.locator('#plan .stack');
   const minis = stack.locator('.stat.mini');
@@ -528,9 +528,8 @@ test('plan row: Days covered and Latest BP are near-square tiles side by side, c
 
   await page.setViewportSize({ width: 390, height: 900 });
   const [c, d] = await Promise.all([minis.nth(0).boundingBox(), minis.nth(1).boundingBox()]);
-  expect(d.y).toBeGreaterThan(c.y + c.height - 1);              // stacked
-  expect(c.height).toBeLessThan(stat.height / 2);
-  await expect(minis.nth(1).locator('.sub')).toBeHidden();
+  expect(Math.abs(c.y - d.y)).toBeLessThan(1);                  // on a phone the slot takes the whole row, so they stay side by side
+  await expect(minis.nth(1).locator('.sub')).toBeVisible();
 });
 
 test('plan row: without any BP readings Days covered keeps its full panel', async ({ page }) => {
@@ -821,7 +820,7 @@ test('body measures: import, table, waist chart with the half-height line and co
   await page.fill('#bmiHeight', "5'10\"");          // 70 in
   await page.press('#bmiHeight', 'Enter');
   await expandPanels(page);
-  await expect(page.locator('#rows tr').first().locator('td').nth(9)).toContainText('37.0'.replace('.0', ''));
+  await expect(page.locator('#rows tr').first().locator('td').nth(7)).toContainText('37.0'.replace('.0', ''));
   await page.locator('#tab-waist').click();
   const svg = page.locator('#chart svg[role="img"]');
   await expect(svg).toBeVisible();
@@ -854,7 +853,7 @@ test('body measures: form round-trip, exact values kept on edit, metric shows cm
 
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
   const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
-  expect(csv[3].split(',').slice(-3)).toEqual(['36.5', '34.1', '96']);   // inches, %, lbs
+  expect(csv[3].split(',').slice(-9, -6)).toEqual(['36.5', '34.1', '96']);   // inches, %, lbs
 });
 
 test('body measures: files without them still import, and nothing extra shows', async ({ page }) => {
