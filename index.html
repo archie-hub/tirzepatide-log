@@ -766,7 +766,6 @@
   <div class="opts" style="margin-top:0">
     <label><span>Goal weight (<span class="wua">lbs</span>)</span><input type="number" id="sGoal" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
     <label><span>Starting weight before treatment (<span class="wua">lbs</span>), optional</span><input type="number" id="sBaseline" step="0.1" min="0" inputmode="decimal" placeholder="blank = first weigh-in"></label>
-    <label><span>Measure change from (date), optional</span><input type="date" id="sChangeFrom"></label>
     <label>Height<input type="text" id="sHeight" placeholder="e.g. 5'9&quot; or 175 cm"></label>
     <label>Units<select id="sUnits"><option value="us">US (lbs, ft/in)</option><option value="metric">Metric (kg, cm)</option><option value="uk">UK (stones and lbs, ft/in)</option></select></label>
     <label>Injection day<select id="sDay"></select></label>
@@ -1133,15 +1132,6 @@
   /* ---------- progress maths ---------- */
   var MILESTONES = [5, 10, 15, 20, 25];   // percent of starting weight lost
   function baselineOf(w) { return settings.baseline || (w.length ? w[0].weight : null); }
-  // Reference weigh-in of the Change card: the first one on or after settings.changeFrom (this device only), else the first ever
-  function changeRef(w) {
-    var cf = settings.changeFrom;
-    if (cf && /^\d{4}-\d{2}-\d{2}$/.test(cf)) {
-      var i = 0; while (i < w.length && w[i].date < cf) i++;
-      if (i < w.length - 1) return w[i];
-    }
-    return w[0];
-  }
   function treatStart(all) { var d = all.filter(function (e) { return e.dose !== null; })[0]; return (d || all[0]).date; }
   function weekNo(startIso, iso) { return Math.floor(dayDiff(startIso, iso) / 7) + 1; }
   // all = every entry (sorted) up to the date of interest. Returns null with no weigh-ins.
@@ -1164,14 +1154,14 @@
     return { base: base, hasBase: !!settings.baseline, last: last, start: start, lost: lost, pct: lost / base * 100,
       week: weekNo(start, all[all.length - 1].date), ms: ms, w12: w12 };
   }
-  // Sub line of the Change card: percent of the starting (or baseline) weight and the week on treatment
-  function pctSub(all, d, first) {
-    var pi = progressInfo(all);
-    if (pi && first.date !== all.filter(function (e) { return e.weight !== null; })[0].date) {
-      return Math.abs(d / first.weight * 100).toFixed(1) + '% ' + (d <= 0 ? 'lost' : 'gained') + ' \u00b7 week ' + pi.week;
-    }
-    if (!pi) return (d / first.weight * 100).toFixed(1) + '% of starting weight';
-    return Math.abs(pi.pct).toFixed(1) + '% ' + (pi.lost >= 0 ? 'lost' : 'gained') + (pi.hasBase ? ' from start' : '') + ' \u00b7 week ' + pi.week;
+  // Sub line of the Change card: percent of the weight at the start of the selected range (or of the baseline when the
+  // range starts at the first weigh-in) and the week on treatment at the last weigh-in in range
+  function pctSub(all, last, first) {
+    var pi = progressInfo(all), w = all.filter(function (e) { return e.weight !== null; });
+    var base = settings.baseline && w.length && first.date === w[0].date ? settings.baseline : first.weight;
+    var lost = base - last.weight, wk = pi ? ' \u00b7 week ' + weekNo(pi.start, last.date) : '';
+    if (first.date === last.date) return '0.0% of starting weight' + wk;
+    return Math.abs(lost / base * 100).toFixed(1) + '% ' + (lost >= 0 ? 'lost' : 'gained') + (base !== first.weight ? ' from start' : '') + wk;
   }
   // Rolling 4-week pace in lbs/week (negative = losing), one value per weigh-in that has enough history
   function rollingRates(w) {
@@ -1444,7 +1434,8 @@
     var dosed = s.filter(function (e) { return e.dose !== null; });
     var sug = s.filter(function (e) { return e.sugar !== null; });
     if (w.length) {
-      var first = changeRef(w), last = w[w.length - 1], d = last.weight - first.weight, gi = goalInfo(w);
+      var inR = inChartRange(w), first = inR.length ? inR[0] : w[0], chgLast = inR.length ? inR[inR.length - 1] : w[w.length - 1];
+      var last = w[w.length - 1], d = chgLast.weight - first.weight, gi = goalInfo(w);
       var wtCard = { id: 'wt', label: 'Latest weight (' + WUA() + ')', color: '#0ea5a4', extra: spark(inChartRange(w).map(function (e) { return dw(e.weight); })) };
       if (isUK()) wtCard.text = stLb(last.weight, 1, true); else { wtCard.val = dw(last.weight); wtCard.dec = 1; }
       cards.push(wtCard);
@@ -1457,7 +1448,7 @@
       }
       cards.push({ id: 'chg', label: 'Change since ' + fmtDate(first.date), val: dw(d), dec: 1, sign: true,
         color: d > 0 ? 'var(--bad)' : 'var(--good)', arrow: d < 0 ? '\u25BC ' : (d > 0 ? '\u25B2 ' : ''),
-        sub: pctSub(s, d, first), edit: true, focus: 'changeFrom', editLabel: 'start date of change' });
+        sub: pctSub(s, chgLast, first) });
     }
     if (sug.length) {
       var lastSug = sug[sug.length - 1].sugar, z = sugarZone(lastSug);
@@ -3151,11 +3142,10 @@
     baselineShown = settings.baseline ? wShow(settings.baseline) : '';
     $('sBaseline').value = baselineShown;
     $('sHeight').value = heightShown;
-    $('sChangeFrom').value = /^\d{4}-\d{2}-\d{2}$/.test(settings.changeFrom || '') ? settings.changeFrom : '';
     $('sUnits').value = isMetric() ? 'metric' : isUK() ? 'uk' : 'us';
     $('sDay').value = hasDoseDay() ? String(settings.doseDay) : 'auto';
     if (!sdlg.open) sdlg.showModal();
-    (focus === 'height' ? $('sHeight') : focus === 'changeFrom' ? $('sChangeFrom') : $('sGoal')).focus();
+    (focus === 'height' ? $('sHeight') : $('sGoal')).focus();
   }
   function closeSettings() { if (sdlg.open) sdlg.close(); }
   // Weekly calendar event on the injection day (9:00, with an alert), the web counterpart of the iOS dose reminder
@@ -3183,8 +3173,6 @@
     var bw = readW($('sBaseline').value, wasMetric, wasUK);
     if (bw && bw > 0) settings.baseline = $('sBaseline').value === baselineShown && settings.baseline ? settings.baseline : bw;
     else settings.baseline = null;
-    var cf = $('sChangeFrom').value.trim();
-    settings.changeFrom = /^\d{4}-\d{2}-\d{2}$/.test(cf) ? cf : null;
     if (ht !== heightShown) settings.heightIn = ht ? parseHeight(ht) : null;
     settings.units = $('sUnits').value;
     settings.doseDay = day === 'auto' ? null : parseInt(day, 10);
@@ -3494,8 +3482,7 @@
   function shSay(t) { $('shMsg').textContent = t || ''; }   // messages inside the share dialog (the page behind it is covered)
   var shareDlg = $('shareDlg');
   $('shareOpen').addEventListener('click', function () { shSay('');
-    // start from the Change card's date
-    $('shFrom').value = /^\d{4}-\d{2}-\d{2}$/.test(settings.changeFrom || '') ? settings.changeFrom : '';
+    $('shFrom').value = '';
     renderShares([]); refreshShares(); if (!shareDlg.open) shareDlg.showModal(); });
   $('shClose').addEventListener('click', function () { if (shareDlg.open) shareDlg.close(); });
   $('settingsOpen').addEventListener('click', function () { openSettings(); });
