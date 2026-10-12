@@ -510,12 +510,12 @@ test('Entries and Add entry panels start minimised and expand on click', async (
   await expect(page.locator('#fDate')).toBeVisible();
 });
 
-test('plan row: Days covered and Latest BP are near-square tiles side by side, full-width slot on a phone', async ({ page }) => {
+test('plan row: Days tracked and Latest BP are near-square tiles side by side, full-width slot on a phone', async ({ page }) => {
   await importSample(page);
   const stack = page.locator('#plan .stack');
   const minis = stack.locator('.stat.mini');
   await expect(minis).toHaveCount(2);
-  await expect(minis.nth(0)).toContainText('Days covered');
+  await expect(minis.nth(0)).toContainText('Days tracked');
   await expect(minis.nth(1)).toContainText('Latest BP');
   await expect(minis.nth(1).locator('.v')).toHaveText(/^\d+\/\d+$/);
   await expect(minis.nth(1).locator('.sub')).toBeVisible();
@@ -532,7 +532,7 @@ test('plan row: Days covered and Latest BP are near-square tiles side by side, f
   await expect(minis.nth(1).locator('.sub')).toBeVisible();
 });
 
-test('plan row: without any BP readings Days covered keeps its full panel', async ({ page }) => {
+test('plan row: without any BP readings Days tracked keeps its full panel', async ({ page }) => {
   await page.locator('#emptyImport').click();
   await page.locator('#importDlg summary').click();
   await page.locator('#pasteBox').fill('Date,Dosage (mg),Weight (lbs)\n2026-10-01,2.5,200\n2026-10-03,2.5,199');
@@ -628,7 +628,7 @@ test('insights: fast-loss notice, pace, extremes, best week, streak and weekly a
   await expect(box('Logging streak')).toContainText('57 days');
   await expect(box('Weigh-ins')).toContainText('57');
   await expect(box('Weigh-ins')).toContainText('every 1.0 days');
-  const rows = await page.locator('#insights table tbody tr').count();
+  const rows = await page.locator('#insights table').last().locator('tbody tr').count();
   expect(rows).toBe(9);                                                  // 57 days = 9 week buckets (8 full + 1 day)
 });
 
@@ -1114,9 +1114,9 @@ test('layout: sections can be moved and hidden, kept on this device, Add entry a
   await page.locator('#layoutOpen').click();
   await expect(page.locator('#layoutDlg')).toBeVisible();
   // Results by dose up past More insights and the chart
+  await page.locator('[data-lay-up]').nth(6).click();
   await page.locator('[data-lay-up]').nth(5).click();
   await page.locator('[data-lay-up]').nth(4).click();
-  await page.locator('[data-lay-up]').nth(3).click();
   expect((await ids()).indexOf('ratePanel')).toBeLessThan((await ids()).indexOf('chartPanel'));
   // hide the entries
   await page.locator('[data-lay-show="entriesPanel"]').uncheck();
@@ -1185,4 +1185,87 @@ test('layout: cards can be dragged between the two card rows, hidden, and surviv
   await page.locator('#layClose').click();
   await expect(page.locator('#plan .stat.bmi')).toHaveCount(1);
   await expect(page.locator('#stats [data-card="goal"]')).toBeVisible();
+});
+
+/* ---------- clinical summaries and the later logged fields (web only for now) ---------- */
+test('at a glance: start to now, total change, weeks, dose timing and symptoms', async ({ page }) => {
+  await pasteProgress(page);   // 200.0 on 2026-07-01 ... 175.0 on 2026-10-01
+  const g = page.locator('#glance');
+  await expect(g).toContainText('200.0 lbs');
+  await expect(g).toContainText('175.0 lbs');
+  await expect(g).toContainText('25.0 lbs');
+  await expect(g).toContainText('12.5% of first weigh-in lost');
+  await expect(g).toContainText('Week 14');
+  await expect(g).toContainText('Not tracked');            // no injection sites logged
+  await expect(g).toContainText('Not logged');             // no symptoms logged
+});
+
+test('weight lost by week on treatment uses the nearest weigh-in within a week', async ({ page }) => {
+  await pasteProgress(page);
+  await page.locator('#insightsPanel > summary').click();
+  const row = (i) => page.locator('#insights table').first().locator('tbody tr').nth(i);
+  await expect(page.locator('#insights h3', { hasText: 'Weight lost by week' })).toBeVisible();
+  await expect(row(0)).toContainText('189.9');             // Aug 1, 10.1 lbs, 5.1%
+  await expect(row(0)).toContainText('10.1');
+  await expect(row(2)).toContainText('178.0');            // Sep 22 is 1 day from day 84: 22.0 lbs, 11.0%
+  await expect(row(2)).toContainText('11.0%');
+});
+
+test('symptoms, heart rate, HbA1c, protein and appetite: form, table, CSV and re-import', async ({ page }) => {
+  await page.goto(APP_URL);
+  await page.locator('#entriesPanel').waitFor({ state: 'attached' });
+  await page.evaluate(() => { document.getElementById('formPanel').open = true; document.getElementById('entriesPanel').open = true; });
+  await page.fill('#fDate', '2026-10-01');
+  await page.fill('#fWeight', '190');
+  await page.fill('#fHr', '66');
+  await page.fill('#fA1c', '5.9');
+  await page.fill('#fProt', '110');
+  await page.selectOption('#fApp', '2');
+  await page.locator('#fSx label', { hasText: 'Nausea' }).click();
+  await page.locator('#fSx label', { hasText: 'Fatigue' }).click();
+  await page.selectOption('#fSxs', '2');
+  await page.locator('#saveBtn').click();
+  const row = page.locator('#rows tr').first();
+  await expect(row).toContainText('66 bpm');
+  await expect(row).toContainText('HbA1c 5.9%');
+  await expect(row).toContainText('Nausea');
+  await expect(row).toContainText('Moderate');
+  await expect(row).toContainText('appetite 2/5');
+  await expect(row).toContainText('protein 110 g');
+
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
+  const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
+  expect(csv[0].split(',').slice(-6)).toEqual(['Heart Rate (bpm)', 'HbA1c (%)', 'Protein (g)', 'Appetite (1-5)', 'Symptoms', 'Symptom Severity (0-3)']);
+  expect(csv[1]).toBe('2026-10-01,,190.0,,,,,,,,,,,66,5.9,110,2,Nausea; Fatigue,2');
+
+  // edit keeps them; clear all and import the same file brings them back
+  await page.locator('[data-edit="2026-10-01"]').click();
+  await expect(page.locator('#fHr')).toHaveValue('66');
+  await expect(page.locator('#fSx input:checked')).toHaveCount(2);
+  await page.locator('#cancelBtn').click();
+  await page.evaluate(() => localStorage.removeItem('tirzepatide-log-v1'));
+  await page.reload();
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill(csv.join('\n'));
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  const e = await page.evaluate(() => JSON.parse(localStorage.getItem('tirzepatide-log-v1'))[0]);
+  expect(e).toMatchObject({ hr: 66, a1c: 5.9, prot: 110, app: 2, sx: 'Nausea; Fatigue', sxs: 2 });
+});
+
+test('dose timing counts days with an injection site; a late dose is flagged and overdue shows on the Next dose card', async ({ page }) => {
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const csv = 'Date,Dosage (mg),Weight (lbs),Injection Site\n' +
+    [[40, 'Stomach (left)'], [33, 'Stomach (right)'], [26, 'Thigh (left)'], [12, 'Thigh (right)'], [11, '']]   // gap of 14 days (one dose missed), then 11 days since the last injection
+      .map(([n, site], i) => iso(n) + ',2.5,' + (200 - i) + ',' + site).join('\n');
+  await pasteCsv(page, csv);
+  const g = page.locator('#glance');
+  await expect(g).toContainText('2 of 3 on time');   // gaps of 7, 7 and 14 days: the 14-day gap is late
+  await page.locator('#insightsPanel > summary').click();
+  const box = page.locator('#insights .ins', { hasText: 'Dose timing' });
+  await expect(box).toContainText('2 of 3 on time');
+  await expect(box).toContainText('Longest gap 14 days');
+  await expect(box).toContainText('1 dose missed');
+  await expect(page.locator('#plan')).toContainText('Overdue');
 });

@@ -187,7 +187,7 @@
   .stat.pc.mini { container-type: normal; }   /* the tiles answer to the slot's width, not their own */
   .stack { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; height: 100%; }
   .stat.mini { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 14px; min-height: 0; }
-  .stat.mini .l { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .stat.mini .l { display: block; min-width: 0; white-space: normal; line-height: 1.15; }
   .stat.mini .v { font-size: 21px; margin: 0; }
   .stat.mini .sub { display: none; }
   /* room for two near-square tiles side by side */
@@ -221,6 +221,7 @@
   @supports (background: color-mix(in srgb, red 10%, blue)) {
     .stat .v, .bmi-stage, .bmi-c, .chip { color: color-mix(in srgb, var(--c) 74%, var(--ink)); }
   }
+  .stat.bmi:has(.bmi-ring) .bmi-stage { font-size: clamp(11px, 7.2cqi, 16px); }
   .custom-range input[type="checkbox"] { width: auto; flex: none; margin: 0; }
   @container (max-width: 190px) { .stat.pc .v { font-size: min(30px, 14cqi); } }
   @media (max-width: 520px) {
@@ -233,8 +234,32 @@
   .sx-tag input { width: auto; margin: 0; }
   .sx-tag:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
   .sx-sev { margin-top: 10px; max-width: 220px; }
+  .glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+  .gl { padding: 12px 16px; border-left: 3px solid var(--c); border-bottom: 1px solid var(--line); margin: 0 0 -1px; min-width: 0; }
+  .gl .l { color: var(--muted); font-size: 12.5px; }
+  .gl .v { font-size: 20px; font-weight: 750; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; margin-top: 1px; color: color-mix(in srgb, var(--c) 74%, var(--ink)); overflow-wrap: anywhere; }
+  .gl .sub { color: var(--muted); font-size: 12px; margin-top: 1px; }
+  .site-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+  .site-cell { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; color: var(--muted); display: grid; gap: 1px; }
+  .site-cell b { color: var(--ink); font-size: 13.5px; }
+  .site-cell.next { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+  .print-head { display: none; }
+  @media print {
+    body { background: #fff !important; color: #111; }
+    .demo-bar, .page-bar, #formPanel, #layoutDlg, .toast, #toast, .pager, #range, #overlayBar, .tabs, #cmpPick, .stat .linkish, .arr-handle, #landing, .stat-ring + *:empty { display: none !important; }
+    body.share .hero, .hero { box-shadow: none; }
+    .panel, .stat, .ins, .gl, .glance { box-shadow: none !important; break-inside: avoid; }
+    .stat:hover { transform: none; }
+    #rows tr, .table-wrap tr { break-inside: avoid; }
+    #entriesPanel td button { display: none !important; }
+    .print-head { display: block !important; margin: 0 0 10px; font-size: 12px; color: #444; }
+    svg .draw, svg .fade { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
+    .foot { color: #555; }
+  }
+  .foot-links a { color: inherit; }
+  .foot-fine { font-size: 12px; opacity: .8; }
   /* ---- BMI card ---- */
-  .stat.bmi { overflow: visible; }
+  .stat.bmi { overflow: visible; container-type: inline-size; }
   .stat.bmi:has(.bmi-ring) .l, .stat.bmi:has(.bmi-ring) .bmi-stage, .stat.bmi:has(.bmi-ring) .sub { max-width: calc(100cqi - 96px); }
   .stat.bmi .l { justify-content: flex-start; gap: 6px; }
   .bmi-stage { font-size: 16px; font-weight: 750; color: var(--c); line-height: 1.25; margin-top: 3px; white-space: nowrap; }
@@ -244,7 +269,7 @@
   .bmi-ring svg { display: block; width: 100%; height: 100%; }
   .bmi-c { position: absolute; inset: 17px; border-radius: 50%; cursor: help; outline: none; display: flex; align-items: center; justify-content: center; color: var(--c); font-size: 22px; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; padding-bottom: 3px; }
   .bmi-c:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
-  @container (max-width: 165px) {
+  @container (max-width: 215px) {
     .stat.bmi:has(.bmi-ring) .l, .stat.bmi:has(.bmi-ring) .bmi-stage { max-width: calc(100cqi - 72px); }
     .bmi-stage { padding-bottom: 30px; }   /* the card must be tall enough to hold the ring (a container can't be styled by its own query) */
     .bmi-ring { width: 74px; height: 74px; top: 12px; right: 0; }
@@ -566,6 +591,7 @@
       </div>
     </div>
     <p class="lp-fine">Tirzepatide Log is a personal tracking tool, not medical advice. Talk to your doctor about your treatment. The screenshots show sample data. A <a href="https://www.phoe.be/">phoe.be</a> project.</p>
+    <p class="lp-fine"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · Not affiliated with any drug maker.</p>
   </section>
   <header class="hero">
     <div>
@@ -592,6 +618,7 @@
     <p class="note">Or add your first entry with the form below.</p>
   </section>
 
+  <section class="glance" id="glance" aria-label="At a glance" hidden></section>
   <section class="stats" id="stats" aria-label="Summary"></section>
 
   <div class="notice" id="plateau" role="status" hidden></div>
@@ -718,12 +745,14 @@
     <button id="installBtn" hidden>Install app</button>
     <button id="shareOpen" class="primary" hidden>Share with doctor</button>
     <button id="openImport">Import data</button>
+    <button id="printBtn">Print or save as PDF</button>
     <button id="exportBtn">Export CSV</button>
     <button id="layoutOpen">Customise layout</button>
     <button id="settingsOpen">Settings</button>
     <button id="resetBtn" class="danger">Clear all data</button>
   </div>
 
+  <div class="print-head" id="printHead" hidden></div>
   <footer class="foot" id="foot"></footer>
 </main>
 
@@ -815,6 +844,8 @@
     <label><span>Goal weight (<span class="wua">lbs</span>)</span><input type="number" id="sGoal" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
     <label><span>Starting weight before treatment (<span class="wua">lbs</span>), optional</span><input type="number" id="sBaseline" step="0.1" min="0" inputmode="decimal" placeholder="blank = first weigh-in"></label>
     <label><span>Measure change from (date), optional: nothing earlier counts</span><input type="date" id="sChangeFrom"></label>
+    <label><span>Sex (optional, only used for waist guidance)</span><select id="sSex"><option value="">Not set</option><option value="f">Female</option><option value="m">Male</option></select></label>
+    <label><span>Doses left in your supply today (optional)</span><input type="number" id="sSupply" min="0" max="500" step="1" inputmode="numeric"></label>
     <label>Height<input type="text" id="sHeight" placeholder="e.g. 5'9&quot; or 175 cm"></label>
     <label>Units<select id="sUnits"><option value="us">US (lbs, ft/in)</option><option value="metric">Metric (kg, cm)</option><option value="uk">UK (stones and lbs, ft/in)</option></select></label>
     <label>Injection day<select id="sDay"></select></label>
@@ -1356,7 +1387,19 @@
     else if (slope !== null && slope < -0.01) {
       var days = Math.round(left / -slope);
       if (days > 3650) proj = 'At this pace, years away';
-      else { date = addDays(last.date, days); proj = 'On pace for ' + shortDate(date, true); }
+      else {
+        date = addDays(last.date, days); proj = 'On pace for ' + shortDate(date, true);
+        // a range when the 12-week pace gives a different date to the 4-week pace
+        var ls = longSlope(w);
+        if (ls !== null && ls < -0.01) {
+          var d2 = addDays(last.date, Math.round(left / -ls));
+          if (Math.abs(dayDiff(date, d2)) >= 21 && Math.round(left / -ls) <= 3650) {
+            var e1 = dayDiff(date, d2) < 0 ? d2 : date, e2 = dayDiff(date, d2) < 0 ? date : d2;
+            var s1 = shortDate(e1, true), s2 = shortDate(e2, true);
+            proj = s1 === s2 ? 'On pace for ' + s1 : 'On pace for ' + s1.replace(/ \d{4}$/, e1.slice(0, 4) === e2.slice(0, 4) ? '' : '$&') + ' to ' + s2;
+          }
+        }
+      }
     } else proj = 'Pace is flat, no projected date';
     return { goal: goal, total: total, lost: lost, left: left, pct: pct, proj: proj, date: date };
   }
@@ -1377,6 +1420,71 @@
   }
   function plateauText(pl) {
     return 'Weight has been steady for about ' + Math.max(3, Math.round(pl.days / 7)) + ' weeks (within ' + fw(Math.max(pl.range, 0.1)) + ' ' + WU() + ' since ' + fmtDate(pl.since) + ').';
+  }
+  /* ---------- clinical summaries (web only for now, see PARITY.md) ---------- */
+  var BENCH_WEEKS = [4, 8, 12, 16, 24, 36, 52, 72];
+  // Weight and share of the start (or baseline) weight lost at fixed weeks on treatment: the nearest weigh-in within 7 days
+  function benchmarks(all) {
+    var w = all.filter(function (e) { return e.weight !== null; }), out = [];
+    if (!w.length) return out;
+    var base = baselineOf(w), start = treatStart(all);
+    BENCH_WEEKS.forEach(function (wk) {
+      var target = addDays(start, wk * 7), best = null;
+      w.forEach(function (e) { var off = Math.abs(dayDiff(target, e.date)); if (off <= 7 && (!best || off < best.off)) best = { off: off, e: e }; });
+      if (best) out.push({ week: wk, date: best.e.date, weight: best.e.weight, lost: base - best.e.weight, pct: (base - best.e.weight) / base * 100 });
+    });
+    return out;
+  }
+  // Injection timing from the days with a site logged (assumes a weekly dose): late when more than 9 days after the previous one
+  function doseTiming(all, todayIso) {
+    var seen = {}, inj = [];
+    all.forEach(function (e) { if (e.site && !seen[e.date]) { seen[e.date] = 1; inj.push(e.date); } });
+    inj.sort();
+    if (inj.length < 3) return null;
+    var late = 0, missed = 0, longest = null;
+    for (var i = 1; i < inj.length; i++) {
+      var g = dayDiff(inj[i - 1], inj[i]);
+      if (g > 9) { late++; missed += Math.max(0, Math.round(g / 7) - 1); }
+      if (!longest || g > longest.days) longest = { days: g, from: inj[i - 1], to: inj[i] };
+    }
+    return { n: inj.length, first: inj[0], last: inj[inj.length - 1], longest: longest, late: late, missed: missed, onTime: inj.length - 1 - late, since: dayDiff(inj[inj.length - 1], todayIso) };
+  }
+  // How much of the weight lost was fat, from body-fat % at the first and last reading that has one (needs 2+ lbs lost)
+  function composition(all) {
+    var f = all.filter(function (e) { return e.weight !== null && e.fat != null; });
+    if (f.length < 2) return null;
+    var a = f[0], b = f[f.length - 1], lost = a.weight - b.weight;
+    if (lost < 2) return null;
+    var fatLost = a.weight * a.fat / 100 - b.weight * b.fat / 100;
+    var m = all.filter(function (e) { return e.muscle != null; }), mc = m.length > 1 ? m[m.length - 1].muscle - m[0].muscle : null;
+    return { from: a.date, to: b.date, lost: lost, fatLost: fatLost, fatPct: fatLost / lost * 100, leanLost: lost - fatLost, muscleChange: mc };
+  }
+  // Last 8 injections (days with a site) counted per standard site, with days since each was last used
+  function siteRotation(all, todayIso) {
+    var inj = all.filter(function (e) { return e.site; });
+    if (inj.length < 3) return null;
+    var recent = inj.slice(-8), rows = SITES.map(function (n) {
+      var c = recent.filter(function (e) { return e.site === n; }).length, last = inj.filter(function (e) { return e.site === n; }).pop();
+      return { name: n, count: c, ago: last ? dayDiff(last.date, todayIso) : null, next: false };
+    });
+    var best = rows.slice().sort(function (a, b) { return (b.ago === null ? 1e9 : b.ago) - (a.ago === null ? 1e9 : a.ago); })[0];
+    best.next = true;
+    return { n: recent.length, rows: rows, suggest: best.name };
+  }
+  // Symptoms logged in the last `days` days up to today: days logged, days with any, worst severity, most frequent
+  function symptomSummary(all, todayIso, days) {
+    var from = addDays(todayIso, -(days - 1)), counts = {}, logged = 0, withSx = 0, worst = 0;
+    all.forEach(function (e) {
+      if (e.date < from || e.date > todayIso) return;
+      var l = sxList(e);
+      if (!l.length && e.sxs == null) return;
+      logged++;
+      if (l.length || (e.sxs || 0) > 0) withSx++;
+      if ((e.sxs || 0) > worst) worst = e.sxs;
+      l.forEach(function (t) { counts[t] = (counts[t] || 0) + 1; });
+    });
+    var top = Object.keys(counts).sort(function (x, y) { return counts[y] - counts[x] || (x < y ? -1 : 1); }).map(function (t) { return { name: t, days: counts[t] }; });
+    return { days: days, logged: logged, withSx: withSx, worst: worst, top: top };
   }
   function insBox(color, label, val, sub) {
     return '<div class="ins" style="--c:' + color + '"><div class="l">' + esc(label) + '</div><div class="v">' + esc(val) + '</div>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>';
@@ -1406,6 +1514,32 @@
         var delta = sl * (gap + n);
         out.push(insBox('#0ea5a4', 'Weight in ' + n + ' days', fwu(lastW.weight + delta), sgn(dw(delta), 1) + ' ' + WU() + ' from your latest, at your recent pace. Actual results vary.'));
       });
+    }
+    var wl = firstLast(all, 'waist');
+    if (wl) {
+      var wParts = [], lim = settings.sex === 'f' ? 35 : settings.sex === 'm' ? 40 : null, ratio = whtr(wl.last.waist);
+      if (wl.n > 1) wParts.push(sgn(dl(wl.last.waist - wl.first.waist), 1) + ' ' + LU() + ' since ' + shortDate(wl.first.date, true));
+      if (ratio !== null) wParts.push('waist-to-height ' + ratio.toFixed(2) + (ratio >= 0.5 ? ', at or above 0.5' : ', under 0.5'));
+      if (lim !== null) wParts.push(wl.last.waist > lim ? 'above the ' + flen(lim) + ' ' + LU() + ' level linked to higher health risk' : 'under the ' + flen(lim) + ' ' + LU() + ' level linked to higher health risk');
+      out.push(insBox('#c026d3', 'Waist', flen(wl.last.waist) + ' ' + LU(), wParts.join('. ') + (wParts.length ? '.' : '')));
+    }
+    var dt = doseTiming(all, today());
+    if (dt) {
+      out.push(insBox('#2563eb', 'Dose timing', dt.late ? dt.onTime + ' of ' + (dt.n - 1) + ' on time' : 'All ' + (dt.n - 1) + ' on time',
+        dt.n + ' injections logged. Longest gap ' + dt.longest.days + ' days (' + shortDate(dt.longest.from, false) + ' to ' + shortDate(dt.longest.to, false) + ')' +
+        (dt.missed ? '. About ' + dt.missed + (dt.missed === 1 ? ' dose' : ' doses') + ' missed' : '') + '. Counted from days with an injection site logged.'));
+    }
+    var cp = composition(all);
+    if (cp) {
+      out.push(insBox('#b45309', 'Fat share of weight lost', Math.round(Math.max(0, Math.min(100, cp.fatPct))) + '%',
+        'Of ' + fw(cp.lost) + ' ' + WU() + ' lost (' + shortDate(cp.from, true) + ' to ' + shortDate(cp.to, true) + '), about ' + fw(cp.fatLost) + ' was fat by body-fat %' +
+        (cp.muscleChange !== null ? '. Logged muscle mass changed ' + sgn(dw(cp.muscleChange), 1) + ' ' + WU() : '') + '. An estimate; scales vary.'));
+    }
+    var sx = symptomSummary(all, today(), 30);
+    if (sx.logged) {
+      out.push(insBox(sx.worst >= 2 ? '#f97316' : '#64748b', 'Symptoms, last 30 days', sx.withSx + ' of ' + sx.logged + ' days',
+        (sx.top.length ? 'Most often: ' + sx.top.slice(0, 3).map(function (t) { return t.name.toLowerCase() + ' (' + t.days + ')'; }).join(', ') + '. ' : '') +
+        'Worst day: ' + SX_SEV[sx.worst].toLowerCase() + '.'));
     }
     var pi = progressInfo(all);
     if (pi) {
@@ -1467,6 +1601,15 @@
     if (el.hidden) return;
     var h = '<div class="ins-grid">' + insightBoxes(all, w).join('') + '</div>', ip = injectionPattern(w);
     if (ip) h += '<h3>Weight by injection day</h3>' + barsSvg(ip) + '<p class="note" style="margin:4px 0 0">' + esc(injectionText(ip)) + ' Bars show the average difference from the surrounding 7-day average, by days since your injection day.</p>';
+    var si = siteRotation(all, today());
+    if (si) h += '<h3>Injection sites, last ' + si.n + ' injections</h3><div class="site-grid">' + si.rows.map(function (r) {
+      return '<div class="site-cell' + (r.next ? ' next' : '') + '"><b>' + esc(r.name) + '</b><span>' + r.count + (r.count === 1 ? ' time' : ' times') + '</span><span>' +
+        (r.ago === null ? 'not used yet' : r.ago === 0 ? 'used today' : 'last ' + r.ago + (r.ago === 1 ? ' day' : ' days') + ' ago') + '</span></div>';
+    }).join('') + '</div><p class="note" style="margin:6px 0 0">Rotating sites is usually advised' + (si.suggest ? '; the one used least recently is ' + esc(si.suggest.toLowerCase()) : '') + '.</p>';
+    var bm = benchmarks(all);
+    if (bm.length) h += '<h3>Weight lost by week on treatment</h3><div class="table-wrap"><table><thead><tr><th>Week</th><th>Weigh-in</th><th class="num">Weight (' + WUA() + ')</th><th class="num">Lost (' + WU() + ')</th><th class="num">% of start</th></tr></thead><tbody>' +
+      bm.map(function (b) { return '<tr><td>' + b.week + '</td><td>' + esc(fmtDate(b.date)) + '</td><td class="num">' + fwa(b.weight) + '</td><td class="num">' + fw(b.lost) + '</td><td class="num">' + b.pct.toFixed(1) + '%</td></tr>'; }).join('') +
+      '</tbody></table></div><p class="note" style="margin:4px 0 0">Nearest weigh-in within 7 days of each week since the first dose' + (settings.baseline ? ', measured from your start weight' : '') + '.</p>';
     var weeks = weeklyAverages(all).slice(-12).reverse();
     if (weeks.length) h += '<h3>Weekly averages (last ' + weeks.length + ' weeks)</h3><div class="table-wrap">' + weeklyTable(weeks) + '</div>';
     $('insights').innerHTML = h;
@@ -1510,6 +1653,27 @@
     });
   }
 
+  // One-line clinical summary of the whole course (never limited by the chart range): start to now, total change, time on
+  // treatment, dose, dose timing and recent symptoms
+  function renderGlance() {
+    var el = $('glance'), all = sorted(), w = all.filter(function (e) { return e.weight !== null; });
+    el.hidden = w.length < 2;
+    if (el.hidden) return;
+    var pi = progressInfo(all), last = w[w.length - 1], base = pi.base, tiles = [];
+    function tile(c, l, v, sub) { return '<div class="gl" style="--c:' + c + '"><div class="l">' + esc(l) + '</div><div class="v">' + esc(v) + '</div>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>'; }
+    var startLbl = pi.hasBase ? 'Start weight' : 'First weigh-in', startDate = pi.hasBase ? null : w[0].date;
+    tiles.push(tile('#0ea5a4', startLbl + ' to now', fwu(base) + ' \u2192 ' + fwu(last.weight), startDate ? fmtDate(startDate) + ' to ' + fmtDate(last.date) : 'latest ' + fmtDate(last.date)));
+    tiles.push(tile(pi.lost > 0 ? '#16a34a' : '#dc2626', 'Total change', (pi.lost > 0 ? '\u2212' : pi.lost < 0 ? '+' : '') + fw(Math.abs(pi.lost)) + ' ' + WU(),
+      Math.abs(pi.pct).toFixed(1) + '% of ' + (pi.hasBase ? 'start weight' : 'first weigh-in') + (pi.lost > 0 ? ' lost' : pi.lost < 0 ? ' gained' : '')));
+    tiles.push(tile('#7c3aed', 'On treatment', 'Week ' + pi.week, 'since ' + fmtDate(pi.start)));
+    var dt = doseTiming(all, today());
+    tiles.push(dt ? tile(dt.late ? '#d97706' : '#16a34a', 'Dose timing', dt.late ? dt.onTime + ' of ' + (dt.n - 1) + ' on time' : 'All on time', dt.n + ' injections logged, longest gap ' + dt.longest.days + ' days')
+      : tile('#64748b', 'Dose timing', 'Not tracked', 'Log the injection site on dose days'));
+    var sx = symptomSummary(all, today(), 30);
+    tiles.push(sx.logged ? tile(sx.worst >= 2 ? '#f97316' : '#64748b', 'Symptoms, 30 days', sx.withSx + ' of ' + sx.logged + ' days', sx.top.length ? sx.top.slice(0, 2).map(function (t) { return t.name.toLowerCase(); }).join(', ') : 'worst: ' + SX_SEV[sx.worst].toLowerCase())
+      : tile('#64748b', 'Symptoms, 30 days', 'Not logged', 'Tick any in the entry form'));
+    el.innerHTML = tiles.join('');
+  }
   function renderStats() {
     var s = sorted(), cards = [];
     var w = s.filter(function (e) { return e.weight !== null; });
@@ -1570,6 +1734,13 @@
     var s = sorted().filter(function (e) { return e.site; });
     return s.length ? s[s.length - 1] : null;
   }
+  // Doses left: the count entered in Settings less the injections (days with a site) logged after that day. Device only.
+  function supplyLeft() {
+    var sp = settings.supply;
+    if (!sp || typeof sp.n !== 'number' || !/^\d{4}-\d{2}-\d{2}$/.test(sp.on || '')) return null;
+    var used = sorted().filter(function (e) { return e.site && e.date > sp.on; }).length;
+    return Math.max(0, sp.n - used);
+  }
   function hasDoseDay() { return typeof settings.doseDay === 'number' && settings.doseDay >= 0 && settings.doseDay <= 6; }
   function doseInfo() {
     var s = sorted(), dosed = s.filter(function (e) { return e.dose !== null; });
@@ -1582,7 +1753,14 @@
     var t = today(), diff = (dow - weekday(t) + 7) % 7;
     // an injection site logged today counts as today's injection, so the next one is a week away
     if (diff === 0 && s.some(function (e) { return e.date === t && e.site; })) diff = 7;
-    return { dose: cur, since: since, dow: dow, diff: diff, next: addDays(t, diff),
+    // injections are the days with a site logged; more than a week since the last one (and not long abandoned) is overdue
+    var injs = s.filter(function (e) { return e.site; }), overdue = 0, lastInj = null;
+    if (injs.length >= 3) {
+      lastInj = injs[injs.length - 1].date;
+      var sinceInj = dayDiff(lastInj, t);
+      if (sinceInj > 7 && sinceInj <= 28) overdue = sinceInj - 7;
+    }
+    return { dose: cur, since: since, dow: dow, diff: diff, overdue: overdue, lastInj: lastInj, next: addDays(t, diff),
       week: Math.max(1, Math.floor(dayDiff(since, t) / 7) + 1), lastEntry: s[s.length - 1].date };
   }
   // Least-squares slope (lbs per day) over the last 28 days of weigh-ins
@@ -1597,6 +1775,16 @@
     return den ? (n * sxy - sx * sy) / den : null;
   }
   function recentSlope(w) { return w.length ? slopeUpTo(w, w.length - 1) : null; }
+  // Same least-squares slope over the last 84 days (needs 8 weigh-ins over four weeks), for the goal date range
+  function longSlope(w) {
+    if (!w.length) return null;
+    var end = w[w.length - 1].date, pts = w.filter(function (e) { return dayDiff(e.date, end) <= 84; });
+    if (pts.length < 8 || dayDiff(pts[0].date, end) < 28) return null;
+    var n = pts.length, sx = 0, sy = 0, sxx = 0, sxy = 0;
+    pts.forEach(function (e) { var x = dayDiff(pts[0].date, e.date); sx += x; sy += e.weight; sxx += x * x; sxy += x * e.weight; });
+    var den = n * sxx - sx * sx;
+    return den ? (n * sxy - sx * sy) / den : null;
+  }
   function ago(ms) {
     var d = Math.floor((Date.now() - ms) / 86400000);
     return d < 1 ? 'Today' : d === 1 ? 'Yesterday' : d + ' days ago';
@@ -1621,17 +1809,18 @@
         '<div class="v' + (label === 'Next dose' ? ' day' : '') + '">' + esc(val) + '</div>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + (extra || '') + '</div>';
     }
     if (d) {
-      var when = d.diff === 0 ? 'Today' : d.diff === 1 ? 'Tomorrow' : DAY_NAMES[d.dow];
+      var when = d.overdue ? 'Overdue' : d.diff === 0 ? 'Today' : d.diff === 1 ? 'Tomorrow' : DAY_NAMES[d.dow];
       var filled = d.diff === 0 ? 7 : 7 - d.diff, strip = '';
       // filled segments warm from green (just dosed) to red (dose day) as the next dose gets closer
       for (var i = 0; i < 7; i++) strip += '<span' + (i < filled ? ' class="on" style="background:hsl(' + Math.round(140 - i * 140 / 6) + ',72%,45%)"' : '') + '></span>';
       var stale = dayDiff(d.lastEntry, today()) > 14, dc = doseColor(d.dose);
       var sameYr = d.since.slice(0, 4) === today().slice(0, 4);
-      cards.push(tag('cur', card(dc, 'Current dose', '', d.dose + ' mg', 'Week ' + d.week + ' since ' + (sameYr ? shortDate(d.since, false) : fmtDate(d.since)))));
+      cards.push(tag('cur', card(dc, 'Current dose', '', d.dose + ' mg', 'Week ' + d.week + ' since ' + (sameYr ? shortDate(d.since, false) : fmtDate(d.since)) +
+        (supplyLeft() !== null ? ' \u00b7 ' + supplyLeft() + (supplyLeft() === 1 ? ' dose' : ' doses') + ' left' : ''))));
       cards.push(tag('next', card(dc, 'Next dose', '<button type="button" class="linkish" data-settings aria-label="Change injection day">Change</button>', when,
-        stale ? 'Last entry ' + fmtDate(d.lastEntry) + '. Add today\'s.' : (d.diff > 1 ? 'In ' + d.diff + ' days · ' : '') + fmtDate(d.next),
+        stale ? 'Last entry ' + fmtDate(d.lastEntry) + '. Add today\'s.' : d.overdue ? d.overdue + (d.overdue === 1 ? ' day' : ' days') + ' past the weekly dose · last ' + shortDate(d.lastInj, false) : (d.diff > 1 ? 'In ' + d.diff + ' days · ' : '') + fmtDate(d.next),
         stale ? '' : '<div class="strip" role="img" aria-label="' + (d.diff === 0 ? 'Dose day is today' : d.diff + ' days until the next dose') + '">' + strip + '</div>')));
-      days = mini('#64748b', 'Days covered', allE.length + ' entries', String(dayDiff(allE[0].date, d.lastEntry) + 1));
+      days = mini('#64748b', 'Days tracked', allE.length + ' entries', String(dayDiff(allE[0].date, d.lastEntry) + 1));
     }
     var bpAll = allE.filter(hasBp), lb = bpAll[bpAll.length - 1];
     if (lb) {
@@ -1723,6 +1912,9 @@
     { k: 'waist', label: 'Waist', color: '#c026d3', val: function (e) { return e.waist; }, fmt: function (v) { return flen(v) + ' ' + LU(); } },
     { k: 'fat', label: 'Body fat', color: '#65a30d', val: function (e) { return e.fat; }, fmt: function (v) { return v.toFixed(1) + '%'; } },
     { k: 'muscle', label: 'Muscle', color: '#b45309', val: function (e) { return e.muscle; }, fmt: function (v) { return fw(v) + ' ' + WU(); } },
+    { k: 'hr', label: 'Heart rate', color: '#be123c', val: function (e) { return e.hr; }, fmt: function (v) { return Math.round(v) + ' bpm'; } },
+    { k: 'a1c', label: 'HbA1c', color: '#9a3412', val: function (e) { return e.a1c; }, fmt: function (v) { return v.toFixed(1) + '%'; } },
+    { k: 'prot', label: 'Protein', color: '#0f766e', val: function (e) { return e.prot; }, fmt: function (v) { return Math.round(v) + ' g'; } },
     { k: 'cal', label: 'Calories', color: '#8b5cf6', val: function (e) { return e.cal; }, fmt: function (v) { return Math.round(v).toLocaleString(); } }
   ];
   function compareChosen() {
@@ -1959,6 +2151,16 @@
         pts.map(function (p, i) { return '<stop offset="' + ((X(p.e.date) - x0) / (x1 - x0)).toFixed(4) + '" stop-color="' + trendColor(sl[i]) + '"/>'; }).join('') + '</linearGradient></defs>');
       lineStroke = 'url(#' + tg + ')';
     }
+    // Moderate or severe symptom days: a small triangle on the baseline (not in the overlay, which has its own timeline)
+    if (!ovPts && !single) {
+      var seenM = {};
+      pts.forEach(function (p) {
+        var sv = p.e.sxs || 0; if (sv < 2 || seenM[p.e.date]) return;
+        seenM[p.e.date] = 1;
+        var mx = X(p.e.date).toFixed(1), my = H - B - 2;
+        g += '<path d="M' + mx + ',' + (my - 8) + ' l5,8 h-10 z" fill="' + (sv >= 3 ? '#dc2626' : '#f97316') + '" opacity="0.9"><title>' + esc(fmtDate(p.e.date) + ': ' + SX_SEV[sv].toLowerCase() + ' symptoms') + '</title></path>';
+      });
+    }
     if (!single) g += '<path' + draw + ' pathLength="1" fill="none" stroke="' + lineStroke + '" stroke-width="' + (bp ? 2 : 3.2) + '" stroke-linecap="round" stroke-linejoin="round" d="' + runsPath(pts, avgXY) + '"/>';
     var ovXs = null;
     if (ovPts) {
@@ -2172,7 +2374,8 @@
       : currentMetric === 'weight' && !single ? 'Dots are daily values. The line is the trailing 7-day average, coloured by trend: ' +
         '<span class="chip" style="--c:#059669">falling</span> <span class="chip" style="--c:#6366f1">steady</span> <span class="chip" style="--c:#ef4444">rising</span> Hover or touch the chart for details.'
       : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') +
-      (res.proj ? ' The dashed line carries your last 4 weeks\u2019 pace to the end of the range (an estimate, not a prediction).' : '') + '</span>';
+      (res.proj ? ' The dashed line carries your last 4 weeks\u2019 pace to the end of the range (an estimate, not a prediction).' : '') +
+      (!ovp && !single && pts.some(function (p) { return (p.e.sxs || 0) >= 2; }) ? ' <span style="color:#f97316">\u25B2</span> moderate or severe symptoms.' : '') + '</span>';
 
     var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), xc = svg.querySelector('#xc'), cur = -1;
     tip.setAttribute('aria-live', 'polite');
@@ -2207,6 +2410,7 @@
       if (m.key === 'bmi') h += ' (' + bmiStage(p.v).name.toLowerCase() + ')<br>Weight: ' + fwu(p.e.weight);
       if (!single) h += '<br>7-day average: ' + (m.key === 'bp' ? Math.round(p.a) + '/' + Math.round(p.a2) : (m.key === 'weight' && isUK()) ? stLb(p.a * 14) : p.a.toFixed(m.dec));
       if (p.e.dose !== null) h += '<br>Dose: ' + p.e.dose + ' mg';
+      if (sxList(p.e).length || p.e.sxs) h += '<br>Symptoms: ' + esc((p.e.sxs ? SX_SEV[p.e.sxs].toLowerCase() + (sxList(p.e).length ? ', ' : '') : '') + sxList(p.e).join(', ').toLowerCase());
       if (p.e.comments) h += '<br><i>' + esc(p.e.comments.length > 80 ? p.e.comments.slice(0, 80) + '\u2026' : p.e.comments) + '</i>';
       if (ov) {
         h = '<span style="color:' + m.color + '">\u25CF</span> Day ' + dayDiff(res.t0, p.e.date) + ': ' + h;
@@ -2442,6 +2646,7 @@
   // Page layout: order and visibility of the dashboard sections, kept on this device only (never synced)
   var LAYOUT_KEY = 'tirzepatide-layout';
   var SECTIONS = [
+    { id: 'glance', name: 'At a glance', ids: ['glance'] },
     { id: 'stats', name: 'Cards, first row', ids: ['stats', 'plateau', 'fastNote'] },
     { id: 'plan', name: 'Cards, second row', ids: ['plan'] },
     { id: 'calPanel', name: 'Calories, last 7 days', ids: ['calPanel'] },
@@ -2718,11 +2923,12 @@
     $('openImport').hidden = empty;
     $('plan').hidden = empty;
     $('stats').hidden = empty;
+    if (empty) $('glance').hidden = true;
     $('chartPanel').hidden = empty;
     $('ratePanel').hidden = empty;
     $('entriesPanel').hidden = empty;
     renderHero();
-    if (!empty) { renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderCalories(); renderInsights(); }
+    if (!empty) { renderGlance(); renderPlan(); renderStats(); renderChart(); renderRates(); renderRows(); renderPlateau(); renderCalories(); renderInsights(); }
     else { $('calPanel').hidden = true; $('plateau').hidden = true; $('fastNote').hidden = true; $('insightsPanel').hidden = true; }
     markHandles();
   }
@@ -2977,6 +3183,25 @@
     say('Exported ' + entries.length + ' entries. Keep the file somewhere safe, like cloud storage or email.');
   }
   $('exportBtn').addEventListener('click', exportAll);
+  // Print or save as PDF: every folded panel opens for the print and the page gets a one-line header (who it covers and when)
+  var printOpened = [];
+  function beforePrint() {
+    var all = sorted(), w = all.filter(function (e) { return e.weight !== null; });
+    var h = $('printHead');
+    h.hidden = false;
+    h.textContent = 'Tirzepatide Log \u00b7 printed ' + fmtDate(today()) + (all.length ? ' \u00b7 ' + all.length + ' entries, ' + fmtDate(all[0].date) + ' to ' + fmtDate(all[all.length - 1].date) : '') +
+      (settings.heightIn ? ' \u00b7 height ' + fmtHeight(settings.heightIn) : '') + (settings.units === 'metric' ? ' \u00b7 kg and cm' : settings.units === 'uk' ? ' \u00b7 stones and pounds' : ' \u00b7 lbs and inches') +
+      ' \u00b7 Self-reported, not medical advice';
+    printOpened = [];
+    Array.prototype.forEach.call(document.querySelectorAll('details.fold'), function (d) { if (!d.open) { d.open = true; printOpened.push(d); } });
+  }
+  function afterPrint() {
+    $('printHead').hidden = true;
+    printOpened.forEach(function (d) { d.open = false; }); printOpened = [];
+  }
+  window.addEventListener('beforeprint', beforePrint);
+  window.addEventListener('afterprint', afterPrint);
+  $('printBtn').addEventListener('click', function () { window.print(); });
   $('resetBtn').addEventListener('click', function () {
     var cloud = cloudSignedIn() && cloudAvailable();
     if (!entries.length && !cloud) { say('There is no data to clear.'); return; }
@@ -3267,6 +3492,8 @@
     $('sBaseline').value = baselineShown;
     $('sHeight').value = heightShown;
     $('sChangeFrom').value = /^\d{4}-\d{2}-\d{2}$/.test(settings.changeFrom || '') ? settings.changeFrom : '';
+    $('sSex').value = settings.sex === 'f' || settings.sex === 'm' ? settings.sex : '';
+    $('sSupply').value = supplyLeft() === null ? '' : String(supplyLeft());
     $('sUnits').value = isMetric() ? 'metric' : isUK() ? 'uk' : 'us';
     $('sDay').value = hasDoseDay() ? String(settings.doseDay) : 'auto';
     if (!sdlg.open) sdlg.showModal();
@@ -3301,6 +3528,9 @@
     var cf = $('sChangeFrom').value.trim();
     settings.changeFrom = /^\d{4}-\d{2}-\d{2}$/.test(cf) ? cf : null;
     if (ht !== heightShown) settings.heightIn = ht ? parseHeight(ht) : null;
+    settings.sex = $('sSex').value || null;
+    var sup = num($('sSupply').value);
+    if (sup === null) settings.supply = null; else if (sup !== supplyLeft()) settings.supply = { n: Math.round(sup), on: today() };
     settings.units = $('sUnits').value;
     settings.doseDay = day === 'auto' ? null : parseInt(day, 10);
     saveSettings(); closeSettings(); render();
@@ -3314,10 +3544,12 @@
   function renderFooter() {
     var hosted = /^https?:$/.test(location.protocol);
     var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.navigator.standalone);
-    if (SHARE_TOKEN) { $('foot').textContent = 'Read-only view shared by the patient \u00b7 Not medical advice'; return; }
-    if (DEMO) { $('foot').textContent = 'Demo with made-up data \u00b7 Not medical advice'; return; }
+    var links = '<br><span class="foot-links"><a href="privacy.html">Privacy</a> \u00b7 <a href="terms.html">Terms</a> \u00b7 <a href="https://www.phoe.be/#contact">Contact</a></span>' +
+      '<br><span class="foot-fine">An independent tracking tool. Not affiliated with or endorsed by any drug maker. Tirzepatide is the name of a medicine.</span>';
+    if (SHARE_TOKEN) { $('foot').innerHTML = 'Read-only view shared by the patient \u00b7 Self-reported data, not medical advice' + links; return; }
+    if (DEMO) { $('foot').innerHTML = 'Demo with made-up data \u00b7 Not medical advice' + links; return; }
     $('foot').innerHTML = (cloudSignedIn() ? 'Your data is kept in this browser and your sync account' : 'Your data stays in this browser') + ' \u00b7 Not medical advice' +
-      (ios && hosted ? '<br>To install on iPhone: tap Share, then Add to Home Screen.' : '');
+      (ios && hosted ? '<br>To install on iPhone: tap Share, then Add to Home Screen.' : '') + links;
   }
   var installEvt = null;
   window.addEventListener('beforeinstallprompt', function (ev) {

@@ -19,6 +19,8 @@ put og-image.png "image/png" "public, max-age=86400"
 put manifest.webmanifest "application/manifest+json" "public, max-age=3600"
 put 404.html "text/html; charset=utf-8" "no-cache"
 put sw.js "application/javascript; charset=utf-8" "no-cache"
+put privacy.html "text/html; charset=utf-8" "no-cache"
+put terms.html "text/html; charset=utf-8" "no-cache"
 put demo.html "text/html; charset=utf-8" "no-cache"
 put index.html "text/html; charset=utf-8" "no-cache"     # last, so a visitor never gets a page that points at scripts not uploaded yet
 echo "Published $(git rev-parse --short HEAD) to $BUCKET/"

@@ -38,7 +38,7 @@ open(os.path.join(dist, '404.html'), 'w', encoding='utf-8').write(
     '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
     '<title>Not found</title><meta name="robots" content="noindex"></head><body style="font:16px system-ui;margin:3rem auto;max-width:30rem;padding:0 1rem">'
     '<h1>Not found</h1><p>That page does not exist. <a href="/">Tirzepatide Log</a></p></body></html>\n')
-for f in ['sw.js', 'manifest.webmanifest', 'og-image.png']:
+for f in ['sw.js', 'manifest.webmanifest', 'og-image.png', 'privacy.html', 'terms.html']:
     shutil.copy(os.path.join(root, f), dist)
 for d in ['icons', 'landing']:
     shutil.copytree(os.path.join(root, d), os.path.join(dist, d))

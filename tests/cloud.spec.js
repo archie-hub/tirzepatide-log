@@ -525,3 +525,25 @@ for (const old of ['https://www.phoe.be/tirzepatide-log/', 'https://archie-hub.g
     expect(await page.evaluate(() => localStorage.getItem('tirzepatide-log-v1'))).not.toBeNull();      // the log itself is left alone for the owner to move
   });
 }
+
+test('later fields (heart rate, symptoms) travel with v: 2, and an older server copy never erases them', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200, { hr: 64, a1c: 5.8, prot: 90, app: 3, sx: 'Nausea; Fatigue', sxs: 2, ext: 1 }), row('2026-03-08', 199)]);
+  await page.goto(APP);
+  await signIn(page);
+  await expect.poll(() => b.entries.get('2026-03-01')).toMatchObject({ v: 2, hr: 64, a1c: 5.8, protein: 90, appetite: 3, sx: 'Nausea; Fatigue', sxs: 2 });
+  expect(b.entries.get('2026-03-08').v).toBeUndefined();   // days without any of them keep the original shape
+
+  // a server (or device) that predates the fields sends the day back without them: this device keeps its own
+  b.put(remote('2026-03-01', 195, Date.now() + 100000));
+  await pressSync(page);
+  await expect.poll(async () => (await storedEntries(page)).find((e) => e.date === '2026-03-01').weight).toBe(195);
+  const kept = (await storedEntries(page)).find((e) => e.date === '2026-03-01');
+  expect(kept).toMatchObject({ hr: 64, sx: 'Nausea; Fatigue', sxs: 2 });
+
+  // a v: 2 copy is the whole truth: a cleared field really is cleared
+  b.put(remote('2026-03-01', 194, Date.now() + 200000, { v: 2, sx: 'Reflux' }));
+  await pressSync(page);
+  await expect.poll(async () => (await storedEntries(page)).find((e) => e.date === '2026-03-01').sx).toBe('Reflux');
+  expect((await storedEntries(page)).find((e) => e.date === '2026-03-01').hr).toBeNull();
+});
