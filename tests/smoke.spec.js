@@ -554,7 +554,6 @@ async function pasteProgress(page) {
   await page.locator('#pasteBtn').click();
   await page.locator('#doImport').click();
   await expect(page.locator('#importDlg')).toBeHidden();
-  await page.locator('#range button[data-days="1095"]').click();   // the Change card counts only the chart's range, so view all of it
 }
 
 test('progress: percent lost and the week on treatment on the Change card', async ({ page }) => {
@@ -565,16 +564,20 @@ test('progress: percent lost and the week on treatment on the Change card', asyn
   await expect(page.locator('#progress')).toHaveCount(0);    // there is no separate progress panel
 });
 
-test('progress: the Change card counts only weigh-ins inside the selected range', async ({ page }) => {
+test('progress: the Change card can be measured from a chosen date (Edit link)', async ({ page }) => {
   await pasteProgress(page);
   const card = page.locator('#stats .stat', { hasText: 'Change since' });
-  await expect(card).not.toContainText('Edit');
-  await page.locator('#range button[data-days="30"]').click();   // 2026-09-01 .. 2026-10-01: first weigh-in 179
+  await card.locator('[data-settings]').click();
+  await expect(page.locator('#sChangeFrom')).toBeFocused();
+  await page.fill('#sChangeFrom', '2026-08-15');   // first weigh-in on or after is 09-01 (179 lbs)
+  await page.locator('#setSave').click();
   const c2 = page.locator('#stats .stat', { hasText: 'Change since' });
   await expect(c2).toContainText('Sep 1');
   await expect(c2).toContainText('-4.0');            // 179 -> 175
   await expect(c2).toContainText('2.2% lost');
-  await page.locator('#range button[data-days="1095"]').click();
+  await card.locator('[data-settings]').click();
+  await page.fill('#sChangeFrom', '');
+  await page.locator('#setSave').click();
   await expect(page.locator('#stats .stat', { hasText: 'Change since' })).toContainText('12.5% lost');
 });
 
