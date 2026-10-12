@@ -2062,8 +2062,10 @@
     // an exact window (custom range) spans the whole of it on the axis, even where readings are sparse
     var t0 = o.from || pts[0].e.date, tN = o.to || pts[pts.length - 1].e.date;
     // a trailing window longer than the data keeps its full length: readings on the left, empty axis to the right
-    var ext = !o.from && !o.to && !single && o.days && dayDiff(t0, tN) < o.days && !ovPts;
+    // on the weight and BMI tabs the axis fits the readings, plus the prediction when it is on (below)
+    var ext = !o.from && !o.to && !single && o.days && dayDiff(t0, tN) < o.days && !ovPts && m.key !== 'weight' && m.key !== 'bmi';
     if (ext) tN = addDays(t0, o.days);
+    var fadeOut = ext;   // the area under the line fades where the axis runs on past the readings
     var span = Math.max(dayDiff(t0, tN), 1);
     if (ovPts) span = Math.max(span, dayDiff(o.ov.from, ovPts[ovPts.length - 1].e.date), 1);
     // weight and BMI: the chosen range's length on from the latest weigh-in, at the recent pace (7 days' slope for 1 wk, else 28 days;
@@ -2075,6 +2077,7 @@
         var pend = addDays(wl[wl.length - 1].date, o.days), plbs = Math.max(wl[wl.length - 1].weight + psl * o.days, 0);
         proj = { lbs: plbs, last: wl[wl.length - 1].weight, end: pend, name: projName(o.days), v: m.key === 'bmi' ? bmiOf(plbs, settings.heightIn) : isUK() ? plbs / 14 : isMetric() ? plbs * KG : plbs };
         if (dayDiff(tN, pend) > 0) tN = pend;
+        fadeOut = true;
         span = Math.max(dayDiff(t0, tN), 1);
       }
     }
@@ -2121,7 +2124,7 @@
     var g = (o.print ? '<style>.psvg text{fill:#5a6b7c;font:11px "Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif}</style>' : '') +
       '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + lc + '" stop-opacity="' + (m.key === 'sugar' || m.key === 'bmi' ? '0.2' : '0.38') + '"/><stop offset="1" stop-color="' + lc + '" stop-opacity="0.02"/></linearGradient>' +
       // when the range is longer than the data, the fill fades out over the last stretch of readings instead of ending in a hard edge
-      (ext && !bp && X(pts[pts.length - 1].e.date) - X(pts[0].e.date) > 1 ? '<linearGradient id="' + gid + 'f" gradientUnits="userSpaceOnUse" x1="' + X(pts[0].e.date).toFixed(1) + '" x2="' + X(pts[pts.length - 1].e.date).toFixed(1) + '" y1="0" y2="0"><stop offset="0.55" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>' +
+      (fadeOut && !bp && X(pts[pts.length - 1].e.date) - X(pts[0].e.date) > 1 ? '<linearGradient id="' + gid + 'f" gradientUnits="userSpaceOnUse" x1="' + X(pts[0].e.date).toFixed(1) + '" x2="' + X(pts[pts.length - 1].e.date).toFixed(1) + '" y1="0" y2="0"><stop offset="0.55" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>' +
         '<mask id="' + gid + 'm" maskUnits="userSpaceOnUse" x="0" y="0" width="' + W + '" height="' + H + '"><rect x="0" y="0" width="' + W + '" height="' + H + '" fill="url(#' + gid + 'f)"/></mask>' : '') + '</defs>';
     if (o.title) g += '<text x="' + L + '" y="14" style="fill:#12202e;font-weight:700;font-size:13px">' + esc(o.title) + '</text>';
     g += bands;
@@ -2162,7 +2165,7 @@
     var avgXY = function (p) { return X(p.e.date).toFixed(1) + ',' + Y(p.a).toFixed(1); };
     if (!single && !bp) {
       runs(pts).filter(function (r) { return r.length > 1; }).forEach(function (r) {
-        g += '<path' + fade + ' fill="url(#' + gid + ')"' + (ext ? ' mask="url(#' + gid + 'm)"' : '') + ' d="M' + r.map(avgXY).join('L') + 'L' + X(r[r.length - 1].e.date).toFixed(1) + ',' + (H - B) + 'L' + X(r[0].e.date).toFixed(1) + ',' + (H - B) + 'Z"/>';
+        g += '<path' + fade + ' fill="url(#' + gid + ')"' + (fadeOut ? ' mask="url(#' + gid + 'm)"' : '') + ' d="M' + r.map(avgXY).join('L') + 'L' + X(r[r.length - 1].e.date).toFixed(1) + ',' + (H - B) + 'L' + X(r[0].e.date).toFixed(1) + ',' + (H - B) + 'Z"/>';
       });
     }
     var r = pts.length > 120 ? 2 : (pts.length > 45 ? 2.8 : 4.2);

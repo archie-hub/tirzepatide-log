@@ -806,8 +806,11 @@ test('Show prediction box hides the line, is remembered and re-labels with the r
   await pasteCsv(page, steadyLossCsv());
   await page.locator('#range [data-days="30"]').first().click();
   await expect(page.locator('#projLbl')).toHaveText('next month');
+  const lastX = () => page.locator('#chart svg circle[opacity]').evaluateAll(els => Math.max(...els.map(e => +e.getAttribute('cx'))));
+  const withPrediction = await lastX();
   await page.locator('#projOn').uncheck();
   await expect(page.locator('#chart svg path[stroke-dasharray="7 6"]')).toHaveCount(0);
+  expect(await lastX()).toBeGreaterThan(withPrediction + 100);   // axis fits the readings: the last dot reaches the right edge
   await page.reload();
   await expect(page.locator('#projOn')).not.toBeChecked();
   await expect(page.locator('#chart svg path[stroke-dasharray="7 6"]')).toHaveCount(0);
