@@ -246,7 +246,7 @@
   .print-head { display: none; }
   @media print {
     body { background: #fff !important; color: #111; }
-    .demo-bar, .page-bar, #formPanel, #layoutDlg, .toast, #toast, .pager, #range, #overlayBar, .tabs, #cmpPick, .stat .linkish, .arr-handle, #landing, .stat-ring + *:empty { display: none !important; }
+    .demo-bar, .page-bar, #formPanel, #layoutDlg, .toast, #toast, .pager, #range, #overlayBar, #projBar, .tabs, #cmpPick, .stat .linkish, .arr-handle, #landing, .stat-ring + *:empty { display: none !important; }
     body.share .hero, .hero { box-shadow: none; }
     .panel, .stat, .ins, .gl, .glance { box-shadow: none !important; break-inside: avoid; }
     .stat:hover { transform: none; }
@@ -669,6 +669,9 @@
         <label>To <input type="date" id="ovTo"></label>
       </span>
       <span class="note" id="ovNote" role="status"></span>
+    </div>
+    <div class="custom-range" id="projBar" hidden>
+      <label><input type="checkbox" id="projOn" checked> Show prediction (<span id="projLbl">next week</span>, at your recent pace)</label>
     </div>
     <div class="legend cmp-pick" id="cmpPick" role="group" aria-label="Values to show on the combined chart" hidden></div>
     <div id="chart" role="tabpanel" aria-labelledby="tab-weight"></div>
@@ -1774,11 +1777,12 @@
     var den = n * sxx - sx * sx;
     return den ? (n * sxy - sx * sy) / den : null;
   }
-  // Least-squares slope (lbs/day) of the weigh-ins in the 7 days up to the latest one; needs 3 weigh-ins spanning 3+ days (iOS: Progress.weekSlope)
-  function weekSlope(w) {
+  // Least-squares slope (lbs/day) of the weigh-ins in the last `days` days up to the latest one; needs 3 weigh-ins spanning
+  // 3+ days (4+ for 28) (iOS: Progress.weekSlope)
+  function weekSlope(w, days) {
     if (!w.length) return null;
-    var end = w[w.length - 1].date, pts = w.filter(function (e) { return dayDiff(e.date, end) <= 7; });
-    if (pts.length < 3 || dayDiff(pts[0].date, end) < 3) return null;
+    var end = w[w.length - 1].date, pts = w.filter(function (e) { return dayDiff(e.date, end) <= days; });
+    if (pts.length < 3 || dayDiff(pts[0].date, end) < (days > 7 ? 4 : 3)) return null;
     var n = pts.length, sx = 0, sy = 0, sxx = 0, sxy = 0;
     pts.forEach(function (e) { var x = dayDiff(pts[0].date, e.date); sx += x; sy += e.weight; sxx += x * x; sxy += x * e.weight; });
     var den = n * sxx - sx * sx;
@@ -1884,6 +1888,7 @@
   // "Custom" lets the person pick exact From and To dates (and step earlier or later by the same length) to look at history closely.
   var RANGE_DAYS = [7, 30, 90, 180, 365, 548, 730, 1095], DEFAULT_RANGE = 90, RANGE_KEY = 'tirzepatide-chart-range';
   var customFrom = null, customTo = null;   // ISO dates while the range is 'custom'
+  var projOn = true, PROJ_KEY = 'tirzepatide-chart-proj';   // prediction line on the weight and BMI tabs; device only
   var ovOn = false, ovFrom = null, ovTo = null, OV_COLOR = '#8b5cf6';   // overlay of a second period, in memory only
   function isoDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(v || '') && !isNaN(new Date(v + 'T00:00:00').getTime()); }
   function loadRange() {
@@ -1895,6 +1900,18 @@
     } catch (e) {}
     return DEFAULT_RANGE;
   }
+  function loadProj() {
+    if (SHARE_TOKEN || DEMO) return true;
+    try { return localStorage.getItem(PROJ_KEY) !== '0'; } catch (e) { return true; }
+  }
+  function saveProj() {
+    if (SHARE_TOKEN || DEMO) return;
+    try { localStorage.setItem(PROJ_KEY, projOn ? '1' : '0'); } catch (e) {}
+  }
+  // How far ahead the prediction runs: as far as the chosen range is long ("Next month" under 1 mo)
+  function projName(days) {
+    return { 7: 'week', 30: 'month', 90: '3 months', 180: '6 months', 365: 'year', 548: '18 months', 730: '2 years', 1095: '3 years' }[days] || days + ' days';
+  }
   function saveRange() {
     if (SHARE_TOKEN || DEMO) return;
     try { localStorage.setItem(RANGE_KEY, currentRange === 'custom' ? 'custom|' + customFrom + '|' + customTo : String(currentRange)); } catch (e) {}
@@ -1902,6 +1919,7 @@
   // What the chart builders take: the last N days back from the latest entry, or an exact From/To window
   function rangeOpts() { return currentRange === 'custom' ? { from: customFrom, to: customTo } : { days: currentRange }; }
   var currentMetric = 'weight', currentRange = loadRange(), chartSeq = 0;
+  projOn = loadProj();
   var METRICS = {
     weight: { key: 'weight', get label() { return 'Weight (' + WUC() + ')'; }, color: '#0ea5a4', dec: 1 },
     bmi: { key: 'bmi', label: 'BMI', color: '#0284c7', dec: 1 },
@@ -2048,13 +2066,14 @@
     if (ext) tN = addDays(t0, o.days);
     var span = Math.max(dayDiff(t0, tN), 1);
     if (ovPts) span = Math.max(span, dayDiff(o.ov.from, ovPts[ovPts.length - 1].e.date), 1);
-    // weight and BMI: one week on from the latest weigh-in at the last week's pace (iOS `ChartWindow.projectedLbs`); the axis grows to hold it
+    // weight and BMI: the chosen range's length on from the latest weigh-in, at the recent pace (7 days' slope for 1 wk, else 28 days;
+    // iOS `ChartWindow.projection`); the axis grows to hold it. Off with the "Show prediction" box.
     var proj = null;
-    if (!o.from && !o.to && !single && !ovPts && (m.key === 'weight' || m.key === 'bmi')) {
-      var wl = sorted().filter(function (e) { return e.weight !== null; }), psl = wl.length ? weekSlope(wl) : null;
+    if (o.proj && o.days && !o.from && !o.to && !single && !ovPts && (m.key === 'weight' || m.key === 'bmi')) {
+      var wl = sorted().filter(function (e) { return e.weight !== null; }), psl = wl.length ? weekSlope(wl, o.days <= 7 ? 7 : 28) : null;
       if (psl !== null) {
-        var pend = addDays(wl[wl.length - 1].date, 7), plbs = Math.max(wl[wl.length - 1].weight + psl * 7, 0);
-        proj = { lbs: plbs, last: wl[wl.length - 1].weight, end: pend, v: m.key === 'bmi' ? bmiOf(plbs, settings.heightIn) : isUK() ? plbs / 14 : isMetric() ? plbs * KG : plbs };
+        var pend = addDays(wl[wl.length - 1].date, o.days), plbs = Math.max(wl[wl.length - 1].weight + psl * o.days, 0);
+        proj = { lbs: plbs, last: wl[wl.length - 1].weight, end: pend, name: projName(o.days), v: m.key === 'bmi' ? bmiOf(plbs, settings.heightIn) : isUK() ? plbs / 14 : isMetric() ? plbs * KG : plbs };
         if (dayDiff(tN, pend) > 0) tN = pend;
         span = Math.max(dayDiff(t0, tN), 1);
       }
@@ -2189,7 +2208,7 @@
       projText = (m.key === 'bmi' ? proj.v.toFixed(1) : fwu(proj.lbs)) + ' by ' + shortDate(proj.end, yearSpan);
       g += '<path fill="none" stroke="' + lc + '" stroke-width="2.4" stroke-dasharray="7 6" stroke-linecap="round" opacity="0.8" d="M' + px0.toFixed(1) + ',' + Y(pl.v).toFixed(1) + 'L' + px1.toFixed(1) + ',' + py1.toFixed(1) + '"/>' +
         '<circle cx="' + px1.toFixed(1) + '" cy="' + py1.toFixed(1) + '" r="4.5" fill="' + C.panel + '" stroke="' + lc + '" stroke-width="2.4"/>' +
-        '<text x="' + (px1 - 14).toFixed(1) + '" y="' + (py1 < Y(pl.v) - 1 ? Math.max(py1 - 12, T + 10) : Math.min(py1 + 16, H - B - 6)).toFixed(1) + '" text-anchor="end" style="fill:' + lc + ';font-weight:700;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + esc('Next week: ' + projText) + '</text>';
+        '<text x="' + (px1 - 14).toFixed(1) + '" y="' + (py1 < Y(pl.v) - 1 ? Math.max(py1 - 12, T + 10) : Math.min(py1 + 16, H - B - 6)).toFixed(1) + '" text-anchor="end" style="fill:' + lc + ';font-weight:700;paint-order:stroke;stroke:' + C.panel + ';stroke-width:5px;stroke-linejoin:round">' + esc('Next ' + proj.name + ': ' + projText) + '</text>';
       var quip = paceQuip(proj.lbs, proj.last);
       if (quip) {
         var ly = py1 < Y(pl.v) - 1 ? Math.max(py1 - 12, T + 10) : Math.min(py1 + 16, H - B - 6),
@@ -2351,11 +2370,14 @@
   function renderChart() {
     $('cmpPick').hidden = currentMetric !== 'compare';
     $('overlayBar').hidden = currentMetric === 'compare' || currentMetric === 'bp';
+    $('projBar').hidden = !(currentMetric === 'weight' || currentMetric === 'bmi') || currentRange === 'custom' || ovOn;
+    $('projOn').checked = projOn; $('projLbl').textContent = 'next ' + projName(currentRange === 'custom' ? 0 : currentRange);
     if (currentMetric === 'compare') { renderCompare(); return; }
     $('tab-bmi').hidden = !settings.heightIn;
     if (currentMetric === 'bmi' && !settings.heightIn) { selectTab($('tab-weight')); return; }
     var m = METRICS[currentMetric], ro = rangeOpts();
     if (ovOn && currentMetric !== 'bp' && ovFrom && ovTo && ovFrom <= ovTo) ro.ov = { from: ovFrom, to: ovTo };
+    ro.proj = projOn;
     var res = buildChart(currentMetric, ro);
     if (!res) {
       $('chart').innerHTML = '<div class="empty">' + (currentRange === 'custom' ? 'No ' + esc(m.label) + ' readings between ' + esc(fmtDate(customFrom)) + ' and ' + esc(fmtDate(customTo)) + '.' : 'No ' + esc(m.label) + ' values to plot yet.') + '</div>';
@@ -2386,7 +2408,7 @@
       : currentMetric === 'weight' && !single ? 'Dots are daily values. The line is the trailing 7-day average, coloured by trend: ' +
         '<span class="chip" style="--c:#059669">falling</span> <span class="chip" style="--c:#6366f1">steady</span> <span class="chip" style="--c:#ef4444">rising</span> Hover or touch the chart for details.'
       : 'Dots are daily values. The line is the trailing 7-day average. Hover or touch the chart for details.') +
-      (res.proj ? ' The dashed line carries the last week\u2019s pace 7 days on (an estimate, not a prediction).' : '') +
+      (res.proj ? ' The dashed line carries your recent pace on for the length of the range (an estimate, not a prediction). Untick Show prediction to hide it.' : '') +
       (!ovp && !single && pts.some(function (p) { return (p.e.sxs || 0) >= 2; }) ? ' <span style="color:#f97316">\u25B2</span> moderate or severe symptoms.' : '') + '</span>';
 
     var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), xc = svg.querySelector('#xc'), cur = -1;
@@ -3160,6 +3182,7 @@
     $('ovOn').checked = ovOn; $('ovFields').hidden = !ovOn;
     $('ovFrom').value = ovFrom || ''; $('ovTo').value = ovTo || '';
   }
+  $('projOn').addEventListener('change', function () { projOn = this.checked; saveProj(); renderChart(); });
   $('ovOn').addEventListener('change', function () {
     ovOn = this.checked;
     if (ovOn && !(ovFrom && ovTo)) {

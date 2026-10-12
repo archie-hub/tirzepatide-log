@@ -774,36 +774,53 @@ test('next dose: an injection site logged today counts as the injection', async 
   await expect(page.locator('#plan')).toContainText('In 7 days');
 });
 
-test('chart range longer than the data keeps its full axis, with a one-week projection on weight', async ({ page }) => {
+test('chart range longer than the data keeps its full axis, with a prediction as long as the range', async ({ page }) => {
   await pasteCsv(page, steadyLossCsv());           // 57 days, 0.5 lb/day, 200 -> 172
-  await page.locator('#range [data-days="365"]').first().click();
+  await page.locator('#range [data-days="30"]').first().click();
   const svg = page.locator('#chart svg');
   await expect(svg.locator('path[stroke-dasharray="7 6"]')).toHaveCount(1);
-  // last week's pace (0.5 lb/day) for 7 days from 172: 168.5
-  await expect(svg).toContainText('Next week: 168.5 lbs');
-  // the last dot sits well left of the right edge (data 57 of 365 days)
-  const dots = svg.locator('circle[opacity]');
-  const xs = await dots.evaluateAll(els => els.map(e => +e.getAttribute('cx')));
+  // the 28-day pace (0.5 lb/day) for 30 days from 172: 157.0
+  await expect(svg).toContainText('Next month: 157.0 lbs');
+  await page.locator('#range [data-days="365"]').first().click();
+  await expect(svg).toContainText('Next year: 0.0 lbs');       // 182.5 lbs at that pace, floored at 0
+  await expect(svg).toContainText('brown bread');
+  // the last dot sits well left of the right edge (57 days of data, 365 + 365 on the axis)
+  const xs = await svg.locator('circle[opacity]').evaluateAll(els => els.map(e => +e.getAttribute('cx')));
   expect(Math.max(...xs)).toBeLessThan(250);
   await page.locator('#tab-sugar').click();
   await expect(page.locator('#chart')).toBeVisible();
+  await expect(page.locator('#projBar')).toBeHidden();
 });
 
-test('next-week projection shows in a range the data fills, and the axis grows to hold it', async ({ page }) => {
+test('one-week range predicts one week from the last week\'s pace; the axis grows to hold it', async ({ page }) => {
   await pasteCsv(page, steadyLossCsv());
-  await page.locator('#range [data-days="30"]').first().click();
+  await page.locator('#range [data-days="7"]').first().click();
   const svg = page.locator('#chart svg');
   await expect(svg).toContainText('Next week: 168.5 lbs');
   const last = await svg.locator('circle[opacity]').evaluateAll(els => Math.max(...els.map(e => +e.getAttribute('cx'))));
   const end = await svg.locator('path[stroke-dasharray="7 6"]').getAttribute('d');
-  expect(+end.match(/L([\d.]+),/)[1]).toBeGreaterThan(last + 20);   // a week is room on the right, not squeezed onto the last dot
+  expect(+end.match(/L([\d.]+),/)[1]).toBeGreaterThan(last + 20);
 });
 
-test('pace note: overweight remark under the next-week label, lines apart', async ({ page }) => {
+test('Show prediction box hides the line, is remembered and re-labels with the range', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());
+  await page.locator('#range [data-days="30"]').first().click();
+  await expect(page.locator('#projLbl')).toHaveText('next month');
+  await page.locator('#projOn').uncheck();
+  await expect(page.locator('#chart svg path[stroke-dasharray="7 6"]')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('#projOn')).not.toBeChecked();
+  await expect(page.locator('#chart svg path[stroke-dasharray="7 6"]')).toHaveCount(0);
+  await page.locator('#projOn').check();
+  await expect(page.locator('#chart svg')).toContainText('Next month');
+});
+
+test('pace note: overweight remark under the prediction label, lines apart', async ({ page }) => {
   await pasteCsv(page, 'Date,Dosage (mg),Weight (lbs)\n2026-10-01,2.5,220\n2026-10-02,2.5,218\n2026-10-03,2.5,216\n2026-10-04,2.5,214\n2026-10-05,2.5,212');   // 2 lb/day, 198 a week on
   await page.locator('#plan [data-settings]').first().click();
   await page.fill('#sHeight', '69');
   await page.locator('#setSave').click();
+  await page.locator('#range [data-days="7"]').first().click();
   await expect(page.locator('#chart svg')).toContainText('Next week: 198.0 lbs');
   await expect(page.locator('#chart svg')).toContainText('overweight');   // BMI 29.2
   const ys = await page.locator('#chart svg text').evaluateAll(els => els.filter(e => /Next week|overweight/.test(e.textContent)).map(e => +e.getAttribute('y')));
@@ -815,12 +832,13 @@ test('projection also shows with only a week of weigh-ins', async ({ page }) => 
   await pasteCsv(page, 'Date,Dosage (mg),Weight (lbs)\n2026-10-01,2.5,208\n2026-10-03,2.5,205\n2026-10-05,2.5,203\n2026-10-07,2.5,201');
   await page.locator('#range [data-days="30"]').click();
   await expect(page.locator('#chart svg path[stroke-dasharray="7 6"]')).toHaveCount(1);
-  await expect(page.locator('#chart svg')).toContainText('Next week');
+  await expect(page.locator('#chart svg')).toContainText('Next month');
   await expect(page.locator('#chart svg mask')).toHaveCount(1);   // the fill fades out at the last reading
 });
 
-test('no next-week line with fewer than three weigh-ins in the last week', async ({ page }) => {
+test('no one-week line with fewer than three weigh-ins in the last week', async ({ page }) => {
   await pasteCsv(page, 'Date,Dosage (mg),Weight (lbs)\n2026-09-01,2.5,210\n2026-09-20,2.5,205\n2026-10-06,2.5,203\n2026-10-07,2.5,201');
+  await page.locator('#range [data-days="7"]').first().click();
   await expect(page.locator('#chart svg path[stroke-dasharray="7 6"]')).toHaveCount(0);
 });
 
