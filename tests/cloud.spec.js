@@ -694,3 +694,22 @@ test('doctor link: the latest face photo is included only when the patient ticks
   await expect(d2.locator('#subtitle')).toContainText('2 entries');
   await expect(d2.locator('#heroFace')).toBeHidden();
 });
+
+
+test('doctor: a link with a start date shows only data from it, measures change from it, and ignores the earlier start weight', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  b.put({ date: '2026-02-01', updatedAt: 1, dose: 2.5, weight: 250 });
+  b.put({ date: '2026-03-01', updatedAt: 1, dose: 2.5, weight: 200 });
+  b.put({ date: '2026-03-15', updatedAt: 1, dose: 2.5, weight: 190 });
+  b.settings = { goal: 180, baseline: 260, updatedAt: 1, syncedAt: 5 };
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: false, from: '2026-03-01' });
+  await page.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(page.locator('#subtitle')).toContainText('2 entries');
+  await expect(page.locator('#shareBar')).toContainText('from Mar 1, 2026 only');
+  // total change is 200 -> 190 (10 lbs), not from 250 or the 260 start weight
+  await expect(page.locator('#glance')).toContainText('200');
+  await expect(page.locator('#glance')).toContainText('10');
+  await expect(page.locator('#glance')).not.toContainText('250');
+  await expect(page.locator('#glance')).not.toContainText('260');
+  await expect(page.locator('body')).not.toContainText('Feb 1');
+});

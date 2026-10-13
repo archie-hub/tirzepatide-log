@@ -57,13 +57,14 @@ function backend({ invited = true, dist = false } = {}) {
           const { updatedAt, syncedAt, comments, foodNotes, deleted, ...rest } = e;
           return sh.notes ? { ...rest, ...(comments ? { comments } : {}), ...(foodNotes ? { foodNotes } : {}) } : rest;
         });
-        const { goal, baseline, heightIn, units, doseDay } = s.settings || {};
+        const { goal, baseline: base0, heightIn, units, doseDay } = s.settings || {};
+        const baseline = sh.from ? undefined : base0;   // the pre-treatment start weight is not shared with a start date
         const shown = Object.fromEntries(Object.entries({ goal, baseline, heightIn, units, doseDay }).filter(([, v]) => v !== undefined));
         const cn = (s.settings || {}).chartNotes;   // like comments, chart notes travel only with "include notes"
         if (sh.notes && cn) shown.chartNotes = Object.fromEntries(Object.entries(cn).filter(([d]) => !sh.from || d >= sh.from));
         const faces = sh.photo ? [...(s.photos || new Map()).entries()].filter(([k]) => k.endsWith('#face')).sort() : [];
         const photo = faces.length ? { date: faces[faces.length - 1][0].split('#')[0], data: faces[faces.length - 1][1].data } : undefined;
-        return send(200, { entries, settings: shown, notes: sh.notes, createdAt: sh.createdAt, ...(photo ? { photo } : {}) });
+        return send(200, { entries, settings: shown, notes: sh.notes, createdAt: sh.createdAt, ...(photo ? { photo } : {}), ...(sh.from ? { from: sh.from } : {}) });
       }
       s.authHeaders.push(req.headers()['authorization']);
       if (!invited) return send(403, { error: 'not invited' });

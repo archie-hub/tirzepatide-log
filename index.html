@@ -541,7 +541,7 @@
     <span class="demo-links"><a href="/">Back to the overview</a> <a href="https://www.phoe.be/#contact">Request an invite</a></span>
   </div>
   <div class="demo-bar" id="shareBar" hidden>
-    <span><strong>Shared with you, read-only.</strong> This is a patient's log. Want to see what the app does?</span>
+    <span><strong>Shared with you, read-only.</strong> This is a patient's log<span id="shareFrom"></span>. Want to see what the app does?</span>
     <span class="demo-links"><a href="https://tirzepatide.phoe.be/">About Tirzepatide Log</a> <a href="https://tirzepatide.phoe.be/demo">Try the live demo</a></span>
   </div>
   <section id="landing" aria-labelledby="lpTitle">
@@ -4236,6 +4236,10 @@
         photos.list = [{ date: res.photo.date, slot: 'face', updatedAt: 0 }];
         photos.urls[res.photo.date + '#face#0'] = b64blobUrl(res.photo.data);
         updateHeroFace();
+      }
+      if (res.from) {   // the patient chose a start date: everything shown counts from it (change, insights, results by dose)
+        settings.changeFrom = res.from; delete settings.baseline;
+        $('shareFrom').textContent = ', showing entries from ' + fmtDate(res.from) + ' only';
       }
       render(); resetForm(); showNoteHint();
       say(entries.length ? '' : 'This shared log has no entries yet.');
