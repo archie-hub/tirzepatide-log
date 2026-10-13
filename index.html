@@ -1907,10 +1907,11 @@
   });
 
   function renderRates() {
-    // Only entries inside the chart's date range count (runs of the same dose are found over the whole log first, so an entry
-    // without a dose still belongs to the run it sits in); a dose with nothing in the range is left out.
-    var inR = {}, all = sorted();
-    inChartRange(all).forEach(function (e) { inR[e.date] = true; });
+    // Only entries inside the chart's date range, and on or after the "Measure change from" date when one is set (the same window
+    // the Change card counts), are used. Runs of the same dose are found over the whole log first, so an entry without a dose
+    // still belongs to the run it sits in; a dose with nothing in the window is left out.
+    var inR = {}, all = sorted(), cf = /^\d{4}-\d{2}-\d{2}$/.test(settings.changeFrom || '') ? settings.changeFrom : null;
+    inChartRange(all).forEach(function (e) { if (!cf || e.date >= cf) inR[e.date] = true; });
     var rows = segsOf(all).map(function (sg) {
       return { dose: sg.dose, items: sg.items.filter(function (e) { return inR[e.date]; }) };
     }).filter(function (sg) { return sg.items.length; }).map(function (sg) {
@@ -3581,7 +3582,7 @@
   function segsOf(list) {
     var segs = [], seg = null;
     list.forEach(function (e) {
-      if (e.dose !== null && (!seg || seg.dose !== e.dose)) { seg = { dose: e.dose, items: [] }; segs.push(seg); }
+      if (e.dose > 0 && (!seg || seg.dose !== e.dose)) { seg = { dose: e.dose, items: [] }; segs.push(seg); }   // 0 mg means no dose, as in the iPhone app
       if (seg) seg.items.push(e);
     });
     return segs;

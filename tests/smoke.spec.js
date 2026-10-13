@@ -1255,6 +1255,24 @@ test('results by dose only counts entries inside the chart range', async ({ page
   await expect(page.locator('#ratePanel')).toBeHidden();
   await page.locator('#range button[data-days="1095"]').click();
   await expect(rows).toHaveCount(2);
+  // the "Measure change from" date narrows it further: from Sep 22 the 5 mg dose is 178.0 to 175.0, the 2.5 mg dose is gone
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('tirzepatide-settings') || '{}'); s.changeFrom = '2026-09-22'; localStorage.setItem('tirzepatide-settings', JSON.stringify(s)); });
+  await page.reload();
+  await page.locator('#range button[data-days="1095"]').click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('178.0');
+});
+
+test('a 0 mg entry is no dose: it never makes its own row in results by dose', async ({ page }) => {
+  await page.goto(APP_URL);
+  await page.evaluate(() => localStorage.setItem('tirzepatide-log-v1', JSON.stringify([
+    { date: '2026-09-01', dose: 0, weight: null, comments: '', cal: 1800, food: '', sugar: null, site: '', sys: null, dia: null, waist: null, fat: null, muscle: null },
+    { date: '2026-09-10', dose: 2.5, weight: 200, comments: '', cal: null, food: '', sugar: null, site: '', sys: null, dia: null, waist: null, fat: null, muscle: null },
+    { date: '2026-09-20', dose: 2.5, weight: 197, comments: '', cal: null, food: '', sugar: null, site: '', sys: null, dia: null, waist: null, fat: null, muscle: null }])));
+  await page.reload();
+  await page.locator('#range button[data-days="1095"]').click();
+  await expect(page.locator('#rateRows tr')).toHaveCount(1);
+  await expect(page.locator('#rateRows tr').first()).toContainText('2.5');
 });
 
 test('weight lost by week on treatment uses the nearest weigh-in within a week', async ({ page }) => {
