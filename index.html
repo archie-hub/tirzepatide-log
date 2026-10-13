@@ -4260,18 +4260,21 @@
       var d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (5 - k) * 28), iso = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
       ['face', 'side', 'front'].forEach(function (slot) {
         out.push({ date: iso, slot: slot });
-        photos.urls[iso + '#' + slot] = demoFigure(slot === 'front' ? 190 - k * 12 : slot === 'side' ? 120 - k * 7 : 70, 'Sample, not a real photo');
+        photos.urls[iso + '#' + slot + '#0'] = demoFigure(slot === 'front' ? 190 - k * 12 : slot === 'side' ? 120 - k * 7 : 70, 'Sample, not a real photo');
       });
     }
     return out;
   }
   function photoUrl(p) {   // resolves to a blob/data URL, fetched once
-    var key = p.date + '#' + p.slot;
+    var key = p.date + '#' + p.slot + '#' + (p.updatedAt || 0);   // a retake on the same day has a newer updatedAt, so it is fetched again
     if (photos.urls[key]) return Promise.resolve(photos.urls[key]);
     return cloudApi('GET', '/photos/' + p.date + '/' + p.slot).then(function (r) { return (photos.urls[key] = b64blobUrl(r.data)); });
   }
+  function listed(p) {
+    return photos.list.filter(function (x) { return x.date === p.date && x.slot === p.slot; })[0] || p;
+  }
   function fillImg(img, p) {
-    photoUrl(p).then(function (u) { img.src = u; }).catch(function () { img.alt = 'Could not load this photo'; });
+    photoUrl(listed(p)).then(function (u) { img.src = u; }).catch(function () { img.alt = 'Could not load this photo'; });
   }
   // the latest face photo, resized to a small square, in the header (this device only; never on a doctor link)
   var heroFaceKey = '';
@@ -4351,7 +4354,7 @@
     var b = ev.target.closest('button[data-pdel]'); if (!b) return;
     var date = b.dataset.pdel, slot = photos.slot;
     if (!confirm('Delete the ' + fmtDate(date) + ' ' + slot + ' photo from your account? The copy on your phone is not touched.')) return;
-    function gone() { photos.list = photos.list.filter(function (p) { return !(p.date === date && p.slot === slot); }); delete photos.urls[date + '#' + slot]; renderPhotos(); }
+    function gone() { photos.list = photos.list.filter(function (p) { return !(p.date === date && p.slot === slot); }); Object.keys(photos.urls).forEach(function (k) { if (k.indexOf(date + '#' + slot + '#') === 0) delete photos.urls[k]; }); renderPhotos(); }
     if (DEMO) { gone(); return; }
     cloudApi('DELETE', '/photos/' + date + '/' + slot).then(gone, function () { say('Could not delete the photo. Check your connection.'); });
   });
