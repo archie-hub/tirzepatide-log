@@ -564,7 +564,7 @@ test('progress: percent lost and the week on treatment on the Change card', asyn
   await expect(page.locator('#progress')).toHaveCount(0);    // there is no separate progress panel
 });
 
-test('progress: the Change card counts only weigh-ins on or after the chosen date and inside the range', async ({ page }) => {
+test('progress: the Change card counts from the chosen date, else from the chart range', async ({ page }) => {
   await pasteProgress(page);
   const card = page.locator('#stats .stat', { hasText: 'Change since' });
   await card.locator('[data-settings]').click();
@@ -576,12 +576,16 @@ test('progress: the Change card counts only weigh-ins on or after the chosen dat
   await expect(c2).toContainText('-4.0');            // 179 -> 175
   await expect(c2).toContainText('2.2% lost');
   await expect(c2).toContainText('week 7');          // weeks counted from 08-15: day 47 -> week 7
-  await page.locator('#range button[data-days="7"]').click();   // 09-24 .. 10-01 only
-  await expect(page.locator('#stats .stat', { hasText: 'Change since' })).not.toContainText('Sep 1');
-  await page.locator('#range button[data-days="1095"]').click();
-  await card.locator('[data-settings]').click();
+  // a date picked on purpose beats the preset range: 1 wk (09-24 .. 10-01) does not move the start of the change
+  await page.locator('#range button[data-days="7"]').click();
+  await expect(page.locator('#stats .stat', { hasText: 'Change since' })).toContainText('Sep 1');
+  await expect(page.locator('#stats .stat', { hasText: 'Change since' })).toContainText('-4.0');
+  // with no date set the range decides again: one weigh-in in the last week, so nothing changed
+  await page.locator('#stats .stat', { hasText: 'Change since' }).locator('[data-settings]').click();
   await page.fill('#sChangeFrom', '');
   await page.locator('#setSave').click();
+  await expect(page.locator('#stats .stat', { hasText: 'Change since' })).toContainText('Oct 1');
+  await page.locator('#range button[data-days="1095"]').click();
   await expect(page.locator('#stats .stat', { hasText: 'Change since' })).toContainText('12.5% lost');
 });
 
@@ -1259,6 +1263,11 @@ test('results by dose only counts entries inside the chart range', async ({ page
   await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('tirzepatide-settings') || '{}'); s.changeFrom = '2026-09-22'; localStorage.setItem('tirzepatide-settings', JSON.stringify(s)); });
   await page.reload();
   await page.locator('#range button[data-days="1095"]').click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('178.0');
+  await expect(page.locator('#rateNote')).toContainText('Sep 22, 2026');
+  // and a short preset range does not pull it back in: the date set in Settings is the start
+  await page.locator('#range button[data-days="30"]').click();
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText('178.0');
 });

@@ -695,7 +695,7 @@
         <tbody id="rateRows"></tbody>
       </table>
     </div>
-    <p class="note" style="margin-bottom:0">Change is measured from the first to the last weigh-in at each dose.</p>
+    <p class="note" style="margin-bottom:0" id="rateNote">Change is measured from the first to the last weigh-in at each dose.</p>
   </section>
 
   <details class="panel fold" id="entriesPanel">
@@ -1254,11 +1254,14 @@
   /* ---------- progress maths ---------- */
   var MILESTONES = [5, 10, 15, 20, 25];   // percent of starting weight lost
   function baselineOf(w) { return settings.baseline || (w.length ? w[0].weight : null); }
-  // Weigh-ins the Change card counts: those inside the chart's selected range and on or after settings.changeFrom
-  // (this device only); nothing earlier counts. Falls back to the latest weigh-in alone when none qualify.
+  // The start date chosen in Settings ("Measure change from", this device only), or null. When it is set it is THE start of the
+  // figures (Change card, At a glance, Results by dose): a date picked on purpose beats the length of the chart's preset range,
+  // which keeps governing the chart itself. Clear it to have those figures follow the chart range again.
+  function startDate() { var cf = settings.changeFrom; return /^\d{4}-\d{2}-\d{2}$/.test(cf || '') ? cf : null; }
+  // Weigh-ins the Change card counts: those on or after the start date when one is set, else those inside the chart's selected
+  // range. Falls back to the latest weigh-in alone when none qualify.
   function changeWin(w) {
-    var r = inChartRange(w), cf = settings.changeFrom;
-    if (cf && /^\d{4}-\d{2}-\d{2}$/.test(cf)) r = r.filter(function (e) { return e.date >= cf; });
+    var cf = startDate(), r = cf ? w.filter(function (e) { return e.date >= cf; }) : inChartRange(w);
     return r.length ? r : w.slice(-1);
   }
   function treatStart(all) { var d = all.filter(function (e) { return e.dose !== null; })[0]; return (d || all[0]).date; }
@@ -1689,8 +1692,10 @@
   }
 
   // Weigh-ins inside the chart's selected range (same window rule as buildChart), for the sparkline
+  // A trailing range is measured back from the latest entry of any kind, exactly as the chart does (buildChart), not from the
+  // latest weigh-in, so the cards and the chart always cover the same days.
   function inChartRange(w) {
-    var o = rangeOpts(), lastAll = w.length ? w[w.length - 1].date : null;
+    var o = rangeOpts(), every = sorted(), lastAll = every.length ? every[every.length - 1].date : null;
     return w.filter(function (e) {
       return (o.from || o.to) ? ((!o.from || e.date >= o.from) && (!o.to || e.date <= o.to))
                               : (!o.days || dayDiff(e.date, lastAll) <= o.days);
@@ -1907,11 +1912,13 @@
   });
 
   function renderRates() {
-    // Only entries inside the chart's date range, and on or after the "Measure change from" date when one is set (the same window
-    // the Change card counts), are used. Runs of the same dose are found over the whole log first, so an entry without a dose
-    // still belongs to the run it sits in; a dose with nothing in the window is left out.
-    var inR = {}, all = sorted(), cf = /^\d{4}-\d{2}-\d{2}$/.test(settings.changeFrom || '') ? settings.changeFrom : null;
-    inChartRange(all).forEach(function (e) { if (!cf || e.date >= cf) inR[e.date] = true; });
+    // The same window as the Change card: entries on or after the start date when one is set, else those inside the chart's
+    // range. Runs of the same dose are found over the whole log first, so an entry without a dose still belongs to the run it
+    // sits in; a dose with nothing in the window is left out.
+    var inR = {}, all = sorted(), cf = startDate();
+    (cf ? all.filter(function (e) { return e.date >= cf; }) : inChartRange(all)).forEach(function (e) { inR[e.date] = true; });
+    $('rateNote').textContent = 'Change is measured from the first to the last weigh-in at each dose. ' +
+      (cf ? 'Counting from ' + fmtDate(cf) + ', the start date set in Settings.' : 'Counting the chart\'s date range.');
     var rows = segsOf(all).map(function (sg) {
       return { dose: sg.dose, items: sg.items.filter(function (e) { return inR[e.date]; }) };
     }).filter(function (sg) { return sg.items.length; }).map(function (sg) {
