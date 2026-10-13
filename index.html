@@ -1907,7 +1907,13 @@
   });
 
   function renderRates() {
-    var rows = segsOf(sorted()).map(function (sg) {
+    // Only entries inside the chart's date range count (runs of the same dose are found over the whole log first, so an entry
+    // without a dose still belongs to the run it sits in); a dose with nothing in the range is left out.
+    var inR = {}, all = sorted();
+    inChartRange(all).forEach(function (e) { inR[e.date] = true; });
+    var rows = segsOf(all).map(function (sg) {
+      return { dose: sg.dose, items: sg.items.filter(function (e) { return inR[e.date]; }) };
+    }).filter(function (sg) { return sg.items.length; }).map(function (sg) {
       var it = sg.items, a = it[0].date, b = it[it.length - 1].date;
       var ws = it.filter(function (e) { return e.weight !== null; });
       var span = ws.length > 1 ? dayDiff(ws[0].date, ws[ws.length - 1].date) : 0;
@@ -3212,7 +3218,7 @@
           currentRange = 'custom';
         }
       } else currentRange = parseInt(b.dataset.days, 10);
-      saveRange(); syncRangeUi(); renderChart(); renderStats();
+      saveRange(); syncRangeUi(); renderChart(); renderStats(); renderRates();
     });
   });
   // From/To dates and the step buttons; the window may not be backwards
@@ -3221,7 +3227,7 @@
     if (from > to) { $('customNote').textContent = 'The From date must not be after the To date.'; return false; }
     customFrom = from; customTo = to; currentRange = 'custom';
     $('customNote').textContent = '';
-    saveRange(); syncRangeUi(); renderChart(); renderStats();
+    saveRange(); syncRangeUi(); renderChart(); renderStats(); renderRates();
     return true;
   }
   ['cFrom', 'cTo'].forEach(function (id) {
@@ -3255,7 +3261,7 @@
       var g = ovGuess();
       if (g) {
         ovFrom = g.from; ovTo = g.to;
-        if (g.start) { customFrom = g.start; customTo = g.end; currentRange = 'custom'; saveRange(); syncRangeUi(); renderStats(); }   // line the current course up from its first day
+        if (g.start) { customFrom = g.start; customTo = g.end; currentRange = 'custom'; saveRange(); syncRangeUi(); renderStats(); renderRates(); }   // line the current course up from its first day
       }
     }
     syncOv(); renderChart();

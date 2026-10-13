@@ -1243,6 +1243,20 @@ test('at a glance starts from the "Measure change from" date, not the oldest dat
   await expect(g).toContainText('Week 9');                  // counted from Aug 1
 });
 
+test('results by dose only counts entries inside the chart range', async ({ page }) => {
+  await pasteProgress(page);   // 2.5 mg: Jul 1, Jul 15, Aug 1; 5 mg: Sep 1, Sep 22, Oct 1 (all range selected)
+  const rows = page.locator('#rateRows tr');
+  await expect(rows).toHaveCount(2);
+  await page.locator('#range button[data-days="30"]').click();   // Sep 1 to Oct 1: the 2.5 mg dose has nothing in range
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('5');
+  await expect(rows.first()).toContainText('179.0');            // first weigh-in in range, not the Sep 1 start of the log
+  await page.locator('#range button[data-days="7"]').click();    // one weigh-in only: no rate, so the panel hides
+  await expect(page.locator('#ratePanel')).toBeHidden();
+  await page.locator('#range button[data-days="1095"]').click();
+  await expect(rows).toHaveCount(2);
+});
+
 test('weight lost by week on treatment uses the nearest weigh-in within a week', async ({ page }) => {
   await pasteProgress(page);
   await page.locator('#insightsPanel > summary').click();
