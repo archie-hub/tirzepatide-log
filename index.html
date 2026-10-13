@@ -4289,10 +4289,10 @@
       im.onload = function () {
         if (heroFaceKey !== key) return;
         try {
-          var c = document.createElement('canvas'), n = 160, side = Math.min(im.width, im.height);
+          var c = document.createElement('canvas'), n = 160, side = Math.min(im.width, im.height) * 0.9;
           c.width = c.height = n;
-          // the iPhone guide puts the nose at the oval's centre, about 40% down the photo, so centre the crop there (a plain middle crop leaves the face too high)
-          var sy = Math.min(Math.max(im.height * 0.40 - side / 2, 0), im.height - side);
+          // the iPhone guide puts the nose at the oval's centre, about 40% down the photo; place it 58% down the thumbnail (a little below the middle)
+          var sy = Math.min(Math.max(im.height * 0.40 - side * 0.58, 0), im.height - side);
           c.getContext('2d').drawImage(im, (im.width - side) / 2, sy, side, side, 0, 0, n, n);
           img.src = c.toDataURL('image/jpeg', 0.85);
         } catch (e) { img.src = u; }
