@@ -156,6 +156,7 @@ test('the demo shows drawn placeholder figures in Progress photos, never a real 
   await expect(page.locator('#photosPanel')).toBeVisible();
   await expect(page.locator('#photosNote')).toContainText('not real photos');
   await page.locator('#photosPanel > summary').click();
+  await expect.poll(() => page.locator('#photoGrid img, #photoCompare img').evaluateAll((els) => els.length > 2 && els.every((e) => e.getAttribute('src')))).toBe(true);
   const srcs = await page.locator('#photoGrid img, #photoCompare img').evaluateAll((els) => els.map((e) => e.getAttribute('src')));
   expect(srcs.length).toBeGreaterThan(2);
   for (const s of srcs) expect(s).toMatch(/^data:image\/svg\+xml/);

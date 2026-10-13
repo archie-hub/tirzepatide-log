@@ -249,6 +249,13 @@ test('owner: create a doctor link (copied), see it listed, revoke it', async ({ 
   await expect(page.locator('#shList li')).toHaveCount(1);
   await expect(page.locator('#shList li')).toContainText('without notes');
   await expect(page.locator('#shList code')).toHaveText(APP + '#share=' + SHARE_TOKEN);
+  // a scannable code for the link, drawn on the page (no network), toggled by its button
+  await page.locator('#shList [data-qr]').click();
+  await expect(page.locator('#shList .qr svg')).toBeVisible();
+  await expect(page.locator('#shList [data-qr]')).toHaveAttribute('aria-expanded', 'true');
+  expect(await page.locator('#shList .qr svg path').getAttribute('d')).toMatch(/^M\d+ \d+h1v1h-1z/);
+  await page.locator('#shList [data-qr]').click();
+  await expect(page.locator('#shList .qr')).toBeHidden();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(APP + '#share=' + SHARE_TOKEN);
   await page.locator('#shNotes').check();
   await page.locator('#shCreate').click();
