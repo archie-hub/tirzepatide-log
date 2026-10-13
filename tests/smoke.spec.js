@@ -172,8 +172,8 @@ test('blood pressure round-trips through the form and the CSV export', async ({ 
 
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
   const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
-  expect(csv[0]).toBe('Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg),Waist (in),Body Fat (%),Muscle Mass (lbs),Heart Rate (bpm),HbA1c (%),Protein (g),Appetite (1-5),Symptoms,Symptom Severity (0-3)');
-  expect(csv[1]).toBe('2026-10-01,,,,,,,,145,76,,,,,,,,,');
+  expect(csv[0]).toBe('Date,Dosage (mg),Weight (lbs),Comments,Calories,Food Notes,Blood Sugar (mg/dL),Injection Site,Systolic (mmHg),Diastolic (mmHg),Waist (in),Body Fat (%),Muscle Mass (lbs),Heart Rate (bpm),HbA1c (%),Protein (g),Appetite (1-5),Symptoms,Symptom Severity (0-3),Exercise (min),Active Energy (kcal),Steps');
+  expect(csv[1]).toBe('2026-10-01,,,,,,,,145,76,,,,,,,,,,,,');
 
   await expect(page.locator('#plan .stat.mini', { hasText: 'Latest BP' })).toContainText('126/92');
 });
@@ -883,7 +883,7 @@ test('body measures: form round-trip, exact values kept on edit, metric shows cm
 
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
   const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
-  expect(csv[3].split(',').slice(-9, -6)).toEqual(['36.5', '34.1', '96']);   // inches, %, lbs
+  expect(csv[3].split(',').slice(10, 13)).toEqual(['36.5', '34.1', '96']);   // inches, %, lbs
 });
 
 test('body measures: files without them still import, and nothing extra shows', async ({ page }) => {
@@ -1265,8 +1265,8 @@ test('symptoms, heart rate, HbA1c, protein and appetite: form, table, CSV and re
 
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
   const csv = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
-  expect(csv[0].split(',').slice(-6)).toEqual(['Heart Rate (bpm)', 'HbA1c (%)', 'Protein (g)', 'Appetite (1-5)', 'Symptoms', 'Symptom Severity (0-3)']);
-  expect(csv[1]).toBe('2026-10-01,,190.0,,,,,,,,,,,66,5.9,110,2,Nausea; Fatigue,2');
+  expect(csv[0].split(',').slice(-9)).toEqual(['Heart Rate (bpm)', 'HbA1c (%)', 'Protein (g)', 'Appetite (1-5)', 'Symptoms', 'Symptom Severity (0-3)', 'Exercise (min)', 'Active Energy (kcal)', 'Steps']);
+  expect(csv[1]).toBe('2026-10-01,,190.0,,,,,,,,,,,66,5.9,110,2,Nausea; Fatigue,2,,,');
 
   // edit keeps them; clear all and import the same file brings them back
   await page.locator('[data-edit="2026-10-01"]').click();
@@ -1298,4 +1298,34 @@ test('dose timing counts days with an injection site; a late dose is flagged and
   await expect(box).toContainText('Longest gap 14 days');
   await expect(box).toContainText('1 dose missed');
   await expect(page.locator('#plan')).toContainText('Overdue');
+});
+
+test('activity: exercise, active energy and steps in the form, table, CSV, chart tabs and 30-day summary', async ({ page }) => {
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  // three days with figures worked out by hand: exercise 20, 40 and 60 min (average 40, 280 a week), steps 4000 and 8000 (average 6000), active energy 300 once
+  const csv = 'Date,Weight (lbs),Exercise (min),Active Energy (kcal),Steps\n' +
+    iso(2) + ',200,20,,4000\n' + iso(1) + ',199,40,300,8000\n' + iso(0) + ',198,60,,\n';
+  await page.goto(APP_URL);
+  await page.locator('#entriesPanel').waitFor({ state: 'attached' });
+  await page.evaluate((c) => { localStorage.setItem('tirzepatide-log-v1', '[]'); }, csv);
+  await page.reload();
+  await page.locator('#emptyImport').click();
+  await page.locator('#importDlg summary').click();
+  await page.locator('#pasteBox').fill(csv);
+  await page.locator('#pasteBtn').click();
+  await page.locator('#doImport').click();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('tirzepatide-log-v1')));
+  expect(stored.map((e) => [e.ex, e.act, e.steps])).toEqual([[20, null, 4000], [40, 300, 8000], [60, null, null]]);
+  await page.evaluate(() => { document.getElementById('entriesPanel').open = true; document.getElementById('insightsPanel').open = true; });
+  await expect(page.locator('#rows tr').first()).toContainText('60 min exercise');
+  await expect(page.locator('#rows tr').nth(1)).toContainText('8,000 steps');
+  await expect(page.locator('#glance')).toContainText('280 min a week');
+  await expect(page.locator('#glance')).toContainText('6,000 steps a day');
+  await expect(page.locator('#insights')).toContainText('Activity, last 30 days');
+  await expect(page.locator('#tab-ex')).toBeVisible();
+  await page.locator('#tab-steps').click();
+  await expect(page.locator('#chart svg')).toBeVisible();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#exportBtn').click()]);
+  const out = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
+  expect(out[2].split(',').slice(-3)).toEqual(['40', '300', '8000']);
 });
