@@ -1383,3 +1383,10 @@ test('activity: exercise, active energy and steps in the form, table, CSV, chart
   const out = require('fs').readFileSync(await dl.path(), 'utf8').split('\r\n');
   expect(out[2].split(',').slice(-3)).toEqual(['40', '300', '8000']);
 });
+
+test('layout: a section added after the layout was saved appears where it belongs, not at the bottom', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('tirzepatide-layout', JSON.stringify({ order: ['glance', 'stats', 'plan', 'calPanel', 'chartPanel', 'insightsPanel', 'ratePanel', 'entriesPanel', 'formPanel'], hidden: [] })));
+  await page.reload();
+  const ids = await page.evaluate(() => Array.from(document.querySelectorAll('main > *')).map((e) => e.id).filter((i) => ['photosPanel', 'entriesPanel', 'formPanel', 'ratePanel'].includes(i)));
+  expect(ids).toEqual(['ratePanel', 'photosPanel', 'entriesPanel', 'formPanel']);
+});

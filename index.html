@@ -2907,7 +2907,11 @@
       if (!raw || !Array.isArray(raw.order)) return;
       var seen = {}, order = [];
       raw.order.forEach(function (id) { if (secById(id) && !seen[id]) { seen[id] = 1; order.push(id); } });
-      SECTIONS.forEach(function (x) { if (!seen[x.id]) order.push(x.id); });
+      SECTIONS.forEach(function (x, i) {   // a section added since the layout was saved goes after the one it follows by default, not at the very bottom
+        if (seen[x.id]) return;
+        var at = i > 0 ? order.indexOf(SECTIONS[i - 1].id) : -1;
+        order.splice(at + 1, 0, x.id);
+      });
       layout.order = order;
       layout.hidden = (Array.isArray(raw.hidden) ? raw.hidden : []).filter(function (id) { return secById(id) && !secById(id).keep; });
       function keys(a) { return (Array.isArray(a) ? a : []).filter(function (k) { return STAT_KEYS.indexOf(k) >= 0 || PLAN_KEYS.indexOf(k) >= 0; }); }
