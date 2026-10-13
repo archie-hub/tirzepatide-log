@@ -640,20 +640,23 @@ test('progress photos: shown on the web once backed up from the phone, compared,
   sampleLog(b);
   // a 1x1 JPEG
   const JPG = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
-  b.photos = new Map([['2026-03-01#front', { updatedAt: 1, data: JPG }], ['2026-03-08#front', { updatedAt: 2, data: JPG }], ['2026-03-08#side', { updatedAt: 2, data: JPG }]]);
+  b.photos = new Map([['2026-03-01#front', { updatedAt: 1, data: JPG }], ['2026-03-08#front', { updatedAt: 2, data: JPG }], ['2026-03-08#side', { updatedAt: 2, data: JPG }], ['2026-03-08#face', { updatedAt: 2, data: JPG }]]);
   await seedLocal(page, [row('2026-03-01', 200), row('2026-03-08', 198)]);
   await page.goto(APP);
   await signIn(page);
   await expect(page.locator('#photosPanel')).toBeVisible();
-  await expect(page.locator('#photosCount')).toHaveText('(3)');
+  await expect(page.locator('#photosCount')).toHaveText('(4)');
   await page.locator('#photosPanel > summary').click();
+  await expect(page.locator('#photoSlots button')).toHaveText(['Face', 'Side', 'Front']);   // in that order
+  await expect(page.locator('#photoSlots [data-slot="face"]')).toHaveAttribute('aria-pressed', 'true');   // and Face is the default
+  await expect(page.locator('#photoGrid img')).toHaveCount(1);
+  await page.locator('#photoSlots [data-slot="front"]').click();
   await expect(page.locator('#photoGrid img')).toHaveCount(2);                  // the front photos
   await expect(page.locator('#photoImgA')).toHaveAttribute('src', /^blob:/);
-  await expect(page.locator('#photoSlots button')).toHaveCount(2);              // front and side exist, face does not
   page.once('dialog', (d) => d.accept());
   await page.locator('#photoGrid [data-pdel="2026-03-01"]').click();
   await expect.poll(() => b.photos.has('2026-03-01#front')).toBe(false);
-  await expect(page.locator('#photosCount')).toHaveText('(2)');
+  await expect(page.locator('#photosCount')).toHaveText('(3)');
   // doctor link: no photos panel and no photo request
   b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: true });
   const d = await context.newPage(); await b.install(d); await d.goto(APP + '#share=' + SHARE_TOKEN);

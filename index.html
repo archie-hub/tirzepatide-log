@@ -4233,8 +4233,8 @@
   }
 
   /* ---------- progress photos: taken in the iPhone app (opt-in back-up), viewed here; owner only, never on a doctor link ---------- */
-  var photos = { list: [], urls: {}, slot: 'front', a: '', b: '' };
-  var PHOTO_SLOTS = [['front', 'Front'], ['side', 'Side'], ['face', 'Face']];
+  var photos = { list: [], urls: {}, slot: 'face', a: '', b: '' };
+  var PHOTO_SLOTS = [['face', 'Face'], ['side', 'Side'], ['front', 'Front']];
   function b64blobUrl(b) {
     var bin = atob(b), a = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
