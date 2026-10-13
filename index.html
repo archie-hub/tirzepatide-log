@@ -1938,7 +1938,9 @@
       cards.push(tag('next', card(dc, 'Next dose', '<button type="button" class="linkish" data-settings aria-label="Change injection day">Change</button>', when,
         stale ? 'Last entry ' + fmtDate(d.lastEntry) + '. Add today\'s.' : d.overdue ? d.overdue + (d.overdue === 1 ? ' day' : ' days') + ' past the weekly dose · last ' + shortDate(d.lastInj, false) : (d.diff > 1 ? 'In ' + d.diff + ' days · ' : '') + fmtDate(d.next),
         stale ? '' : '<div class="strip" role="img" aria-label="' + (d.diff === 0 ? 'Dose day is today' : d.diff + ' days until the next dose') + '">' + strip + '</div>')));
-      days = mini('#64748b', 'Days tracked', allE.length + ' entries', String(dayDiff(allE[0].date, d.lastEntry) + 1));
+      var cfd = startDate(), dayE = cfd ? allE.filter(function (e) { return e.date >= cfd; }) : allE;
+      if (!dayE.length) dayE = allE.slice(-1);
+      days = mini('#64748b', 'Days tracked', dayE.length + ' entries', String(dayDiff(dayE[0].date, d.lastEntry) + 1));
     }
     var bpAll = allE.filter(hasBp), lb = bpAll[bpAll.length - 1];
     if (lb) {
