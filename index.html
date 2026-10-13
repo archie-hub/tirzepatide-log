@@ -1277,7 +1277,8 @@
   });
   function renderHero() {
     renderBackup();
-    var s = sorted();
+    var s = sorted(), cf = startDate();
+    if (cf && s.some(function (e) { return e.date >= cf; })) s = s.filter(function (e) { return e.date >= cf; });   // same start as Days tracked
     $('subtitle').textContent = s.length
       ? s.length + ' entries, ' + fmtDate(s[0].date) + ' to ' + fmtDate(s[s.length - 1].date)
       : 'Track dose, weight, food and glucose. Your data stays in this browser.';
