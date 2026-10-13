@@ -533,10 +533,6 @@
     <span><strong>Shared with you, read-only.</strong> This is a patient's log. Want to see what the app does?</span>
     <span class="demo-links"><a href="https://tirzepatide.phoe.be/">About Tirzepatide Log</a> <a href="https://tirzepatide.phoe.be/demo">Try the live demo</a></span>
   </div>
-  <div class="demo-bar" id="noteHint" role="note" hidden>
-    <span id="noteHintText"></span>
-    <button type="button" class="small" id="noteHintOk">Got it</button>
-  </div>
   <section id="landing" aria-labelledby="lpTitle">
     <div class="hero lp-hero">
       <div class="lp-copy">
@@ -644,6 +640,10 @@
   </details>
 
   <section class="panel" id="chartPanel">
+    <div class="demo-bar" id="noteHint" role="note" hidden>
+      <span id="noteHintText"></span>
+      <button type="button" class="small" id="noteHintOk">Got it</button>
+    </div>
     <div class="chart-top">
       <div class="tabs" role="tablist" aria-label="Chart metric">
         <button class="tab" role="tab" id="tab-weight" data-metric="weight" aria-selected="true" aria-controls="chart" tabindex="0">Weight</button>
