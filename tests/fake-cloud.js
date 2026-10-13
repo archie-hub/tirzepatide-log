@@ -77,6 +77,13 @@ function backend({ invited = true, dist = false } = {}) {
       if (del && req.method() === 'DELETE') { const had = s.shares.delete(del[1]); return send(had ? 200 : 404, had ? { revoked: true } : { error: 'not found' }); }
       if (!invited) return send(403, { error: 'not invited' });
       if (u.pathname === '/me') return send(200, { allowed: true });
+      // progress photos: owner only (the public share route above has no photos)
+      s.photos = s.photos || new Map();
+      if (u.pathname === '/photos' && req.method() === 'GET') return send(200, { photos: [...s.photos.entries()].map(([k, v]) => ({ date: k.split('#')[0], slot: k.split('#')[1], updatedAt: v.updatedAt, size: 10 })) });
+      if (u.pathname === '/photos' && req.method() === 'DELETE') { const n = s.photos.size; s.photos.clear(); return send(200, { deleted: n }); }
+      const ph = u.pathname.match(/^\/photos\/(\d{4}-\d{2}-\d{2})\/(face|front|side)$/);
+      if (ph && req.method() === 'GET') { const v = s.photos.get(ph[1] + '#' + ph[2]); return v ? send(200, { date: ph[1], slot: ph[2], data: v.data }) : send(404, { error: 'not found' }); }
+      if (ph && req.method() === 'DELETE') { s.photos.delete(ph[1] + '#' + ph[2]); return send(200, { deleted: true }); }
       if (u.pathname === '/sync') {
         const since = +(u.searchParams.get('since') || 0);
         const entries = [...s.entries.values()].filter((e) => e.syncedAt >= since).sort((a, b) => a.syncedAt - b.syncedAt);

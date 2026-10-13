@@ -147,3 +147,17 @@ test('every page asks search engines not to index it', async ({ page }) => {
     expect(html, f).toMatch(/<meta name="robots" content="noindex, nofollow">|<meta name="robots" content="noindex">/);
   }
 });
+
+test('the demo shows drawn placeholder figures in Progress photos, never a real photo, and makes no photo request', async ({ page }) => {
+  const b = backend(); await b.install(page);
+  const calls = [];
+  page.on('request', (r) => { if (/\/photos/.test(r.url())) calls.push(r.url()); });
+  await page.goto(DEMO);
+  await expect(page.locator('#photosPanel')).toBeVisible();
+  await expect(page.locator('#photosNote')).toContainText('not real photos');
+  await page.locator('#photosPanel > summary').click();
+  const srcs = await page.locator('#photoGrid img, #photoCompare img').evaluateAll((els) => els.map((e) => e.getAttribute('src')));
+  expect(srcs.length).toBeGreaterThan(2);
+  for (const s of srcs) expect(s).toMatch(/^data:image\/svg\+xml/);
+  expect(calls).toEqual([]);
+});

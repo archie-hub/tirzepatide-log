@@ -135,6 +135,14 @@
   .fold[open] > summary { margin-bottom: 12px; }
   .fold > summary:hover h2::before { border-color: var(--ink); }
   .fold-hint { color: var(--muted); font-size: 13px; }
+  .photo-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .photo-compare label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .photo-compare figure, .photo-grid figure { margin: 0; display: grid; gap: 4px; }
+  .photo-compare img, .photo-grid img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 12px; background: var(--line); display: block; }
+  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+  .photo-grid figcaption, .photo-compare figcaption { font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+  .photo-sum { grid-column: 1 / -1; font-size: 14px; }
+  body.share #photosPanel { display: none !important; }
   .fold-hint::after { content: "Show"; }
   .fold[open] .fold-hint::after { content: "Hide"; }
   .fold .count { font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -572,7 +580,7 @@
           <li>Sign in once and the web and iPhone logs stay in step, even after time offline</li>
           <li>Pull down to sync, and set a weekly dose reminder</li>
           <li>Make a doctor link from your phone; your doctor doesn't need an account to open it</li>
-          <li>Progress photos stay on your device</li>
+          <li>Progress photos stay on your device unless you choose to back them up, then you can see them on the web too</li>
         </ul>
       </div>
     </div>
@@ -709,6 +717,14 @@
     </div>
     <p class="note" style="margin-bottom:0" id="rateNote">Change is measured from the first to the last weigh-in at each dose.</p>
   </section>
+
+  <details class="panel fold" id="photosPanel" hidden>
+    <summary><h2>Progress photos <span class="count" id="photosCount"></span></h2><span class="fold-hint"></span></summary>
+    <p class="note" id="photosNote" style="margin-top:0"></p>
+    <div class="legend" id="photoSlots" role="group" aria-label="Which photo"></div>
+    <div class="photo-compare" id="photoCompare"></div>
+    <div class="photo-grid" id="photoGrid"></div>
+  </details>
 
   <details class="panel fold" id="entriesPanel">
     <summary><h2>Entries <span class="count" id="entriesCount"></span></h2><span class="fold-hint"></span></summary>
@@ -2877,6 +2893,7 @@
     { id: 'chartPanel', name: 'Charts', ids: ['chartPanel'] },
     { id: 'insightsPanel', name: 'More insights', ids: ['insightsPanel'] },
     { id: 'ratePanel', name: 'Results by dose', ids: ['ratePanel'] },
+    { id: 'photosPanel', name: 'Progress photos', ids: ['photosPanel'] },
     { id: 'entriesPanel', name: 'Entries', ids: ['entriesPanel'] },
     { id: 'formPanel', name: 'Add entry', ids: ['formPanel'], keep: true }   // always shown, so entries can always be added
   ];
@@ -3441,6 +3458,7 @@
       // Signed in: the deletes travel as tombstones through the normal sync, and we say so only once the server has them
       say('Clearing your cloud copy...');
       clearTimeout(syncTimer);
+      cloudApi('DELETE', '/photos').then(function () { photos.list = []; photos.urls = {}; renderPhotos(); }, function () {});   // photos belong to the log, so they go too
       syncNow().then(function () {
         var left = Object.keys(sync.dirty || {}).length;
         if (!syncErr && !left) say('All data cleared, on this device and in your cloud account.');
@@ -4060,7 +4078,7 @@
       if ((st === 400 || st === 401) && !err.msg) { cloudSignOut('Your sync session ended. Sign in again.'); return; }
       syncErr = st === 403 ? 'This account has not been invited to cloud sync.' : st ? 'Sync failed (error ' + st + (err.msg ? ': ' + err.msg : '') + ').' : 'Offline. Will sync when back online.';
     }).then(function () {
-      syncing = false; renderCloudBox(); renderBackup();
+      syncing = false; renderCloudBox(); renderBackup(); refreshPhotos();
       if (syncAgain) { syncAgain = false; scheduleSync(300); }
     });
   }
@@ -4210,6 +4228,99 @@
     });
   }
 
+  /* ---------- progress photos: taken in the iPhone app (opt-in back-up), viewed here; owner only, never on a doctor link ---------- */
+  var photos = { list: [], urls: {}, slot: 'front', a: '', b: '' };
+  var PHOTO_SLOTS = [['front', 'Front'], ['side', 'Side'], ['face', 'Face']];
+  function b64blobUrl(b) {
+    var bin = atob(b), a = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([a], { type: 'image/jpeg' }));
+  }
+  // the public demo uses drawn figures with no face, never a real photo
+  function demoFigure(w, label) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400"><rect width="300" height="400" fill="#dbe7ee"/>' +
+      '<circle cx="150" cy="95" r="38" fill="#8aa3b3"/><rect x="' + (150 - w / 2) + '" y="140" width="' + w + '" height="190" rx="' + Math.min(w / 2, 60) + '" fill="#8aa3b3"/>' +
+      '<rect x="' + (150 - w / 4) + '" y="320" width="' + (w / 2) + '" height="70" rx="12" fill="#6f8898"/>' +
+      '<text x="150" y="390" text-anchor="middle" font-size="16" fill="#41586a" font-family="sans-serif">' + label + '</text></svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+  function demoPhotos() {
+    var out = [], today = new Date();
+    for (var k = 0; k < 6; k++) {
+      var d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (5 - k) * 28), iso = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+      ['front', 'side'].forEach(function (slot) {
+        out.push({ date: iso, slot: slot });
+        photos.urls[iso + '#' + slot] = demoFigure(slot === 'front' ? 190 - k * 12 : 120 - k * 7, 'Sample, not a real photo');
+      });
+    }
+    return out;
+  }
+  function photoUrl(p) {   // resolves to a blob/data URL, fetched once
+    var key = p.date + '#' + p.slot;
+    if (photos.urls[key]) return Promise.resolve(photos.urls[key]);
+    return cloudApi('GET', '/photos/' + p.date + '/' + p.slot).then(function (r) { return (photos.urls[key] = b64blobUrl(r.data)); });
+  }
+  function fillImg(img, p) {
+    photoUrl(p).then(function (u) { img.src = u; }).catch(function () { img.alt = 'Could not load this photo'; });
+  }
+  function renderPhotos() {
+    var panel = $('photosPanel');
+    panel.hidden = !photos.list.length;
+    $('photosCount').textContent = photos.list.length ? '(' + photos.list.length + ')' : '';
+    if (!photos.list.length) return;
+    $('photosNote').textContent = DEMO ? 'Made-up figures, not real photos. Your own photos come from the iPhone app (Settings > Cloud Sync > Back up progress photos) and only you can see them.'
+      : 'Photos you back up from the iPhone app. Only you can see them; they are never part of a doctor link.';
+    var have = {}; photos.list.forEach(function (p) { have[p.slot] = 1; });
+    if (!have[photos.slot]) photos.slot = PHOTO_SLOTS.filter(function (x) { return have[x[0]]; })[0][0];
+    $('photoSlots').innerHTML = PHOTO_SLOTS.filter(function (x) { return have[x[0]]; }).map(function (x) {
+      return '<button type="button" class="chip" data-slot="' + x[0] + '" aria-pressed="' + (x[0] === photos.slot ? 'true' : 'false') + '" style="--c:#0ea5a4">' + x[1] + '</button>';
+    }).join('');
+    var list = photos.list.filter(function (p) { return p.slot === photos.slot; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    if (!panel.open) { $('photoCompare').innerHTML = ''; $('photoGrid').innerHTML = ''; return; }
+    var dates = list.map(function (p) { return p.date; });
+    if (dates.indexOf(photos.a) < 0) photos.a = dates[dates.length - 1];
+    if (dates.indexOf(photos.b) < 0) photos.b = dates[0];
+    function opts(sel) { return dates.map(function (d) { return '<option value="' + esc(d) + '"' + (d === sel ? ' selected' : '') + '>' + esc(fmtDate(d)) + '</option>'; }).join(''); }
+    function wt(d) { var e = entries.filter(function (x) { return x.date === d && x.weight !== null; })[0]; return e ? fwu(e.weight) : ''; }
+    var sum = '';
+    if (photos.a !== photos.b) {
+      var ea = entries.filter(function (x) { return x.date === photos.a && x.weight !== null; })[0], eb = entries.filter(function (x) { return x.date === photos.b && x.weight !== null; })[0];
+      var days = Math.abs(dayDiff(photos.a, photos.b));
+      sum = '<div class="photo-sum">' + days + ' days apart' + (ea && eb ? ', weight ' + esc(fwu(ea.weight)) + ' to ' + esc(fwu(eb.weight)) : '') + '.</div>';
+    }
+    $('photoCompare').innerHTML = '<label>Before<select id="photoA">' + opts(photos.a) + '</select><figure><img id="photoImgA" alt="Before photo"></figure></label>' +
+      '<label>After<select id="photoB">' + opts(photos.b) + '</select><figure><img id="photoImgB" alt="After photo"></figure></label>' + sum;
+    fillImg($('photoImgA'), { date: photos.a, slot: photos.slot });
+    fillImg($('photoImgB'), { date: photos.b, slot: photos.slot });
+    $('photoGrid').innerHTML = list.map(function (p) {
+      return '<figure><img data-pd="' + esc(p.date) + '" alt="' + esc(fmtDate(p.date)) + '" loading="lazy"><figcaption><span>' + esc(fmtDate(p.date)) + (wt(p.date) ? ' &middot; ' + esc(wt(p.date)) : '') + '</span>' +
+        '<button type="button" class="small danger" data-pdel="' + esc(p.date) + '" aria-label="Delete the ' + esc(fmtDate(p.date)) + ' photo">Delete</button></figcaption></figure>';
+    }).join('');
+    Array.prototype.forEach.call($('photoGrid').querySelectorAll('img[data-pd]'), function (img) { fillImg(img, { date: img.getAttribute('data-pd'), slot: photos.slot }); });
+  }
+  function refreshPhotos() {
+    if (DEMO) { photos.list = demoPhotos(); renderPhotos(); return Promise.resolve(); }
+    if (SHARE_TOKEN || !cloudSignedIn() || !cloudAvailable()) return Promise.resolve();
+    return cloudApi('GET', '/photos').then(function (r) { photos.list = r.photos || []; renderPhotos(); }, function () {});
+  }
+  $('photosPanel').addEventListener('toggle', renderPhotos);
+  $('photoSlots').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-slot]'); if (!b) return;
+    photos.slot = b.dataset.slot; photos.a = photos.b = ''; renderPhotos();
+  });
+  $('photoCompare').addEventListener('change', function (ev) {
+    if (ev.target.id === 'photoA') photos.a = ev.target.value; else if (ev.target.id === 'photoB') photos.b = ev.target.value; else return;
+    renderPhotos();
+  });
+  $('photoGrid').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-pdel]'); if (!b) return;
+    var date = b.dataset.pdel, slot = photos.slot;
+    if (!confirm('Delete the ' + fmtDate(date) + ' ' + slot + ' photo from your account? The copy on your phone is not touched.')) return;
+    function gone() { photos.list = photos.list.filter(function (p) { return !(p.date === date && p.slot === slot); }); delete photos.urls[date + '#' + slot]; renderPhotos(); }
+    if (DEMO) { gone(); return; }
+    cloudApi('DELETE', '/photos/' + date + '/' + slot).then(gone, function () { say('Could not delete the photo. Check your connection.'); });
+  });
+
   function startDemo() {
     document.body.classList.add('demo');
     document.title = 'Tirzepatide Log demo';
@@ -4223,7 +4334,7 @@
   setupApp();
   cloudInit();
   if (SHARE_TOKEN) loadShare(); else showNoteHint();
-  if (DEMO) startDemo();
+  if (DEMO) { startDemo(); refreshPhotos(); }
 })();
 </script>
 </body>

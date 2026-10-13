@@ -633,3 +633,30 @@ test('notes hint: shown once to the patient, remembered; the doctor is told how 
   expect(keys).not.toContain('tirzepatide-notes-hint');
   expect(before).toBeTruthy();
 });
+
+
+test('progress photos: shown on the web once backed up from the phone, compared, deleted; never on a doctor link', async ({ page, context }) => {
+  const b = backend(); await b.install(page);
+  sampleLog(b);
+  // a 1x1 JPEG
+  const JPG = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+  b.photos = new Map([['2026-03-01#front', { updatedAt: 1, data: JPG }], ['2026-03-08#front', { updatedAt: 2, data: JPG }], ['2026-03-08#side', { updatedAt: 2, data: JPG }]]);
+  await seedLocal(page, [row('2026-03-01', 200), row('2026-03-08', 198)]);
+  await page.goto(APP);
+  await signIn(page);
+  await expect(page.locator('#photosPanel')).toBeVisible();
+  await expect(page.locator('#photosCount')).toHaveText('(3)');
+  await page.locator('#photosPanel > summary').click();
+  await expect(page.locator('#photoGrid img')).toHaveCount(2);                  // the front photos
+  await expect(page.locator('#photoImgA')).toHaveAttribute('src', /^blob:/);
+  await expect(page.locator('#photoSlots button')).toHaveCount(2);              // front and side exist, face does not
+  page.once('dialog', (d) => d.accept());
+  await page.locator('#photoGrid [data-pdel="2026-03-01"]').click();
+  await expect.poll(() => b.photos.has('2026-03-01#front')).toBe(false);
+  await expect(page.locator('#photosCount')).toHaveText('(2)');
+  // doctor link: no photos panel and no photo request
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: true });
+  const d = await context.newPage(); await b.install(d); await d.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(d.locator('#subtitle')).toContainText('2 entries');
+  await expect(d.locator('#photosPanel')).toBeHidden();
+});
