@@ -51,7 +51,8 @@ Legend: yes, no, partial.
 | Clear all data | yes (button; signs out of cloud sync first) | yes (Settings > Clear All Data; signs out first) | The cloud copy is never touched; signing in again brings it back |
 | JSON backup/restore (with photos) | n/a | yes | Exists for photos; CSV is the shared backup format on both |
 | Doctor report (PDF, summary, charts) | no (removed on purpose) | no (removed on purpose) | Neither app has a report any more: to share, create a doctor link (account required); the doctor sees the web dashboard read-only. The web "Share with doctor" button opens a dialog; the iPhone has the same in Settings > Cloud Sync. Intentional |
-| Progress photos and gallery | no | yes | |
+| Progress photos and gallery | no (planned, see below) | yes (device only today; photos never sync) | Approved direction (2026-10-13): photos taken in the iPhone app will also be viewable on the web in a Progress photos page (signed in only). Not built yet. Rules for it: (1) photos go to a private store through the sync API, owner-scoped like the log, never a public URL; (2) the iOS app resizes and uploads them in the background and syncs date and slot (front/side/back); (3) doctor links exclude photos unless the patient ticks a separate box; (4) deleting a photo, Clear all data and revoking sharing also remove the stored image; (5) update the privacy page and the "only upload path" wording in both CLAUDE.md files when it is built. Until then photos stay on the phone. |
+| Real photos on the public demo and landing page | n/a | n/a | Never. The demo (`/demo`) and landing screenshots must not contain the owner's real face or any real person: use a fictional or illustrated person, or crop the face out entirely and then pixelate heavily. A light blur is not enough. If the owner's own photos are ever used, the face is blurred or cropped out first, as the owner asked. |
 | App lock (Face ID) | no | yes | |
 | Read weight from a photo of a dial scale | no | yes | Device camera plus Vision OCR, on the phone only (`DialReader.swift`, `DialReadSheet.swift`, `DialReaderTests`); the photo is not kept or uploaded and the result lands in the ordinary weight field |
 | Light/dark | yes | yes | |
@@ -64,4 +65,4 @@ Legend: yes, no, partial.
 
 ## Deliberate gaps
 
-Photos, scale-photo reading, app lock and JSON backup stay iOS-only and PWA install stays web-only (device features). There is nothing else outstanding: every other feature is in both apps. Anything new goes in both in the same session, without asking.
+Scale-photo reading, app lock and JSON backup stay iOS-only and PWA install stays web-only (device features). Progress photos are iOS-only for now but are planned for the web too (see the matrix row), so they are no longer a permanent gap. There is nothing else outstanding: every other feature is in both apps. Anything new goes in both in the same session, without asking.
