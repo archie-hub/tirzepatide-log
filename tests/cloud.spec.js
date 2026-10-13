@@ -555,3 +555,54 @@ test('later fields (heart rate, symptoms, activity) travel with v: 3, and an old
   await expect.poll(async () => (await storedEntries(page)).find((e) => e.date === '2026-03-01').ex).toBe(10);
   expect((await storedEntries(page)).find((e) => e.date === '2026-03-01')).toMatchObject({ act: null, steps: null });
 });
+
+
+test('chart notes: added by clicking a point, synced as a setting, shown to a doctor only when notes are included', async ({ page, context }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200), row('2026-03-08', 198)]);
+  await page.goto(APP);
+  await signIn(page);
+  const svg = page.locator('#chart svg');
+  await svg.scrollIntoViewIfNeeded();
+  const box = await svg.boundingBox();
+  await page.mouse.click(box.x + box.width - 40, box.y + box.height / 2);   // the latest reading is at the right
+  await expect(page.locator('#noteDlg')).toBeVisible();
+  await expect(page.locator('#ntTitle')).toContainText('2026');
+  await page.locator('#ntText').fill('Dose went up, felt <b>sick</b>');
+  await page.locator('#ntSave').click();
+  await expect(page.locator('#noteDlg')).toBeHidden();
+  await expect(page.locator('#chart svg .nmk')).toHaveCount(1);
+  await expect.poll(() => b.settings && b.settings.chartNotes).toBeTruthy();
+  expect(Object.values(b.settings.chartNotes)).toEqual(['Dose went up, felt <b>sick</b>']);
+  // the tip shows it, as text
+  await page.mouse.move(box.x + box.width - 40, box.y + box.height / 2);
+  await expect(page.locator('#tip')).toContainText('Dose went up, felt <b>sick</b>');
+  expect(await page.locator('#tip b', { hasText: 'sick' }).count()).toBe(0);
+  // edit, then remove
+  await page.mouse.click(box.x + box.width - 40, box.y + box.height / 2);
+  await expect(page.locator('#ntText')).toHaveValue('Dose went up, felt <b>sick</b>');
+  await page.locator('#ntText').fill('Edited');
+  await page.locator('#ntSave').click();
+  await expect.poll(() => Object.values((b.settings.chartNotes || {}))).toEqual(['Edited']);
+  // doctor links: without the notes box nothing, with it the note, read-only
+  const date = Object.keys(b.settings.chartNotes)[0];
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: false });
+  b.shares.set('N' + SHARE_TOKEN.slice(1), { createdAt: 2, notes: true });
+  const d1 = await context.newPage(); await b.install(d1); await d1.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(d1.locator('#subtitle')).toContainText('2 entries');
+  await expect(d1.locator('#chart svg .nmk')).toHaveCount(0);
+  const d2 = await context.newPage(); await b.install(d2); await d2.goto(APP + '#share=N' + SHARE_TOKEN.slice(1));
+  await expect(d2.locator('#chart svg .nmk')).toHaveCount(1);
+  await d2.locator('#chart svg').scrollIntoViewIfNeeded();
+  const bb = await d2.locator('#chart svg').boundingBox();
+  await d2.mouse.click(bb.x + bb.width - 40, bb.y + bb.height / 2);
+  await expect(d2.locator('#noteDlg')).toBeHidden();                       // the doctor cannot edit
+  await expect(d2.locator('#tip')).toContainText('Edited');
+  await expect(d2.locator('#tip')).not.toContainText('Click to');
+  expect(date).toBe('2026-03-08');
+  // remove
+  await page.mouse.click(box.x + box.width - 40, box.y + box.height / 2);
+  await page.locator('#ntRemove').click();
+  await expect(page.locator('#chart svg .nmk')).toHaveCount(0);
+  await expect.poll(() => b.settings.chartNotes).toBeUndefined();
+});

@@ -58,7 +58,10 @@ function backend({ invited = true, dist = false } = {}) {
           return sh.notes ? { ...rest, ...(comments ? { comments } : {}), ...(foodNotes ? { foodNotes } : {}) } : rest;
         });
         const { goal, baseline, heightIn, units, doseDay } = s.settings || {};
-        return send(200, { entries, settings: Object.fromEntries(Object.entries({ goal, baseline, heightIn, units, doseDay }).filter(([, v]) => v !== undefined)), notes: sh.notes, createdAt: sh.createdAt });
+        const shown = Object.fromEntries(Object.entries({ goal, baseline, heightIn, units, doseDay }).filter(([, v]) => v !== undefined));
+        const cn = (s.settings || {}).chartNotes;   // like comments, chart notes travel only with "include notes"
+        if (sh.notes && cn) shown.chartNotes = Object.fromEntries(Object.entries(cn).filter(([d]) => !sh.from || d >= sh.from));
+        return send(200, { entries, settings: shown, notes: sh.notes, createdAt: sh.createdAt });
       }
       s.authHeaders.push(req.headers()['authorization']);
       if (!invited) return send(403, { error: 'not invited' });

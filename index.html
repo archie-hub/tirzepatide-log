@@ -354,6 +354,13 @@
     font-size: 12.5px; line-height: 1.45; box-shadow: 0 8px 22px rgba(0,0,0,.3); opacity: 0; transition: opacity .12s;
   }
   .tip.on { opacity: 1; }
+  .tip .nt { display: block; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,.25); }
+  .tip .nt b { color: #fbbf24; }
+  .tip .nh { opacity: .65; font-size: 11.5px; }
+  svg .nmk { pointer-events: none; }
+  #chart svg { cursor: pointer; }
+  body.share #chart svg { cursor: default; }
+  #noteDlg textarea { width: 100%; min-height: 110px; resize: vertical; font: inherit; }
   .legend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 13px; }
   .empty { color: var(--muted); padding: 24px 0; text-align: center; }
   .cmp-pick { margin: 12px 0 0; }
@@ -829,6 +836,16 @@
   <button type="button" id="layReset">Reset to default</button>
 </dialog>
 
+<dialog id="noteDlg" aria-labelledby="ntTitle" style="max-width:460px">
+  <div class="dlg-head">
+    <h2 id="ntTitle">Note</h2>
+    <button type="button" class="small" id="ntClose">Close</button>
+  </div>
+  <label><span>Note on this day (shows on every chart)</span><textarea id="ntText" maxlength="500" placeholder="e.g. Dose increased, felt nauseous, started a new routine"></textarea></label>
+  <p class="note" id="ntCount" style="margin-top:4px"></p>
+  <div class="actions"><button type="button" class="primary" id="ntSave">Save note</button><button type="button" class="danger" id="ntRemove">Remove note</button></div>
+</dialog>
+
 <dialog id="shareDlg" aria-labelledby="shTitle" style="max-width:560px">
   <div class="dlg-head">
     <h2 id="shTitle">Share with your doctor</h2>
@@ -837,7 +854,7 @@
   <p class="note" style="margin-top:0">Create a link and send it to your doctor. They open it in any browser, with no account, and see your log read-only on a web page. It always shows your latest entries (from the date you choose) and never expires. Revoke it to stop it working.</p>
   <label><span>Show entries from (date), optional</span><input type="date" id="shFrom"></label>
   <p class="note" style="margin-top:0">Earlier entries are never sent to your doctor. Your goal weight and start weight (if set in Settings) are shown. Blank = everything.</p>
-  <label class="radio"><input type="checkbox" id="shNotes"> <span>Include my notes (comments and food notes)</span></label>
+  <label class="radio"><input type="checkbox" id="shNotes"> <span>Include my notes (comments, food notes and notes on the chart)</span></label>
   <div class="actions"><button type="button" class="primary" id="shCreate">Create doctor link</button></div>
   <p class="note" id="shMsg" role="status"></p>
   <ul class="share-list" id="shList"></ul>
@@ -2380,6 +2397,69 @@
     return { svg: svg, shown: {}, W: W, H: H, single: single, m: METRICS.compare, lines: lines, dates: dates, xs: dates.map(function (e) { return X(e.date); }), Y: Y };
   }
 
+  /* ---------- notes on the chart: one short note per day, shown on every tab, synced as a setting, shared with doctor links that include notes ---------- */
+  var NOTE_MAX = 500, NOTE_COUNT_MAX = 200;
+  function chartNote(date) {
+    var n = settings.chartNotes;
+    return n && typeof n === 'object' && typeof n[date] === 'string' ? n[date] : '';
+  }
+  function noteTip(date) {
+    var t = chartNote(date), h = '';
+    if (t) h += '<span class="nt"><b>Note:</b> ' + esc(t.length > 160 ? t.slice(0, 160) + '\u2026' : t) + '</span>';
+    if (!SHARE_TOKEN) h += '<span class="nt nh">' + (t ? 'Click to edit or remove the note' : 'Click to add a note') + '</span>';
+    return h;
+  }
+  // amber ring on the reading (or a diamond at the top of the Combined chart) for each day that has a note
+  function noteMarkers(svg, items) {
+    var ns = 'http://www.w3.org/2000/svg';
+    items.forEach(function (it) {
+      if (!chartNote(it.date)) return;
+      var g = document.createElementNS(ns, 'g'); g.setAttribute('class', 'nmk');
+      if (it.ring) {
+        var c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', it.x); c.setAttribute('cy', it.y); c.setAttribute('r', 9);
+        c.setAttribute('fill', 'none'); c.setAttribute('stroke', '#f59e0b'); c.setAttribute('stroke-width', 2.5);
+        g.appendChild(c);
+      } else {
+        var d = document.createElementNS(ns, 'path');
+        d.setAttribute('d', 'M' + it.x + ' ' + (it.y - 6) + 'L' + (it.x + 6) + ' ' + it.y + 'L' + it.x + ' ' + (it.y + 6) + 'L' + (it.x - 6) + ' ' + it.y + 'Z');
+        d.setAttribute('fill', '#f59e0b');
+        g.appendChild(d);
+      }
+      svg.appendChild(g);
+    });
+  }
+  var noteDlg = $('noteDlg'), noteDate = null;
+  function openNote(date) {
+    if (SHARE_TOKEN || !date) return;
+    noteDate = date;
+    $('ntTitle').textContent = 'Note for ' + fmtDate(date);
+    $('ntText').value = chartNote(date);
+    $('ntRemove').hidden = !chartNote(date);
+    updateNoteCount();
+    if (!noteDlg.open) noteDlg.showModal();
+    $('ntText').focus();
+  }
+  function updateNoteCount() { $('ntCount').textContent = $('ntText').value.length + ' / ' + NOTE_MAX; }
+  function setNote(date, text) {
+    text = String(text || '').trim().slice(0, NOTE_MAX);
+    var n = Object.assign({}, chartNotes_());
+    if (text) {
+      if (!n[date] && Object.keys(n).length >= NOTE_COUNT_MAX) { say('You can keep up to ' + NOTE_COUNT_MAX + ' chart notes. Remove one first.'); return false; }
+      n[date] = text;
+    } else delete n[date];
+    if (Object.keys(n).length) settings.chartNotes = n; else delete settings.chartNotes;
+    saveSettings();
+    return true;
+  }
+  function chartNotes_() { var n = settings.chartNotes; return n && typeof n === 'object' ? n : {}; }
+  $('ntText').addEventListener('input', updateNoteCount);
+  $('ntClose').addEventListener('click', function () { if (noteDlg.open) noteDlg.close(); });
+  $('ntSave').addEventListener('click', function () {
+    if (setNote(noteDate, $('ntText').value)) { noteDlg.close(); renderChart(); }
+  });
+  $('ntRemove').addEventListener('click', function () { setNote(noteDate, ''); noteDlg.close(); renderChart(); });
+
   function renderCompare() {
     var chosen = compareChosen(), picked = {};
     chosen.forEach(function (x) { picked[x.k] = true; });
@@ -2399,6 +2479,7 @@
     $('legend').innerHTML = '<span>' + (res.single ? '' : 'Each line is scaled between its own lowest and highest value in view, so you can compare shapes across different units. Dots are daily values, lines are 7-day averages. Hover or touch the chart for the real numbers.') + '</span>';
     var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), W = res.W, cur = -1;
     var dots = Array.prototype.slice.call(svg.querySelectorAll('.xcs'));
+    noteMarkers(svg, res.dates.map(function (e, i) { return { date: e.date, x: res.xs[i], y: 10 }; }));
     tip.setAttribute('aria-live', 'polite');
     svg.setAttribute('tabindex', '0');
     function show(i) {
@@ -2411,6 +2492,7 @@
         h += '<br><span style="color:' + l.s.color + ';filter:brightness(1.35)">\u25CF</span> ' + esc(l.s.label) + ': ' + (has ? l.s.fmt(v) : '\u2014');
       });
       if (e.dose !== null) h += '<br>Dose: ' + e.dose + ' mg';
+      h += noteTip(e.date);
       tip.innerHTML = h; tip.classList.add('on');
       var pct = px / W * 100;
       tip.style.left = pct + '%';
@@ -2423,9 +2505,15 @@
       show(best);
     });
     svg.addEventListener('pointerleave', function () { if (document.activeElement !== svg) leave(); });
+    svg.addEventListener('click', function (ev) {
+      var rc = svg.getBoundingClientRect(), x = (ev.clientX - rc.left) * (W / rc.width), best = 0, bd = Infinity;
+      res.xs.forEach(function (px, i) { var dd = Math.abs(px - x); if (dd < bd) { bd = dd; best = i; } });
+      show(best); openNote(res.dates[best].date);
+    });
     svg.addEventListener('focus', function () { if (cur < 0) show(res.dates.length - 1); });
     svg.addEventListener('blur', leave);
     svg.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' && cur >= 0) { ev.preventDefault(); openNote(res.dates[cur].date); return; }
       var n = ev.key === 'ArrowRight' ? cur + 1 : ev.key === 'ArrowLeft' ? cur - 1 : ev.key === 'Home' ? 0 : ev.key === 'End' ? res.dates.length - 1 : null;
       if (n === null) { if (ev.key === 'Escape') leave(); return; }
       ev.preventDefault();
@@ -2491,7 +2579,8 @@
     var svg = $('chart').querySelector('svg'), tip = $('tip'), xh = svg.querySelector('#xh'), xc = svg.querySelector('#xc'), cur = -1;
     tip.setAttribute('aria-live', 'polite');
     svg.setAttribute('tabindex', '0');
-    svg.setAttribute('aria-label', m.label + ' over time. Use the left and right arrow keys to read each point; Home and End jump to the first and last.');
+    svg.setAttribute('aria-label', m.label + ' over time. Use the left and right arrow keys to read each point; Home and End jump to the first and last' + (SHARE_TOKEN ? '.' : '; Enter adds or edits a note on that day.'));
+    noteMarkers(svg, pts.map(function (p, i) { return { date: p.e.date, x: xs[i], y: Y(p.v), ring: true }; }));
     function nearest(list, x) {
       var best = 0, bd = Infinity;
       list.forEach(function (px, i) { var dd = Math.abs(px - x); if (dd < bd) { bd = dd; best = i; } });
@@ -2523,6 +2612,7 @@
       if (p.e.dose !== null) h += '<br>Dose: ' + p.e.dose + ' mg';
       if (sxList(p.e).length || p.e.sxs) h += '<br>Symptoms: ' + esc((p.e.sxs ? SX_SEV[p.e.sxs].toLowerCase() + (sxList(p.e).length ? ', ' : '') : '') + sxList(p.e).join(', ').toLowerCase());
       if (p.e.comments) h += '<br><i>' + esc(p.e.comments.length > 80 ? p.e.comments.slice(0, 80) + '\u2026' : p.e.comments) + '</i>';
+      h += noteTip(p.e.date);
       if (ov) {
         h = '<span style="color:' + m.color + '">\u25CF</span> Day ' + dayDiff(res.t0, p.e.date) + ': ' + h;
         h += '<hr style="border:0;border-top:1px solid var(--line);margin:6px 0"><span style="color:' + OV_COLOR + '">\u25CF</span> Day ' + dayDiff(ovFrom, ov.e.date) + ': <b>' + esc(fmtDate(ov.e.date)) + '</b><br>' +
@@ -2536,9 +2626,11 @@
     function leave() { cur = -1; xh.style.display = 'none'; xc.style.display = 'none'; tip.classList.remove('on'); }
     svg.addEventListener('pointermove', move);
     svg.addEventListener('pointerleave', function () { if (document.activeElement !== svg) leave(); });
+    svg.addEventListener('click', function (ev) { move(ev); if (cur >= 0) openNote(pts[cur].e.date); });
     svg.addEventListener('focus', function () { if (cur < 0) show(pts.length - 1); });
     svg.addEventListener('blur', leave);
     svg.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' && cur >= 0) { ev.preventDefault(); openNote(pts[cur].e.date); return; }
       var n = ev.key === 'ArrowRight' ? cur + 1 : ev.key === 'ArrowLeft' ? cur - 1 : ev.key === 'Home' ? 0 : ev.key === 'End' ? pts.length - 1 : null;
       if (n === null) { if (ev.key === 'Escape') leave(); return; }
       ev.preventDefault();
@@ -3322,7 +3414,7 @@
     if (!entries.length && !cloud) { say('There is no data to clear.'); return; }
     if (!confirm('Delete all ' + entries.length + ' entries from this browser' + (cloud ? ' and from your cloud account (only your own data; other accounts are not touched, and your doctor links stay)' : '') + '? This cannot be undone. Export a CSV first if you want a backup.')) return;
     function wipe() {
-      entries = [];
+      entries = []; delete settings.chartNotes;
       try { localStorage.removeItem(STORE_KEY + '-before-sync'); } catch (e) {}   // the pre-sync copy holds the same data
       save(); render(); resetForm();
       if (!cloud) { say('All data cleared.'); return; }
@@ -3698,7 +3790,7 @@
     clientId: '7bhnc1e4on4g01h0topme3tipl'
   };
   var SYNC_KEY = 'tirzepatide-sync';
-  var CLOUD_SETTING_KEYS = ['goal', 'baseline', 'heightIn', 'units', 'doseDay', 'compare'];
+  var CLOUD_SETTING_KEYS = ['goal', 'baseline', 'heightIn', 'units', 'doseDay', 'compare', 'chartNotes'];
   var STR_MAX = { comments: 4000, foodNotes: 4000, site: 40 };
   var cloudReturning = /[?&]code=/.test(location.search);
   var sync = loadSync();   // { auth, cursor, base, seen, dirty, sBase, sSeen, sDirty, init, last }
@@ -3819,6 +3911,10 @@
   function cloudSettings(st) {
     var o = {};
     CLOUD_SETTING_KEYS.forEach(function (k) { var v = st[k]; if (v !== undefined && v !== null && v !== '') o[k] = v; });
+    if (o.chartNotes) {   // sorted, so the same notes always compare equal whatever order the server returns them in
+      var cn = {}; Object.keys(o.chartNotes).sort().forEach(function (d) { if (o.chartNotes[d]) cn[d] = o.chartNotes[d]; });
+      if (Object.keys(cn).length) o.chartNotes = cn; else delete o.chartNotes;
+    }
     return o;
   }
   function canonS(st) { return JSON.stringify(cloudSettings(st)); }
