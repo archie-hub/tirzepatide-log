@@ -882,6 +882,7 @@
   <label><span>Show entries from (date), optional</span><input type="date" id="shFrom"></label>
   <p class="note" style="margin-top:0">Earlier entries are never sent to your doctor. Your goal weight and start weight (if set in Settings) are shown. Blank = everything.</p>
   <label class="radio"><input type="checkbox" id="shNotes"> <span>Include my notes (comments, food notes and notes on the chart)</span></label>
+  <label class="radio"><input type="checkbox" id="shPhoto"> <span>Include my latest face photo (shown small in the page header; no other photos are ever shared)</span></label>
   <div class="actions"><button type="button" class="primary" id="shCreate">Create doctor link</button></div>
   <p class="note" id="shMsg" role="status"></p>
   <ul class="share-list" id="shList"></ul>
@@ -4106,7 +4107,7 @@
   function shareUrl(token) { return redirectUri() + '#share=' + token; }
   function renderShares(list) {
     $('shList').innerHTML = list.slice().sort(function (p, q) { return q.createdAt - p.createdAt; }).map(function (x) {   // newest first
-      return '<li><span>Created ' + esc(new Date(x.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })) + (x.notes ? ', with notes' : ', without notes') + (x.from ? ', entries from ' + esc(fmtDate(x.from)) : ', all entries') + '</span>' +
+      return '<li><span>Created ' + esc(new Date(x.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })) + (x.notes ? ', with notes' : ', without notes') + (x.photo ? ', with face photo' : '') + (x.from ? ', entries from ' + esc(fmtDate(x.from)) : ', all entries') + '</span>' +
         '<button type="button" class="small" data-copy="' + esc(x.token) + '">Copy link</button>' +
         '<button type="button" class="small danger" data-revoke="' + esc(x.token) + '">Revoke</button>' +
         '<code>' + esc(shareUrl(x.token)) + '</code></li>';
@@ -4130,7 +4131,7 @@
     return Promise.resolve(false);
   }
   $('shCreate').addEventListener('click', function () {
-    var body = { notes: $('shNotes').checked }, from = $('shFrom').value.trim();
+    var body = { notes: $('shNotes').checked, photo: $('shPhoto').checked }, from = $('shFrom').value.trim();
     if (/^\d{4}-\d{2}-\d{2}$/.test(from)) body.from = from;
     else if (from) { shSay('Date not understood. Pick a date or leave it blank.'); return; }
     cloudApi('POST', '/shares', body).then(function (r) {
@@ -4231,6 +4232,11 @@
       entries = (res.entries || []).map(fromCloud);
       settings = {};
       CLOUD_SETTING_KEYS.forEach(function (k) { if (res.settings && res.settings[k] !== undefined && k !== 'compare') settings[k] = res.settings[k]; });
+      if (res.photo && res.photo.data) {   // only when the patient ticked it: one face photo, shown small in the header
+        photos.list = [{ date: res.photo.date, slot: 'face', updatedAt: 0 }];
+        photos.urls[res.photo.date + '#face#0'] = b64blobUrl(res.photo.data);
+        updateHeroFace();
+      }
       render(); resetForm(); showNoteHint();
       say(entries.length ? '' : 'This shared log has no entries yet.');
     }).catch(function (err) {

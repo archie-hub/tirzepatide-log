@@ -61,7 +61,9 @@ function backend({ invited = true, dist = false } = {}) {
         const shown = Object.fromEntries(Object.entries({ goal, baseline, heightIn, units, doseDay }).filter(([, v]) => v !== undefined));
         const cn = (s.settings || {}).chartNotes;   // like comments, chart notes travel only with "include notes"
         if (sh.notes && cn) shown.chartNotes = Object.fromEntries(Object.entries(cn).filter(([d]) => !sh.from || d >= sh.from));
-        return send(200, { entries, settings: shown, notes: sh.notes, createdAt: sh.createdAt });
+        const faces = sh.photo ? [...(s.photos || new Map()).entries()].filter(([k]) => k.endsWith('#face')).sort() : [];
+        const photo = faces.length ? { date: faces[faces.length - 1][0].split('#')[0], data: faces[faces.length - 1][1].data } : undefined;
+        return send(200, { entries, settings: shown, notes: sh.notes, createdAt: sh.createdAt, ...(photo ? { photo } : {}) });
       }
       s.authHeaders.push(req.headers()['authorization']);
       if (!invited) return send(403, { error: 'not invited' });
@@ -70,7 +72,7 @@ function backend({ invited = true, dist = false } = {}) {
         const token = 'T' + String(s.shares.size + 1).padStart(2, '0') + 'x'.repeat(40);
         const pb = JSON.parse(req.postData() || '{}');
         s.posts = (s.posts || []).concat([pb]);
-        s.shares.set(token, { createdAt: Date.now(), notes: !!pb.notes, ...(pb.from ? { from: pb.from } : {}) });
+        s.shares.set(token, { createdAt: Date.now(), notes: !!pb.notes, photo: !!pb.photo, ...(pb.from ? { from: pb.from } : {}) });
         return send(200, { token, ...s.shares.get(token) });
       }
       const del = u.pathname.match(/^\/shares\/(.+)$/);
