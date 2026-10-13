@@ -1230,6 +1230,19 @@ test('at a glance: start to now, total change, weeks, dose timing and symptoms',
   await expect(g).toContainText('Not logged');             // no symptoms logged
 });
 
+test('at a glance starts from the "Measure change from" date, not the oldest data', async ({ page }) => {
+  await pasteProgress(page);   // 200.0 on 2026-07-01 ... 175.0 on 2026-10-01
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('tirzepatide-settings') || '{}'); s.changeFrom = '2026-08-01'; localStorage.setItem('tirzepatide-settings', JSON.stringify(s)); });
+  await page.reload();
+  const g = page.locator('#glance');
+  await expect(g).toContainText('Start date to now');
+  await expect(g).toContainText('189.9 lbs');
+  await expect(g).not.toContainText('200.0 lbs');
+  await expect(g).toContainText('14.9 lbs');                // 189.9 down to 175.0
+  await expect(g).toContainText('7.8% of weight at the start date lost');
+  await expect(g).toContainText('Week 9');                  // counted from Aug 1
+});
+
 test('weight lost by week on treatment uses the nearest weigh-in within a week', async ({ page }) => {
   await pasteProgress(page);
   await page.locator('#insightsPanel > summary').click();

@@ -1703,13 +1703,21 @@
     var el = $('glance'), all = sorted(), w = all.filter(function (e) { return e.weight !== null; });
     el.hidden = w.length < 2;
     if (el.hidden) return;
-    var pi = progressInfo(all), last = w[w.length - 1], base = pi.base, tiles = [];
+    var pi = progressInfo(all), last = w[w.length - 1], tiles = [];
     function tile(c, l, v, sub) { return '<div class="gl" style="--c:' + c + '"><div class="l">' + esc(l) + '</div><div class="v">' + esc(v) + '</div>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>'; }
-    var startLbl = pi.hasBase ? 'Start weight' : 'First weigh-in', startDate = pi.hasBase ? null : w[0].date;
-    tiles.push(tile('#0ea5a4', startLbl + ' to now', fwu(base) + ' \u2192 ' + fwu(last.weight), startDate ? fmtDate(startDate) + ' to ' + fmtDate(last.date) : 'latest ' + fmtDate(last.date)));
-    tiles.push(tile(pi.lost > 0 ? '#16a34a' : '#dc2626', 'Total change', (pi.lost > 0 ? '\u2212' : pi.lost < 0 ? '+' : '') + fw(Math.abs(pi.lost)) + ' ' + WU(),
-      Math.abs(pi.pct).toFixed(1) + '% of ' + (pi.hasBase ? 'start weight' : 'first weigh-in') + (pi.lost > 0 ? ' lost' : pi.lost < 0 ? ' gained' : '')));
-    tiles.push(tile('#7c3aed', 'On treatment', 'Week ' + pi.week, 'since ' + fmtDate(pi.start)));
+    // The start is the date chosen for the Change card ("Measure change from") when there is one: its first weigh-in on or after
+    // that date, never the oldest data. The saved start weight only stands in when the window begins at the first weigh-in.
+    var cf = /^\d{4}-\d{2}-\d{2}$/.test(settings.changeFrom || '') ? settings.changeFrom : null;
+    var win = cf ? w.filter(function (e) { return e.date >= cf; }) : w;
+    if (!win.length) win = w.slice(-1);
+    var first = win[0], useBase = pi.hasBase && first.date === w[0].date;
+    var base = useBase ? pi.base : first.weight, lost = base - last.weight, pct = lost / base * 100;
+    var startLbl = useBase ? 'Start weight' : cf ? 'Start date to now' : 'First weigh-in to now', startDate = useBase ? null : first.date;
+    tiles.push(tile('#0ea5a4', startLbl, fwu(base) + ' \u2192 ' + fwu(last.weight), startDate ? fmtDate(startDate) + ' to ' + fmtDate(last.date) : 'latest ' + fmtDate(last.date)));
+    tiles.push(tile(lost > 0 ? '#16a34a' : '#dc2626', 'Total change', (lost > 0 ? '\u2212' : lost < 0 ? '+' : '') + fw(Math.abs(lost)) + ' ' + WU(),
+      Math.abs(pct).toFixed(1) + '% of ' + (useBase ? 'start weight' : cf ? 'weight at the start date' : 'first weigh-in') + (lost > 0 ? ' lost' : lost < 0 ? ' gained' : '')));
+    var wkStart = cf || pi.start;
+    tiles.push(tile('#7c3aed', 'On treatment', 'Week ' + Math.max(1, weekNo(wkStart, all[all.length - 1].date)), 'since ' + fmtDate(wkStart)));
     var dt = doseTiming(all, today());
     tiles.push(dt ? tile(dt.late ? '#d97706' : '#16a34a', 'Dose timing', dt.late ? dt.onTime + ' of ' + (dt.n - 1) + ' on time' : 'All on time', dt.n + ' injections logged, longest gap ' + dt.longest.days + ' days')
       : tile('#64748b', 'Dose timing', 'Not tracked', 'Log the injection site on dose days'));
