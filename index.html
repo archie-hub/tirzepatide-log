@@ -87,6 +87,9 @@
     background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.28), rgba(255,255,255,0) 70%); pointer-events: none;
   }
   .hero > * { position: relative; z-index: 1; }
+  .hero-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .hero-face { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,.85); background: rgba(255,255,255,.2); flex: none; }
+  .hero-face[hidden] { display: none; }
   .hero-meta { display: flex; flex-wrap: wrap; column-gap: 8px; }
   .hero-meta .backup::before { content: "\00b7"; margin-right: 8px; }
   @media (max-width: 640px) { .hero-meta .backup::before { content: none; } }
@@ -610,9 +613,12 @@
     <p class="lp-fine"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · Not affiliated with any drug maker.</p>
   </section>
   <header class="hero">
-    <div>
-      <h1>Tirzepatide log - work in progress</h1>
-      <div class="hero-meta"><div class="sub" id="subtitle"></div><div class="sub backup" id="backupNote" hidden></div></div>
+    <div class="hero-left">
+      <img class="hero-face" id="heroFace" alt="Your latest face photo" hidden>
+      <div>
+        <h1>Tirzepatide log - work in progress</h1>
+        <div class="hero-meta"><div class="sub" id="subtitle"></div><div class="sub backup" id="backupNote" hidden></div></div>
+      </div>
     </div>
     <button type="button" id="heroOut" hidden>Sign out</button>
   </header>
@@ -4252,9 +4258,9 @@
     var out = [], today = new Date();
     for (var k = 0; k < 6; k++) {
       var d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (5 - k) * 28), iso = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
-      ['front', 'side'].forEach(function (slot) {
+      ['face', 'side', 'front'].forEach(function (slot) {
         out.push({ date: iso, slot: slot });
-        photos.urls[iso + '#' + slot] = demoFigure(slot === 'front' ? 190 - k * 12 : 120 - k * 7, 'Sample, not a real photo');
+        photos.urls[iso + '#' + slot] = demoFigure(slot === 'front' ? 190 - k * 12 : slot === 'side' ? 120 - k * 7 : 70, 'Sample, not a real photo');
       });
     }
     return out;
@@ -4267,8 +4273,33 @@
   function fillImg(img, p) {
     photoUrl(p).then(function (u) { img.src = u; }).catch(function () { img.alt = 'Could not load this photo'; });
   }
+  // the latest face photo, resized to a small square, in the header (this device only; never on a doctor link)
+  var heroFaceKey = '';
+  function updateHeroFace() {
+    var img = $('heroFace'), faces = photos.list.filter(function (p) { return p.slot === 'face'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }), p = faces[0];
+    if (!p) { heroFaceKey = ''; img.hidden = true; img.removeAttribute('src'); return; }
+    var key = p.date + '#' + p.updatedAt;
+    if (key === heroFaceKey && img.getAttribute('src')) { img.hidden = false; return; }
+    heroFaceKey = key;
+    photoUrl(p).then(function (u) {
+      var im = new Image();
+      im.onload = function () {
+        if (heroFaceKey !== key) return;
+        try {
+          var c = document.createElement('canvas'), n = 160, side = Math.min(im.width, im.height);
+          c.width = c.height = n;
+          c.getContext('2d').drawImage(im, (im.width - side) / 2, (im.height - side) / 2, side, side, 0, 0, n, n);
+          img.src = c.toDataURL('image/jpeg', 0.85);
+        } catch (e) { img.src = u; }
+        img.alt = 'Your latest face photo, ' + fmtDate(p.date);
+        img.hidden = false;
+      };
+      im.src = u;
+    }).catch(function () { img.hidden = true; });
+  }
   function renderPhotos() {
     var panel = $('photosPanel');
+    updateHeroFace();
     panel.hidden = !photos.list.length;
     $('photosCount').textContent = photos.list.length ? '(' + photos.list.length + ')' : '';
     if (!photos.list.length) return;

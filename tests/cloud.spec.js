@@ -646,6 +646,8 @@ test('progress photos: shown on the web once backed up from the phone, compared,
   await signIn(page);
   await expect(page.locator('#photosPanel')).toBeVisible();
   await expect(page.locator('#photosCount')).toHaveText('(4)');
+  await expect(page.locator('#heroFace')).toBeVisible();                        // latest face photo in the header, resized
+  await expect(page.locator('#heroFace')).toHaveAttribute('src', /^data:image\/jpeg/);
   await page.locator('#photosPanel > summary').click();
   await expect(page.locator('#photoSlots button')).toHaveText(['Face', 'Side', 'Front']);   // in that order
   await expect(page.locator('#photoSlots [data-slot="face"]')).toHaveAttribute('aria-pressed', 'true');   // and Face is the default
@@ -662,4 +664,5 @@ test('progress photos: shown on the web once backed up from the phone, compared,
   const d = await context.newPage(); await b.install(d); await d.goto(APP + '#share=' + SHARE_TOKEN);
   await expect(d.locator('#subtitle')).toContainText('2 entries');
   await expect(d.locator('#photosPanel')).toBeHidden();
+  await expect(d.locator('#heroFace')).toBeHidden();
 });
