@@ -606,3 +606,30 @@ test('chart notes: added by clicking a point, synced as a setting, shown to a do
   await expect(page.locator('#chart svg .nmk')).toHaveCount(0);
   await expect.poll(() => b.settings.chartNotes).toBeUndefined();
 });
+
+
+test('notes hint: shown once to the patient, remembered; the doctor is told how to read notes (and stores nothing)', async ({ page, context }) => {
+  const b = backend(); await b.install(page);
+  await seedLocal(page, [row('2026-03-01', 200), row('2026-03-08', 198)]);
+  await page.goto(APP);
+  await signIn(page);
+  await expect(page.locator('#noteHint')).toBeVisible();
+  await expect(page.locator('#noteHint')).toContainText('Click (or tap) any point');
+  await page.locator('#noteHintOk').click();
+  await expect(page.locator('#noteHint')).toBeHidden();
+  await page.reload();
+  await expect(page.locator('#subtitle')).toContainText('2 entries');
+  await expect(page.locator('#noteHint')).toBeHidden();
+  // doctor: only when the link carries notes
+  sampleLog(b);
+  b.settings = { chartNotes: { '2026-03-08': 'Dose up' }, updatedAt: Date.now(), syncedAt: ++b.clock };
+  b.shares.set(SHARE_TOKEN, { createdAt: 1, notes: true });
+  const before = await page.evaluate(() => JSON.stringify(Object.entries(localStorage).sort()));
+  await page.evaluate(() => localStorage.removeItem('tirzepatide-notes-hint'));   // so the doctor page would show a stored flag if it wrote one
+  const d = await context.newPage(); await b.install(d); await d.goto(APP + '#share=' + SHARE_TOKEN);
+  await expect(d.locator('#noteHint')).toContainText('Notes from the patient');
+  await d.locator('#noteHintOk').click();
+  const keys = await d.evaluate(() => Object.keys(localStorage));
+  expect(keys).not.toContain('tirzepatide-notes-hint');
+  expect(before).toBeTruthy();
+});

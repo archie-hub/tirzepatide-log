@@ -483,6 +483,7 @@
     background: #fff7e0; border: 1px solid #e0a800; color: #3d2f00; font-size: 14px; }
   .demo-bar[hidden] { display: none; }
   .demo-bar a { color: #3d2f00; font-weight: 600; margin-right: 12px; }
+  #noteHint { margin-bottom: 12px; }
   body.demo #shareOpen, body.demo #heroOut, body.demo #installBtn, body.demo #backupNote, body.demo #openImport, body.demo #resetBtn { display: none !important; }
   .lp-demo-btn { display: inline-block; padding: 10px 24px; border-radius: 12px; background: linear-gradient(110deg, #0d9488, #2563eb); color: #fff; font-weight: 600; text-decoration: none; font-size: 16px; }
   .lp-demo-btn:hover { filter: brightness(1.08); }
@@ -531,6 +532,10 @@
   <div class="demo-bar" id="shareBar" hidden>
     <span><strong>Shared with you, read-only.</strong> This is a patient's log. Want to see what the app does?</span>
     <span class="demo-links"><a href="https://tirzepatide.phoe.be/">About Tirzepatide Log</a> <a href="https://tirzepatide.phoe.be/demo">Try the live demo</a></span>
+  </div>
+  <div class="demo-bar" id="noteHint" role="note" hidden>
+    <span id="noteHintText"></span>
+    <button type="button" class="small" id="noteHintOk">Got it</button>
   </div>
   <section id="landing" aria-labelledby="lpTitle">
     <div class="hero lp-hero">
@@ -2453,6 +2458,21 @@
     return true;
   }
   function chartNotes_() { var n = settings.chartNotes; return n && typeof n === 'object' ? n : {}; }
+  /* a one-time pointer to the notes: the patient is told how to add them (remembered on this device), a doctor how to read them (not remembered, the doctor view stores nothing) */
+  var NOTE_HINT_KEY = 'tirzepatide-notes-hint';
+  function noteHintSeen() { try { return localStorage.getItem(NOTE_HINT_KEY) === '1'; } catch (e) { return false; } }
+  function showNoteHint() {
+    var owner = !SHARE_TOKEN;
+    if (owner ? noteHintSeen() : !Object.keys(chartNotes_()).length) return;
+    $('noteHintText').innerHTML = owner
+      ? '<strong>New: notes on the charts.</strong> Click (or tap) any point on a chart to add a note for that day. Click it again to edit or remove it. Days with a note get an amber marker, and your doctor sees them when a link includes your notes.'
+      : '<strong>Notes from the patient.</strong> Days with an amber marker on a chart have a note. Hover over or tap that point to read it.';
+    $('noteHint').hidden = false;
+  }
+  $('noteHintOk').addEventListener('click', function () {
+    $('noteHint').hidden = true;
+    if (!SHARE_TOKEN && !DEMO) { try { localStorage.setItem(NOTE_HINT_KEY, '1'); } catch (e) {} }
+  });
   $('ntText').addEventListener('input', updateNoteCount);
   $('ntClose').addEventListener('click', function () { if (noteDlg.open) noteDlg.close(); });
   $('ntSave').addEventListener('click', function () {
@@ -4183,7 +4203,7 @@
       entries = (res.entries || []).map(fromCloud);
       settings = {};
       CLOUD_SETTING_KEYS.forEach(function (k) { if (res.settings && res.settings[k] !== undefined && k !== 'compare') settings[k] = res.settings[k]; });
-      render(); resetForm();
+      render(); resetForm(); showNoteHint();
       say(entries.length ? '' : 'This shared log has no entries yet.');
     }).catch(function (err) {
       say(err && err.status === 404 ? 'This link is no longer available. Ask the patient for a new one.' : 'Could not load the shared log. Check your connection and try again.');
@@ -4202,7 +4222,7 @@
   renderFooter();
   setupApp();
   cloudInit();
-  if (SHARE_TOKEN) loadShare();
+  if (SHARE_TOKEN) loadShare(); else showNoteHint();
   if (DEMO) startDemo();
 })();
 </script>
