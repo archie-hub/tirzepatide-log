@@ -778,6 +778,22 @@ test('next dose: an injection site logged today counts as the injection', async 
   await expect(page.locator('#plan')).toContainText('In 7 days');
 });
 
+test('forecast planner: weight gives a date, date gives a weight, both give the pace needed', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());           // last weigh-in 2026-09-26 at 172 lbs, 0.5 lb/day (3.5 lbs/week)
+  await page.locator('#insightsPanel > summary').click();
+  await page.locator('#plW').fill('165');           // 7 lbs to go = 14 days
+  await expect(page.locator('#plOut')).toContainText('Oct 10, 2026');
+  await expect(page.locator('#plOut')).toContainText('3.5 lbs a week');
+  await page.locator('#plW').fill('');
+  await page.locator('#plD').fill('2026-10-26');    // 30 days at 0.5 = 15 lbs
+  await expect(page.locator('#plOut')).toContainText('157.0 lbs');
+  await page.locator('#plW').fill('160');            // 12 lbs in 30 days = 2.8 a week, on track
+  await expect(page.locator('#plOut')).toContainText('2.8 lbs a week');
+  await expect(page.locator('#plOut')).toContainText('on track');
+  await page.locator('#plD').fill('2026-09-20');
+  await expect(page.locator('#plOut')).toContainText('after your latest weigh-in');
+});
+
 test('chart range longer than the data keeps its full axis, with a prediction as long as the range', async ({ page }) => {
   await pasteCsv(page, steadyLossCsv());           // 57 days, 0.5 lb/day, 200 -> 172
   await page.locator('#range [data-days="30"]').first().click();

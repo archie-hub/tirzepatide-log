@@ -109,6 +109,7 @@
   .hero button.primary:hover { background: #eef6ff; }
   .hero button.danger { color: #fff; }
 
+  .planner { margin-bottom: 14px; }
   .ins-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
   .ins { border: 1px solid var(--line); border-left: 4px solid var(--c, var(--accent)); border-radius: 10px; padding: 8px 12px; }
   .ins .l { color: var(--muted); font-size: 12.5px; }
@@ -710,6 +711,14 @@
 
   <details class="panel fold" id="insightsPanel" hidden>
     <summary><h2>More insights</h2><span class="fold-hint"></span></summary>
+    <div class="planner" id="planner">
+      <h3 style="margin-top:0">Forecast planner</h3>
+      <div class="opts" style="margin-top:0">
+        <label><span>Weight to reach (<span class="wua">lbs</span>)</span><input type="number" id="plW" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
+        <label><span>By date</span><input type="date" id="plD"></label>
+      </div>
+      <p class="note" id="plOut" style="margin:6px 0 0" aria-live="polite">Enter a weight to see when your current trend gets you there, a date to see where it puts you, or both to see the pace you would need.</p>
+    </div>
     <div id="insights"></div>
   </details>
 
@@ -1082,7 +1091,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('.lu'), function (el) { el.textContent = LU(); });
     Array.prototype.forEach.call(document.querySelectorAll('.wua'), function (el) { el.textContent = WUA(); });
     // stones and pounds are typed as text ("13 5.2"); everything else stays a number field
-    ['fWeight', 'sGoal', 'sBaseline'].forEach(function (id) { var el = $(id); if (el) { el.type = isUK() ? 'text' : 'number'; } });
+    ['fWeight', 'sGoal', 'sBaseline', 'plW'].forEach(function (id) { var el = $(id); if (el) { el.type = isUK() ? 'text' : 'number'; } });
     $('sGoal').placeholder = isUK() ? 'e.g. 12 7' : 'e.g. 180';
     $('fWeight').placeholder = isUK() ? 'e.g. 13 5.2' : '';
   }
@@ -1690,10 +1699,47 @@
     $('calBody').innerHTML = '<div class="cal-wrap"><div class="cal-sum">' + sum + '</div><div class="cal-bars">' + bars + '</div></div>';
     el.querySelector('.cal-avg').innerHTML = cw.n ? '<b>' + num(cw.avg) + '</b> avg per logged day' : 'none logged';
   }
+  // Forecast planner: a what-if on the 28-day pace used by the goal projection (mirrored in iOS Progress.planner).
+  // tw = target weight in lbs or null, td = target date 'YYYY-MM-DD' or null; returns plain text.
+  function plannerText(w, tw, td) {
+    if (!w.length) return 'Log a weigh-in first.';
+    if (tw === null && !td) return 'Enter a weight to see when your current trend gets you there, a date to see where it puts you, or both to see the pace you would need.';
+    var last = w[w.length - 1], sl = recentSlope(w);
+    if (sl === null) return 'Not enough recent weigh-ins for a trend yet (about 3 over a week or more).';
+    var pace = -sl * 7, parts = [], days;
+    if (td && dayDiff(last.date, td) <= 0) return 'Pick a date after your latest weigh-in (' + fmtDate(last.date) + ').';
+    if (tw !== null) {
+      if (last.weight <= tw) parts.push('Your latest weigh-in (' + fwu(last.weight) + ') is already at or below ' + fwu(tw) + '.');
+      else if (sl >= -0.01) parts.push('Your pace is flat or rising, so the trend does not reach ' + fwu(tw) + '.');
+      else {
+        days = Math.round((last.weight - tw) / -sl);
+        parts.push(days > 3650 ? 'At this pace ' + fwu(tw) + ' is years away.' : 'At your recent pace of ' + fw(pace) + ' ' + WU() + ' a week you reach ' + fwu(tw) + ' around ' + fmtDate(addDays(last.date, days)) + ', ' + fmtWeeks(days) + ' from your latest weigh-in.');
+      }
+    }
+    if (td) {
+      var n = dayDiff(last.date, td), at = last.weight + sl * n;
+      if (tw === null) parts.push('At your recent pace you would weigh about ' + fwu(Math.max(at, 0)) + ' on ' + fmtDate(td) + ' (' + sgn(dw(at - last.weight), 1) + ' ' + WU() + ' from your latest).');
+      else if (last.weight > tw) {
+        var need = (last.weight - tw) / (n / 7);
+        parts.push('To reach ' + fwu(tw) + ' by ' + fmtDate(td) + ' you would need about ' + fw(need) + ' ' + WU() + ' a week; your pace is ' + (pace > 0 ? fw(pace) : 'not downward') + (pace > 0 ? ' ' + WU() + ' a week' : '') + '. ' +
+          (at <= tw ? 'You are on track.' : 'On the current trend you would be about ' + fwu(at) + ' by then.'));
+      }
+    }
+    return parts.join(' ') + ' A trend, not a promise.';
+  }
+  function fmtWeeks(d) { var wk = Math.round(d / 7); return d < 14 ? d + (d === 1 ? ' day' : ' days') : wk + ' weeks'; }
+  function renderPlanner() {
+    var all = sorted(), w = all.filter(function (e) { return e.weight !== null; });
+    var tw = $('plW').value.trim() ? readW($('plW').value, isMetric(), isUK()) : null, td = $('plD').value || null;
+    if ($('plW').value.trim() && (tw === null || tw <= 0)) { $('plOut').textContent = 'Weight not understood.'; return; }
+    $('plOut').textContent = plannerText(w, tw, isoDate(td) ? td : null);
+  }
+  ['plW', 'plD'].forEach(function (id) { $(id).addEventListener('input', renderPlanner); $(id).addEventListener('change', renderPlanner); });
   function renderInsights() {
     var all = sorted(), w = all.filter(function (e) { return e.weight !== null; }), el = $('insightsPanel');
     el.hidden = w.length < 2;
     if (el.hidden) return;
+    renderPlanner();
     var h = '<div class="ins-grid">' + insightBoxes(all, w).join('') + '</div>', ip = injectionPattern(w);
     if (ip) h += '<h3>Weight by injection day</h3>' + barsSvg(ip) + '<p class="note" style="margin:4px 0 0">' + esc(injectionText(ip)) + ' Bars show the average difference from the surrounding 7-day average, by days since your injection day.</p>';
     var si = siteRotation(all, today());
