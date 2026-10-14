@@ -792,6 +792,15 @@ test('forecast planner: dragging a weight bar shows the date the trend reaches i
   await expect(page.locator('#plOut')).toContainText('already at or below');
 });
 
+test('more insights count only entries from the chosen start date', async ({ page }) => {
+  await pasteCsv(page, steadyLossCsv());           // 200 on 2026-08-01 down to 172 on 2026-09-26
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('tirzepatide-settings') || '{}'); s.changeFrom = '2026-09-01'; localStorage.setItem('tirzepatide-settings', JSON.stringify(s)); });
+  await page.reload();
+  await page.locator('#insightsPanel > summary').click();
+  await expect(page.locator('#insights')).toContainText('184.5');   // highest weight is the first weigh-in on/after Sep 1 (184.5), not 200
+  await expect(page.locator('#insights')).not.toContainText('200.0');
+});
+
 test('chart range longer than the data keeps its full axis, with a prediction as long as the range', async ({ page }) => {
   await pasteCsv(page, steadyLossCsv());           // 57 days, 0.5 lb/day, 200 -> 172
   await page.locator('#range [data-days="30"]').first().click();

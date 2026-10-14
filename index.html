@@ -1309,7 +1309,15 @@
   // Goal progress and projection text for weights w (sorted, with weight); null when no goal is set
   /* ---------- progress maths ---------- */
   var MILESTONES = [5, 10, 15, 20, 25];   // percent of starting weight lost
-  function baselineOf(w) { return settings.baseline || (w.length ? w[0].weight : null); }
+  // The saved start weight stands in for the first weigh-in only when the figures begin at the very first weigh-in; with a later
+  // start date the base is that window's first weigh-in (same rule as At a glance).
+  function baselineOf(w) {
+    if (settings.baseline && w.length && startDate()) {
+      var f = entries.filter(function (e) { return e.weight !== null; }).map(function (e) { return e.date; }).sort()[0];
+      if (w[0].date > f) return w[0].weight;
+    }
+    return settings.baseline || (w.length ? w[0].weight : null);
+  }
   // The start date chosen in Settings ("Measure change from", this device only), or null. When it is set it is THE start of the
   // figures (Change card, At a glance, Results by dose): a date picked on purpose beats the length of the chart's preset range,
   // which keeps governing the chart itself. Clear it to have those figures follow the chart range again.
@@ -1320,6 +1328,8 @@
     var cf = startDate(), r = cf ? w.filter(function (e) { return e.date >= cf; }) : inChartRange(w);
     return r.length ? r : w.slice(-1);
   }
+  // Entries on or after the chosen start date (all of them when none is set): More insights counts only these.
+  function fromStart(a) { var cf = startDate(); return cf ? a.filter(function (e) { return e.date >= cf; }) : a; }
   function treatStart(all) { var d = all.filter(function (e) { return e.dose !== null; })[0]; return (d || all[0]).date; }
   function weekNo(startIso, iso) { return Math.floor(dayDiff(startIso, iso) / 7) + 1; }
   // all = every entry (sorted) up to the date of interest. Returns null with no weigh-ins.
@@ -1720,7 +1730,7 @@
   function fmtWeeks(d) { var wk = Math.round(d / 7); return d < 14 ? d + (d === 1 ? ' day' : ' days') : wk + ' weeks'; }
   var plPicked = null;
   function renderPlanner() {
-    var all = sorted(), w = all.filter(function (e) { return e.weight !== null; }), r = plannerRange(w), el = $('plW');
+    var all = fromStart(sorted()), w = all.filter(function (e) { return e.weight !== null; }), r = plannerRange(w), el = $('plW');
     el.disabled = !r;
     if (!r) { $('plVal').textContent = ''; $('plOut').textContent = plannerText(w, 0); if (w.length && recentSlope(w) !== null) $('plOut').textContent = 'Your pace is flat or rising, so there is no date to show yet.'; return; }
     el.min = r.lo; el.max = r.hi;
@@ -1732,7 +1742,7 @@
   }
   $('plW').addEventListener('input', function () { plPicked = parseFloat($('plW').value); renderPlanner(); });
   function renderInsights() {
-    var all = sorted(), w = all.filter(function (e) { return e.weight !== null; }), el = $('insightsPanel');
+    var all = fromStart(sorted()), w = all.filter(function (e) { return e.weight !== null; }), el = $('insightsPanel');
     el.hidden = w.length < 2;
     if (el.hidden) return;
     renderPlanner();
