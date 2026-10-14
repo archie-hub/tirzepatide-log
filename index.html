@@ -714,9 +714,9 @@
     <div class="planner" id="planner">
       <h3 style="margin-top:0">Forecast planner</h3>
       <div class="opts" style="margin-top:0">
-        <label><span>Weight to reach (<span class="wua">lbs</span>)</span><input type="number" id="plW" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180"></label>
+        <label style="flex:1 1 100%"><span>Drag to a weight: <b id="plVal"></b></span><input type="range" id="plW" step="0.5" aria-label="Weight to reach" style="width:100%"></label>
       </div>
-      <p class="note" id="plOut" style="margin:6px 0 0" aria-live="polite">Enter a weight to see when your current trend gets you there.</p>
+      <p class="note" id="plOut" style="margin:6px 0 0" aria-live="polite">Drag the bar to see when your current trend reaches that weight.</p>
     </div>
     <div id="insights"></div>
   </details>
@@ -1090,7 +1090,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('.lu'), function (el) { el.textContent = LU(); });
     Array.prototype.forEach.call(document.querySelectorAll('.wua'), function (el) { el.textContent = WUA(); });
     // stones and pounds are typed as text ("13 5.2"); everything else stays a number field
-    ['fWeight', 'sGoal', 'sBaseline', 'plW'].forEach(function (id) { var el = $(id); if (el) { el.type = isUK() ? 'text' : 'number'; } });
+    ['fWeight', 'sGoal', 'sBaseline'].forEach(function (id) { var el = $(id); if (el) { el.type = isUK() ? 'text' : 'number'; } });
     $('sGoal').placeholder = isUK() ? 'e.g. 12 7' : 'e.g. 180';
     $('fWeight').placeholder = isUK() ? 'e.g. 13 5.2' : '';
   }
@@ -1699,9 +1699,16 @@
     el.querySelector('.cal-avg').innerHTML = cw.n ? '<b>' + num(cw.avg) + '</b> avg per logged day' : 'none logged';
   }
   // Forecast planner: when the 28-day pace reaches a typed weight (mirrored in iOS Progress.planner). tw in lbs or null.
+  // Slider range in lbs: from the latest weigh-in down to the goal, or a year at the current pace (10 to 80 lbs); null without a downward trend.
+  function plannerRange(w) {
+    if (!w.length) return null;
+    var sl = recentSlope(w); if (sl === null || sl >= -0.01) return null;
+    var hi = w[w.length - 1].weight, lo = hi - Math.max(10, Math.min(80, -sl * 365));
+    if (settings.goal && settings.goal < hi) lo = Math.min(lo, settings.goal);
+    return { lo: Math.max(0, Math.floor(lo * 2) / 2), hi: Math.ceil(hi * 2) / 2 };
+  }
   function plannerText(w, tw) {
     if (!w.length) return 'Log a weigh-in first.';
-    if (tw === null) return 'Enter a weight to see when your current trend gets you there.';
     var last = w[w.length - 1], sl = recentSlope(w);
     if (sl === null) return 'Not enough recent weigh-ins for a trend yet (about 3 over a week or more).';
     if (last.weight <= tw) return 'Your latest weigh-in (' + fwu(last.weight) + ') is already at or below ' + fwu(tw) + '.';
@@ -1711,13 +1718,19 @@
     return 'At your recent pace of ' + fw(-sl * 7) + ' ' + WU() + ' a week you reach ' + fwu(tw) + ' around ' + fmtDate(addDays(last.date, days)) + ', ' + fmtWeeks(days) + ' from your latest weigh-in. A trend, not a promise.';
   }
   function fmtWeeks(d) { var wk = Math.round(d / 7); return d < 14 ? d + (d === 1 ? ' day' : ' days') : wk + ' weeks'; }
+  var plPicked = null;
   function renderPlanner() {
-    var all = sorted(), w = all.filter(function (e) { return e.weight !== null; });
-    var tw = $('plW').value.trim() ? readW($('plW').value, isMetric(), isUK()) : null;
-    if ($('plW').value.trim() && (tw === null || tw <= 0)) { $('plOut').textContent = 'Weight not understood.'; return; }
-    $('plOut').textContent = plannerText(w, tw);
+    var all = sorted(), w = all.filter(function (e) { return e.weight !== null; }), r = plannerRange(w), el = $('plW');
+    el.disabled = !r;
+    if (!r) { $('plVal').textContent = ''; $('plOut').textContent = plannerText(w, 0); if (w.length && recentSlope(w) !== null) $('plOut').textContent = 'Your pace is flat or rising, so there is no date to show yet.'; return; }
+    el.min = r.lo; el.max = r.hi;
+    if (plPicked === null) plPicked = settings.goal && settings.goal >= r.lo && settings.goal <= r.hi ? settings.goal : Math.round((r.lo + r.hi) / 2 * 2) / 2;
+    plPicked = Math.min(r.hi, Math.max(r.lo, plPicked));
+    el.value = plPicked;
+    $('plVal').textContent = fwu(plPicked);
+    $('plOut').textContent = plannerText(w, plPicked);
   }
-  $('plW').addEventListener('input', renderPlanner);
+  $('plW').addEventListener('input', function () { plPicked = parseFloat($('plW').value); renderPlanner(); });
   function renderInsights() {
     var all = sorted(), w = all.filter(function (e) { return e.weight !== null; }), el = $('insightsPanel');
     el.hidden = w.length < 2;

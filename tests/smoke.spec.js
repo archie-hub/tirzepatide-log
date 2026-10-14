@@ -778,13 +778,17 @@ test('next dose: an injection site logged today counts as the injection', async 
   await expect(page.locator('#plan')).toContainText('In 7 days');
 });
 
-test('forecast planner: a weight gives the date the trend reaches it', async ({ page }) => {
+test('forecast planner: dragging a weight bar shows the date the trend reaches it', async ({ page }) => {
   await pasteCsv(page, steadyLossCsv());           // last weigh-in 2026-09-26 at 172 lbs, 0.5 lb/day (3.5 lbs/week)
   await page.locator('#insightsPanel > summary').click();
-  await page.locator('#plW').fill('165');           // 7 lbs to go = 14 days
+  const set = (v) => page.locator('#plW').evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, v);
+  await set('165');                                  // 7 lbs to go = 14 days
+  await expect(page.locator('#plVal')).toContainText('165.0 lbs');
   await expect(page.locator('#plOut')).toContainText('Oct 10, 2026');
   await expect(page.locator('#plOut')).toContainText('3.5 lbs a week');
-  await page.locator('#plW').fill('180');
+  await set('150');                                  // 22 lbs = 44 days
+  await expect(page.locator('#plOut')).toContainText('Nov 9, 2026');
+  await set('172');
   await expect(page.locator('#plOut')).toContainText('already at or below');
 });
 
