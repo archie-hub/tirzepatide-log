@@ -679,11 +679,11 @@ test('progress photos: shown on the web once backed up from the phone, compared,
 });
 
 
-test('doctor link: the latest face photo is included only when the patient ticks the box, and nothing else of the photos', async ({ page, context }) => {
+test('doctor link: the first and latest face photos are included only when the patient ticks the box, and nothing else of the photos', async ({ page, context }) => {
   const b = backend(); await b.install(page);
   sampleLog(b);
   const JPG = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
-  b.photos = new Map([['2026-03-08#face', { updatedAt: 2, data: JPG }], ['2026-03-08#front', { updatedAt: 2, data: JPG }]]);
+  b.photos = new Map([['2026-03-01#face', { updatedAt: 1, data: JPG }], ['2026-03-08#face', { updatedAt: 2, data: JPG }], ['2026-03-08#front', { updatedAt: 2, data: JPG }]]);
   await seedLocal(page, [row('2026-03-01', 200), row('2026-03-08', 198)]);
   await page.goto(APP);
   await signIn(page);
@@ -697,13 +697,16 @@ test('doctor link: the latest face photo is included only when the patient ticks
   await d.goto(APP + '#share=' + token);
   await expect(d.locator('#subtitle')).toContainText('2 entries');
   await expect(d.locator('#heroFace')).toBeVisible();
-  await expect(d.locator('#photosPanel')).toBeHidden();      // no photo page, only the header picture
+  await expect(d.locator('#heroFaceFirst')).toBeVisible();   // the first face photo too, with the arrow, as in the owner's header
+  await expect(d.locator('#heroArrow')).toBeVisible();
+  await expect(d.locator('#photosPanel')).toBeHidden();      // no photo page, only the header pictures
   expect(seen).toEqual([]);                                   // and no request to the owner's photo routes
   // a link made without the box shows nothing
   b.shares.set('N' + token.slice(1), { createdAt: 3, notes: false, photo: false });
   const d2 = await context.newPage(); await b.install(d2); await d2.goto(APP + '#share=N' + token.slice(1));
   await expect(d2.locator('#subtitle')).toContainText('2 entries');
   await expect(d2.locator('#heroFace')).toBeHidden();
+  await expect(d2.locator('#heroFaceFirst')).toBeHidden();
 });
 
 

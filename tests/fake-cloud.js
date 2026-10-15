@@ -64,7 +64,8 @@ function backend({ invited = true, dist = false } = {}) {
         if (sh.notes && cn) shown.chartNotes = Object.fromEntries(Object.entries(cn).filter(([d]) => !sh.from || d >= sh.from));
         const faces = sh.photo ? [...(s.photos || new Map()).entries()].filter(([k]) => k.endsWith('#face')).sort() : [];
         const photo = faces.length ? { date: faces[faces.length - 1][0].split('#')[0], data: faces[faces.length - 1][1].data } : undefined;
-        return send(200, { entries, settings: shown, notes: sh.notes, createdAt: sh.createdAt, ...(photo ? { photo } : {}), ...(sh.from ? { from: sh.from } : {}) });
+        const first = faces.length > 1 && faces[0][0].split('#')[0] !== photo.date ? { date: faces[0][0].split('#')[0], data: faces[0][1].data } : undefined;
+        return send(200, { entries, settings: shown, notes: sh.notes, createdAt: sh.createdAt, ...(photo ? { photo } : {}), ...(first ? { photoFirst: first } : {}), ...(sh.from ? { from: sh.from } : {}) });
       }
       s.authHeaders.push(req.headers()['authorization']);
       if (!invited) return send(403, { error: 'not invited' });

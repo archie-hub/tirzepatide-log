@@ -900,7 +900,7 @@
   <label><span>Show entries from (date), optional</span><input type="date" id="shFrom"></label>
   <p class="note" style="margin-top:0">Earlier entries are never sent to your doctor. Your goal weight and start weight (if set in Settings) are shown. Blank = everything.</p>
   <label class="radio"><input type="checkbox" id="shNotes"> <span>Include my notes (comments, food notes and notes on the chart)</span></label>
-  <label class="radio"><input type="checkbox" id="shPhoto"> <span>Include my latest face photo (shown small in the page header; no other photos are ever shared)</span></label>
+  <label class="radio"><input type="checkbox" id="shPhoto"> <span>Include my first and latest face photos (shown small in the page header; no other photos are ever shared)</span></label>
   <div class="actions"><button type="button" class="primary" id="shCreate">Create doctor link</button></div>
   <p class="note" id="shMsg" role="status"></p>
   <ul class="share-list" id="shList"></ul>
@@ -4510,9 +4510,13 @@
       entries = (res.entries || []).map(fromCloud);
       settings = {};
       CLOUD_SETTING_KEYS.forEach(function (k) { if (res.settings && res.settings[k] !== undefined && k !== 'compare') settings[k] = res.settings[k]; });
-      if (res.photo && res.photo.data) {   // only when the patient ticked it: one face photo, shown small in the header
+      if (res.photo && res.photo.data) {   // only when the patient ticked it: the latest face photo, and the first one when it is another day, shown small in the header
         photos.list = [{ date: res.photo.date, slot: 'face', updatedAt: 0 }];
         photos.urls[res.photo.date + '#face#0'] = b64blobUrl(res.photo.data);
+        if (res.photoFirst && res.photoFirst.data && res.photoFirst.date !== res.photo.date) {
+          photos.list.push({ date: res.photoFirst.date, slot: 'face', updatedAt: 0 });
+          photos.urls[res.photoFirst.date + '#face#0'] = b64blobUrl(res.photoFirst.data);
+        }
         updateHeroFace();
       }
       if (res.from) {   // the patient chose a start date: everything shown counts from it (change, insights, results by dose)
