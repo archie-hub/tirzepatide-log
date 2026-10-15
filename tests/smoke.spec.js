@@ -619,6 +619,7 @@ test('insights: fast-loss notice, pace, extremes, best week, streak and weekly a
   await expect(page.locator('#fastNote')).toBeVisible();
   await expect(page.locator('#fastNote')).toContainText('3.5 lbs a week');
   await expect(page.locator('#fastNote')).toContainText('2.0% of body weight');
+  await expect(page.locator('#fastNote')).toContainText('Titration guide: Stay on current dose');
   await expect(page.locator('#fastNote')).toContainText('14.0 lbs (7.5%) lower: at least 2% lower');   // 186.0 on Aug 29 -> 172.0 on Sep 26
 
   await expect(page.locator('#insightsPanel')).toBeVisible();
@@ -801,6 +802,29 @@ test('more insights count only entries from the chosen start date', async ({ pag
   await page.locator('#insightsPanel > summary').click();
   await expect(page.locator('#insights')).toContainText('184.5');   // highest weight is the first weigh-in on/after Sep 1 (184.5), not 200
   await expect(page.locator('#insights')).not.toContainText('200.0');
+});
+
+test('titration guide follows the flowchart: severe symptoms, 2% and food noise, flat weight, in between', async ({ page }) => {
+  const csv = (wt, app, sxs) => {
+    const rows = ['Date,Dosage (mg),Weight (lbs),Appetite (1-5),Symptom Severity (0-3)'];
+    for (let i = 34; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000);
+      const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      rows.push(iso + ',5,' + wt(34 - i).toFixed(1) + ',' + (app ?? '') + ',' + (i === 0 && sxs !== undefined ? sxs : ''));
+    }
+    return rows.join('\n');
+  };
+  const guide = async (c) => {
+    await page.goto(APP_URL); await page.evaluate(() => localStorage.clear()); await page.reload();
+    await pasteCsv(page, c);
+    await page.locator('#insightsPanel > summary').click();
+    return page.locator('#insights');
+  };
+  await expect(await guide(csv((i) => 200 - 0.5 * i, 3))).toContainText('Titration guide: Stay on current dose');
+  await expect(await guide(csv((i) => 200 - 0.5 * i, 5))).toContainText('Titration guide: Titrate up');
+  await expect(await guide(csv((i) => 200 - 0.5 * i, 3, 3))).toContainText('Titration guide: Titrate down');
+  await expect(await guide(csv(() => 200, 3))).toContainText('Titration guide: Titrate up. Weight is about the same');
+  await expect(await guide(csv((i) => 200 - 0.1 * i, 3))).toContainText('Titrate up or stay');   // 1.4% lower
 });
 
 test('chart range longer than the data keeps its full axis, with a prediction as long as the range', async ({ page }) => {

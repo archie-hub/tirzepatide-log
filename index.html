@@ -1393,9 +1393,32 @@
       (c.lost > 0 ? fw(c.lost) + ' ' + WU() + ' (' + c.pct.toFixed(1) + '%) lower' : c.lost < 0 ? fw(-c.lost) + ' ' + WU() + ' (' + (-c.pct).toFixed(1) + '%) higher' : 'unchanged') +
       (c.met ? ': at least 2% lower.' : ': not yet 2% lower.');
   }
-  function fastText(f, c) {
+  // Titration guide from the "Tirzepatide Titration Decision Flowchart" the owner supplied. Informational only, mirrored in iOS
+  // Progress.titration. Questions: intolerable side effects (here: severe symptoms logged in the last 7 days, the only
+  // reading the log can give), 2% lower than 4 weeks ago, strong food noise or lack of satiety (average logged appetite of 4 or
+  // more in the last 7 days), about the same as 4 weeks ago (within 1%).
+  function titration(all, c) {
+    if (!c) return null;
+    var td = today(), sx = symptomSummary(all, td, 7), apps = all.filter(function (e) { return e.app != null && e.date > addDays(td, -7); });
+    var appAvg = apps.length ? apps.reduce(function (t, e) { return t + e.app; }, 0) / apps.length : null;
+    var dosed = all.filter(function (e) { return e.dose !== null; }), top = dosed.length && dosed[dosed.length - 1].dose >= 15;
+    var r = { outcome: '', why: '' };
+    if (sx.worst >= 3) { r.outcome = 'Titrate down'; r.why = 'You logged severe symptoms in the last 7 days; if they are intolerable the flowchart says to titrate down.'; return r; }
+    if (c.met) {
+      if (appAvg !== null && appAvg >= 4) { r.outcome = top ? 'Stay (highest dose)' : 'Titrate up'; r.why = 'Weight is at least 2% lower, but your appetite averaged ' + appAvg.toFixed(1) + '/5 this week (strong food noise or lack of satiety).' + (top ? ' You are already on the highest dose.' : ''); }
+      else { r.outcome = 'Stay on current dose'; r.why = 'Weight is at least 2% lower than 4 weeks ago' + (appAvg === null ? ' (log appetite to check for food noise or lack of satiety).' : ' and your appetite is not high.'); }
+    } else if (Math.abs(c.pct) < 1) {
+      r.outcome = top ? 'Stay (highest dose)' : 'Titrate up'; r.why = 'Weight is about the same as 4 weeks ago (' + (c.lost > 0 ? '' : c.lost < 0 ? '+' : '') + Math.abs(c.pct).toFixed(1) + '% change).' + (top ? ' You are already on the highest dose.' : '');
+    } else {
+      r.outcome = top ? 'Stay (highest dose)' : 'Titrate up or stay';
+      r.why = 'Weight is ' + (c.lost > 0 ? c.pct.toFixed(1) + '% lower' : (-c.pct).toFixed(1) + '% higher') + ' than 4 weeks ago, short of 2%. The 2% method titrates up here; the low and slow method waits for a 4-week plateau first. A healthy pace is about 2 to 4% over 4 weeks.';
+    }
+    return r;
+  }
+  function titrationText(t) { return t ? 'Titration guide: ' + t.outcome + '. ' + t.why + ' A prompt for your clinician, not medical advice.' : ''; }
+  function fastText(f, c, t) {
     return 'Weight has been dropping about ' + fw(-f.rate) + ' ' + WU() + ' a week (' + (-f.rate / f.last * 100).toFixed(1) + '% of body weight) between ' + fmtDate(f.from) + ' and ' + fmtDate(f.to) + ' (' + f.days + ' days), faster than ' + FAST_PCT + '% of body weight a week (' + fw(f.thr) + ' ' + WU() + '). ' +
-      (c ? fourWeekText(c) + ' ' : '') + 'That pace is often treated as rapid, so it is worth mentioning to your clinician.';
+      (c ? fourWeekText(c) + ' ' : '') + 'That pace is often treated as rapid, so it is worth mentioning to your clinician.' + (t ? ' ' + titrationText(t) : '');
   }
   // Seven-day buckets numbered like "week on treatment"; change is against the previous week when it has data too
   function weeklyAverages(all) {
@@ -1635,7 +1658,7 @@
         (cs.longest ? '. Longest gap ' + cs.longest.days + ' days (' + shortDate(cs.longest.from, false) + ' to ' + shortDate(cs.longest.to, false) + ')' : '')));
     }
     var c4 = fourWeekCheck(w);
-    if (c4) out.push(insBox(c4.met ? '#16a34a' : '#64748b', 'Vs 4 weeks ago', (c4.lost > 0 ? '\u2212' : c4.lost < 0 ? '+' : '') + Math.abs(c4.pct).toFixed(1) + '%', fourWeekText(c4)));
+    if (c4) out.push(insBox(c4.met ? '#16a34a' : '#64748b', 'Vs 4 weeks ago', (c4.lost > 0 ? '\u2212' : c4.lost < 0 ? '+' : '') + Math.abs(c4.pct).toFixed(1) + '%', fourWeekText(c4) + ' ' + titrationText(titration(all, c4))));
     var sl = recentSlope(w);
     if (sl !== null) {
       var lastW = w[w.length - 1], gap = dayDiff(lastW.date, today());
@@ -1794,7 +1817,7 @@
     if (pl) el.textContent = plateauText(pl);
     var wts = sorted().filter(function (e) { return e.weight !== null; }), ff = fastLoss(wts);
     $('fastNote').hidden = !ff;
-    if (ff) $('fastNote').textContent = fastText(ff, fourWeekCheck(wts));
+    if (ff) $('fastNote').textContent = fastText(ff, fourWeekCheck(wts), titration(sorted(), fourWeekCheck(wts)));
   }
   // Cards (the tiles of both card rows) can be dragged between the two rows, so a render never owns a row:
   // it replaces only its own cards (by data-card key) and placeCards() puts every card where the layout says.
