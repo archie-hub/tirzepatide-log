@@ -618,6 +618,8 @@ test('insights: fast-loss notice, pace, extremes, best week, streak and weekly a
   await pasteCsv(page, steadyLossCsv());
   await expect(page.locator('#fastNote')).toBeVisible();
   await expect(page.locator('#fastNote')).toContainText('3.5 lbs a week');
+  await expect(page.locator('#fastNote')).toContainText('2.0% of body weight');
+  await expect(page.locator('#fastNote')).toContainText('14.0 lbs (7.5%) lower: at least 2% lower');   // 186.0 on Aug 29 -> 172.0 on Sep 26
 
   await expect(page.locator('#insightsPanel')).toBeVisible();
   await expect(page.locator('#insightsPanel')).not.toHaveAttribute('open', '');   // minimised by default

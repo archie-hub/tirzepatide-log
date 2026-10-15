@@ -1373,10 +1373,29 @@
     var rate = sl * 7, last = w[w.length - 1].weight, endD = w[w.length - 1].date, j = w.length - 1;
     while (j > 0 && dayDiff(w[j - 1].date, endD) <= 28) j--;   // the weigh-ins slopeUpTo() used
     var span = dayDiff(w[j].date, endD);
-    return -rate > fastThreshold(last) ? { rate: rate, thr: fastThreshold(last), days: span, from: w[j].date, to: endD } : null;
+    return -rate > fastThreshold(last) ? { rate: rate, last: last, thr: fastThreshold(last), days: span, from: w[j].date, to: endD } : null;
   }
-  function fastText(f) {
-    return 'Weight has been dropping about ' + fw(-f.rate) + ' ' + WU() + ' a week between ' + fmtDate(f.from) + ' and ' + fmtDate(f.to) + ' (' + f.days + ' days), faster than ' + FAST_PCT + '% of body weight a week (' + fw(f.thr) + ' ' + WU() + '). That pace is often treated as rapid, so it is worth mentioning to your clinician.';
+  // Latest weigh-in against the one nearest 28 days earlier (within 7 days either way, at least 21 days back): is it at least 2%
+  // lower? Mirrored in iOS Progress.fourWeekCheck. Returns null without such a weigh-in.
+  function fourWeekCheck(w) {
+    if (w.length < 2) return null;
+    var last = w[w.length - 1], then = null, bestOff = 8;
+    w.forEach(function (e) {
+      var d = dayDiff(e.date, last.date), off = Math.abs(d - 28);
+      if (d >= 21 && off < bestOff) { then = e; bestOff = off; }
+    });
+    if (!then) return null;
+    var lost = then.weight - last.weight, pct = lost / then.weight * 100;
+    return { then: then, now: last, lost: lost, pct: pct, met: pct >= 2, days: dayDiff(then.date, last.date) };
+  }
+  function fourWeekText(c) {
+    return 'Compared with ' + c.days + ' days ago (' + fmtDate(c.then.date) + ', ' + fwu(c.then.weight) + '), your current weight is ' +
+      (c.lost > 0 ? fw(c.lost) + ' ' + WU() + ' (' + c.pct.toFixed(1) + '%) lower' : c.lost < 0 ? fw(-c.lost) + ' ' + WU() + ' (' + (-c.pct).toFixed(1) + '%) higher' : 'unchanged') +
+      (c.met ? ': at least 2% lower.' : ': not yet 2% lower.');
+  }
+  function fastText(f, c) {
+    return 'Weight has been dropping about ' + fw(-f.rate) + ' ' + WU() + ' a week (' + (-f.rate / f.last * 100).toFixed(1) + '% of body weight) between ' + fmtDate(f.from) + ' and ' + fmtDate(f.to) + ' (' + f.days + ' days), faster than ' + FAST_PCT + '% of body weight a week (' + fw(f.thr) + ' ' + WU() + '). ' +
+      (c ? fourWeekText(c) + ' ' : '') + 'That pace is often treated as rapid, so it is worth mentioning to your clinician.';
   }
   // Seven-day buckets numbered like "week on treatment"; change is against the previous week when it has data too
   function weeklyAverages(all) {
@@ -1615,6 +1634,8 @@
       out.push(insBox('#64748b', 'Weigh-ins', String(cs.n), (cs.avgGap !== null ? 'every ' + cs.avgGap.toFixed(1) + ' days on average' : '') +
         (cs.longest ? '. Longest gap ' + cs.longest.days + ' days (' + shortDate(cs.longest.from, false) + ' to ' + shortDate(cs.longest.to, false) + ')' : '')));
     }
+    var c4 = fourWeekCheck(w);
+    if (c4) out.push(insBox(c4.met ? '#16a34a' : '#64748b', 'Vs 4 weeks ago', (c4.lost > 0 ? '\u2212' : c4.lost < 0 ? '+' : '') + Math.abs(c4.pct).toFixed(1) + '%', fourWeekText(c4)));
     var sl = recentSlope(w);
     if (sl !== null) {
       var lastW = w[w.length - 1], gap = dayDiff(lastW.date, today());
@@ -1773,7 +1794,7 @@
     if (pl) el.textContent = plateauText(pl);
     var wts = sorted().filter(function (e) { return e.weight !== null; }), ff = fastLoss(wts);
     $('fastNote').hidden = !ff;
-    if (ff) $('fastNote').textContent = fastText(ff);
+    if (ff) $('fastNote').textContent = fastText(ff, fourWeekCheck(wts));
   }
   // Cards (the tiles of both card rows) can be dragged between the two rows, so a render never owns a row:
   // it replaces only its own cards (by data-card key) and placeCards() puts every card where the layout says.
