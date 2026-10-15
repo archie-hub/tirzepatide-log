@@ -90,6 +90,10 @@
   .hero-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
   .hero-face { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,.85); background: rgba(255,255,255,.2); flex: none; }
   .hero-face[hidden] { display: none; }
+  .hero-faces { display: flex; align-items: center; gap: 6px; flex: none; }
+  .hero-arrow { width: 34px; height: 17px; color: rgba(255,255,255,.9); flex: none; }
+  .hero-arrow[hidden] { display: none; }
+  @media (max-width: 420px) { .hero-arrow { width: 22px; } .hero-face { width: 52px; height: 52px; } }
   .hero-meta { display: flex; flex-wrap: wrap; column-gap: 8px; }
   .hero-meta .backup::before { content: "\00b7"; margin-right: 8px; }
   @media (max-width: 640px) { .hero-meta .backup::before { content: none; } }
@@ -617,7 +621,11 @@
   </section>
   <header class="hero">
     <div class="hero-left">
-      <img class="hero-face" id="heroFace" alt="Your latest face photo" hidden>
+      <span class="hero-faces">
+        <img class="hero-face" id="heroFaceFirst" alt="Your first face photo" hidden>
+        <svg class="hero-arrow" id="heroArrow" viewBox="0 0 48 24" aria-hidden="true" hidden><path d="M2 12 H38" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 7"/><path d="M30 4 L44 12 L30 20 Z" fill="currentColor"/></svg>
+        <img class="hero-face" id="heroFace" alt="Your latest face photo" hidden>
+      </span>
       <div>
         <h1>Tirzepatide log - work in progress</h1>
         <div class="hero-meta"><div class="sub" id="subtitle"></div><div class="sub backup" id="backupNote" hidden></div></div>
@@ -4556,18 +4564,18 @@
   function fillImg(img, p) {
     photoUrl(listed(p)).then(function (u) { img.src = u; }).catch(function () { img.alt = 'Could not load this photo'; });
   }
-  // the latest face photo, resized to a small square, in the header (this device only; never on a doctor link)
-  var heroFaceKey = '';
-  function updateHeroFace() {
-    var img = $('heroFace'), faces = photos.list.filter(function (p) { return p.slot === 'face'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }), p = faces[0];
-    if (!p) { heroFaceKey = ''; img.hidden = true; img.removeAttribute('src'); return; }
+  // The first and the latest face photo, resized to small squares with an arrow between them, in the header (this device only; never
+  // more than the one photo on a doctor link). With a single photo (or one date) only the latest shows.
+  var heroKeys = {};
+  function heroThumb(img, p, alt) {
+    if (!p) { heroKeys[img.id] = ''; img.hidden = true; img.removeAttribute('src'); return; }
     var key = p.date + '#' + p.updatedAt;
-    if (key === heroFaceKey && img.getAttribute('src')) { img.hidden = false; return; }
-    heroFaceKey = key;
+    if (key === heroKeys[img.id] && img.getAttribute('src')) { img.hidden = false; return; }
+    heroKeys[img.id] = key;
     photoUrl(p).then(function (u) {
       var im = new Image();
       im.onload = function () {
-        if (heroFaceKey !== key) return;
+        if (heroKeys[img.id] !== key) return;
         try {
           var c = document.createElement('canvas'), n = 160, side = Math.min(im.width, im.height) * 0.9;
           c.width = c.height = n;
@@ -4576,11 +4584,23 @@
           c.getContext('2d').drawImage(im, (im.width - side) / 2, sy, side, side, 0, 0, n, n);
           img.src = c.toDataURL('image/jpeg', 0.85);
         } catch (e) { img.src = u; }
-        img.alt = 'Your latest face photo, ' + fmtDate(p.date);
+        img.alt = alt + ', ' + fmtDate(p.date);
         img.hidden = false;
+        updateHeroArrow();
       };
       im.src = u;
-    }).catch(function () { img.hidden = true; });
+    }).catch(function () { img.hidden = true; updateHeroArrow(); });
+  }
+  function updateHeroArrow() {   // an SVG element has no .hidden property, so use the attribute
+    var off = $('heroFaceFirst').hidden || $('heroFace').hidden;
+    if (off) $('heroArrow').setAttribute('hidden', ''); else $('heroArrow').removeAttribute('hidden');
+  }
+  function updateHeroFace() {
+    var faces = photos.list.filter(function (p) { return p.slot === 'face'; }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    var first = faces[0], latest = faces[faces.length - 1];
+    heroThumb($('heroFace'), latest, 'Your latest face photo');
+    heroThumb($('heroFaceFirst'), faces.length > 1 && first.date !== latest.date ? first : null, 'Your first face photo');
+    updateHeroArrow();
   }
   function renderPhotos() {
     var panel = $('photosPanel');
